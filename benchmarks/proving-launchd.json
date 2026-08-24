@@ -1,0 +1,356 @@
+[
+  {
+    "test": "api_health",
+    "pass": true,
+    "detail": "/health status=ok, /v1/models returned 1 model(s), /props n_ctx=262144",
+    "evidence": {
+      "health": {
+        "status": "ok"
+      },
+      "models": {
+        "models": [
+          {
+            "name": "qwen-a",
+            "model": "qwen-a",
+            "modified_at": "",
+            "size": "",
+            "digest": "",
+            "type": "model",
+            "description": "",
+            "tags": [
+              ""
+            ],
+            "capabilities": [
+              "completion",
+              "multimodal"
+            ],
+            "parameters": "",
+            "details": {
+              "parent_model": "",
+              "format": "gguf",
+              "family": "",
+              "families": [
+                ""
+              ],
+              "parameter_size": "",
+              "quantization_level": ""
+            }
+          }
+        ],
+        "object": "list",
+        "data": [
+          {
+            "id": "qwen-a",
+            "aliases": [
+              "qwen-a"
+            ],
+            "tags": [],
+            "object": "model",
+            "created": 1787612968,
+            "owned_by": "llamacpp",
+            "meta": {
+              "vocab_type": true,
+              "n_vocab": 248320,
+              "n_ctx": 262144,
+              "n_ctx_train": 262144,
+              "n_embd": 5120,
+              "n_params": 27320697856,
+              "size": 29036089344,
+              "ftype": "Q8_0"
+            }
+          }
+        ]
+      },
+      "n_ctx": 262144,
+      "total_slots": 1,
+      "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf"
+    }
+  },
+  {
+    "test": "conversation",
+    "pass": true,
+    "detail": "3-turn exchange; turn 2 correctly recalled both the name and the machine stated in turn 1",
+    "evidence": {
+      "turn1": "Nice, Eric\u2014enjoy the M2 Ultra Mac Pro!",
+      "turn2": "You said your name is Eric and that you're setting up a Mac Pro with an M2 Ultra.",
+      "turn3": "You didn\u2019t state the unified memory amount for your M2 Ultra Mac Pro.",
+      "seconds": [
+        4.4,
+        5.0,
+        21.6
+      ]
+    }
+  },
+  {
+    "test": "reasoning",
+    "pass": true,
+    "detail": "switch puzzle used the heat/timing insight=True; bat-and-ball answered BALL=0.05 (correct=0.05) -> True",
+    "evidence": {
+      "answer": "Label the switches A, B, and C.\n\n1. Turn switch A on and leave it on for several minutes, so its bulb has time to heat up.\n2. Turn switch A off.\n3. Turn switch B on.\n4. Leave switch C off.\n5. Enter the room once.\n\nNow identify the bulbs:\n\n- The bulb that is **on** is controlled by **switch B**.\n- Of the two bulbs that are off, the one that is **warm/hot** is controlled by **switch A**.\n- The bulb that is off and **cool** is controlled by **switch C**.\n\nThis works because you create three distinguishable states:\n\n- \u201con\u201d = currently receiving power,\n- \u201coff but warm\u201d = recently received power,\n- \u201coff and cool\u201d = not recently receiving power.\n\nFor the bat and ball problem:\n\nLet the ball cost \\(x\\). Then the bat costs \\(x + 1.00\\).\n\n\\[\nx + (x + 1.00) = 1.10\n\\]\n\n\\[\n2x + 1.00 = 1.10\n\\]\n\n\\[\n2x = 0.10\n\\]\n\n\\[\nx = 0.05\n\\]\n\nSo the ball costs 5 cents.\n\nBALL=0.05",
+      "reasoning_chars": 3538,
+      "ball": "0.05",
+      "seconds": 59.8
+    }
+  },
+  {
+    "test": "coding",
+    "pass": true,
+    "detail": "generated code executed and passed all 6 unit cases including the touching-interval case",
+    "evidence": {
+      "code": "def merge_intervals(intervals: list[tuple[int, int]]) -> list[tuple[int, int]]:\n    normalized = sorted((min(start, end), max(start, end)) for start, end in intervals)\n    if not normalized:\n        return []\n\n    merged: list[tuple[int, int]] = [normalized[0]]\n    for start, end in normalized[1:]:\n        last_start, last_end = merged[-1]\n        if start <= last_end:\n            merged[-1] = (last_start, max(last_end, end))\n        else:\n            merged.append((start, end))\n\n    return merged\n",
+      "cases": [
+        {
+          "input": [],
+          "expected": [],
+          "got": [],
+          "ok": true
+        },
+        {
+          "input": [
+            [
+              1,
+              3
+            ]
+          ],
+          "expected": [
+            [
+              1,
+              3
+            ]
+          ],
+          "got": [
+            [
+              1,
+              3
+            ]
+          ],
+          "ok": true
+        },
+        {
+          "input": [
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              6
+            ],
+            [
+              8,
+              10
+            ],
+            [
+              15,
+              18
+            ]
+          ],
+          "expected": [
+            [
+              1,
+              6
+            ],
+            [
+              8,
+              10
+            ],
+            [
+              15,
+              18
+            ]
+          ],
+          "got": [
+            [
+              1,
+              6
+            ],
+            [
+              8,
+              10
+            ],
+            [
+              15,
+              18
+            ]
+          ],
+          "ok": true
+        },
+        {
+          "input": [
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "expected": [
+            [
+              1,
+              3
+            ]
+          ],
+          "got": [
+            [
+              1,
+              3
+            ]
+          ],
+          "ok": true
+        },
+        {
+          "input": [
+            [
+              5,
+              6
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "expected": [
+            [
+              1,
+              2
+            ],
+            [
+              5,
+              6
+            ]
+          ],
+          "got": [
+            [
+              1,
+              2
+            ],
+            [
+              5,
+              6
+            ]
+          ],
+          "ok": true
+        },
+        {
+          "input": [
+            [
+              1,
+              10
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "expected": [
+            [
+              1,
+              10
+            ]
+          ],
+          "got": [
+            [
+              1,
+              10
+            ]
+          ],
+          "ok": true
+        }
+      ],
+      "error": null,
+      "seconds": 46.2
+    }
+  },
+  {
+    "test": "structured_json",
+    "pass": true,
+    "detail": "json.loads() succeeded; all 5 required keys present=True; types conform=True",
+    "evidence": {
+      "raw": "{\n  \"city\": \"Tokyo\",\n  \"country\": \"Japan\",\n  \"population_millions\": 14.0,\n  \"landmarks\": [\n    \"Tokyo Tower\",\n    \"Shibuya Crossing\",\n    \"Senso-ji Temple\",\n    \"Imperial Palace\"\n  ],\n  \"is_capital\": true\n}",
+      "parsed": {
+        "city": "Tokyo",
+        "country": "Japan",
+        "population_millions": 14.0,
+        "landmarks": [
+          "Tokyo Tower",
+          "Shibuya Crossing",
+          "Senso-ji Temple",
+          "Imperial Palace"
+        ],
+        "is_capital": true
+      },
+      "seconds": 55.7
+    }
+  },
+  {
+    "test": "tool_calling",
+    "pass": true,
+    "detail": "server returned a structured tool_calls array (not prose): name=get_weather, args={'location': 'Reykjavik', 'unit': 'celsius'}, finish_reason=tool_calls",
+    "evidence": {
+      "tool_calls": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_weather",
+            "arguments": "{\"location\":\"Reykjavik\",\"unit\":\"celsius\"}"
+          },
+          "id": "zGaeEUUyU4qHxdsWmrxew6qsjypdwIp1"
+        }
+      ],
+      "parsed_args": {
+        "location": "Reykjavik",
+        "unit": "celsius"
+      },
+      "finish_reason": "tool_calls",
+      "roundtrip_reply": "It's currently **-3\u00b0C** in Reykjavik, with **light snow** falling. Bundle up if you're heading out! \u2744\ufe0f",
+      "seconds": 5.3
+    }
+  },
+  {
+    "test": "vision",
+    "pass": true,
+    "detail": "5/5 ground-truth elements recovered from the image: {'red circle': True, 'blue square': True, 'green triangle': True, 'number 47': True, 'caption text': True}",
+    "evidence": {
+      "description": "**Background:** A plain, light off\u2011white / cream field fills the entire image.\n\n**Shapes (top row, left to right):**\n1. A **circle**, solid **red**, positioned on the left.\n2. A **square**, solid **blue** (royal/medium blue), positioned in the center.\n3. A **triangle** (equilateral, pointing up), solid **green**, positioned on the right.\n\n**Number (center, below the shapes):**\n- A large, bold, **black** numeral: **47**\n\n**Text (bottom center, small, black, uppercase):**\n- \"NEWTON LOCAL VISION TEST\"\n\nThat is the complete set of elements: three colored geometric shapes (red circle, blue square, green triangle), one black number (47), and one line of black text (NEWTON LOCAL VISION TEST).",
+      "checks": {
+        "red circle": true,
+        "blue square": true,
+        "green triangle": true,
+        "number 47": true,
+        "caption text": true
+      },
+      "seconds": 22.8
+    }
+  },
+  {
+    "test": "stability",
+    "pass": true,
+    "detail": "12/12 requests completed without error, 12/12 content-correct, server /health still ok=True",
+    "evidence": {
+      "times": [
+        1.85,
+        0.5,
+        1.95,
+        1.9,
+        1.95,
+        1.91,
+        1.91,
+        1.95,
+        1.95,
+        1.95,
+        1.9,
+        1.9
+      ],
+      "correct": 12,
+      "health_after": {
+        "status": "ok"
+      }
+    }
+  }
+]

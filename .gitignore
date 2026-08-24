@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Newton_Local — repository hygiene
+#
+# Rule of thumb: anything large, generated, secret, or reproducible from a
+# pinned identity stays out of git. Manifests and documentation stay in.
+# ---------------------------------------------------------------------------
+
+# --- Model weights -----------------------------------------------------
+# Never commit weights. models/ itself IS tracked so that manifests and
+# documentation beside the weights remain versionable.
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# --- External / reproducible tool trees ---------------------------------
+# tools/llama.cpp is an upstream git clone (338 MB, nested .git). It is
+# fully reproducible from the commit pinned in docs/01-llamacpp.md via
+# scripts/build-llamacpp.sh.
+tools/llama.cpp/
+# tools/hf-venv is a Python virtualenv (32 MB), recreated on demand.
+tools/hf-venv/
+build/
+
+# --- Credentials and caches ---------------------------------------------
+# Defence in depth: HF tokens live in ~/.cache/huggingface, outside this
+# tree, but never let one land here by accident.
+**/token
+**/tokens
+.hf_token
+*.pem
+*.key
+.env
+.env.*
+!config/qwen-a.env
+.cache/
+**/.cache/
+hf-cache/
+
+# --- Local model download sources ---------------------------------------
+# Where each model's weights come from (repository, pinned revision,
+# upstream file names) is machine-local; the tracked template is
+# config/model-sources.example.json.
+config/model-sources.local.json
+
+# --- Runtime state and logs ---------------------------------------------
+logs/
+state/
+*.log
+*.pid
+
+# --- macOS noise ---------------------------------------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/

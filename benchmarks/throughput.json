@@ -1,0 +1,74 @@
+[
+  {
+    "test": "short_gen",
+    "cache_n": 0,
+    "prompt_n": 27,
+    "prompt_ms": 1587.659,
+    "prompt_per_token_ms": 58.80218518518519,
+    "prompt_per_second": 17.006170720538858,
+    "predicted_n": 400,
+    "predicted_ms": 18813.535,
+    "predicted_per_token_ms": 47.15171679197995,
+    "predicted_per_second": 21.208135525832866
+  },
+  {
+    "test": "short_gen",
+    "cache_n": 23,
+    "prompt_n": 4,
+    "prompt_ms": 92.848,
+    "prompt_per_token_ms": 23.212,
+    "prompt_per_second": 43.08116491469929,
+    "predicted_n": 400,
+    "predicted_ms": 18851.516,
+    "predicted_per_token_ms": 47.246907268170425,
+    "predicted_per_second": 21.165406538126696
+  },
+  {
+    "test": "short_gen",
+    "cache_n": 23,
+    "prompt_n": 4,
+    "prompt_ms": 93.73,
+    "prompt_per_token_ms": 23.4325,
+    "prompt_per_second": 42.67577083111063,
+    "predicted_n": 400,
+    "predicted_ms": 18864.764,
+    "predicted_per_token_ms": 47.28011027568922,
+    "predicted_per_second": 21.150542885137604
+  },
+  {
+    "test": "medium_pp",
+    "cache_n": 3618,
+    "prompt_n": 4,
+    "prompt_ms": 111.994,
+    "prompt_per_token_ms": 27.9985,
+    "prompt_per_second": 35.71619908209368,
+    "predicted_n": 19,
+    "predicted_ms": 894.185,
+    "predicted_per_token_ms": 49.676944444444445,
+    "predicted_per_second": 20.130062570944492
+  },
+  {
+    "test": "medium_pp",
+    "cache_n": 3618,
+    "prompt_n": 4,
+    "prompt_ms": 125.949,
+    "prompt_per_token_ms": 31.48725,
+    "prompt_per_second": 31.758886533438137,
+    "predicted_n": 19,
+    "predicted_ms": 856.242,
+    "predicted_per_token_ms": 47.568999999999996,
+    "predicted_per_second": 21.0220942210263
+  },
+  {
+    "test": "long_pp",
+    "cache_n": 18432,
+    "prompt_n": 4386,
+    "prompt_ms": 14622.062,
+    "prompt_per_token_ms": 3.3338034655722755,
+    "prompt_per_second": 299.95769406531036,
+    "predicted_n": 21,
+    "predicted_ms": 1093.553,
+    "predicted_per_token_ms": 54.67765000000001,
+    "predicted_per_second": 18.289008397398202
+  }
+]

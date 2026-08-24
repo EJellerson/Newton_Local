@@ -1,0 +1,60 @@
+0.00.042.190 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.042.491 W srv  llama_server: -----------------
+0.00.042.494 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.042.494 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.042.494 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.042.494 W srv  llama_server: -----------------
+0.00.043.983 I srv    load_model: loading model '/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf'
+0.00.576.113 W model has unused tensor blk.64.attn_norm.weight (size = 20480 bytes) -- ignoring
+0.00.576.123 W model has unused tensor blk.64.post_attention_norm.weight (size = 20480 bytes) -- ignoring
+0.00.576.129 W model has unused tensor blk.64.attn_q.weight (size = 66846720 bytes) -- ignoring
+0.00.576.131 W model has unused tensor blk.64.attn_k.weight (size = 5570560 bytes) -- ignoring
+0.00.576.133 W model has unused tensor blk.64.attn_v.weight (size = 5570560 bytes) -- ignoring
+0.00.576.141 W model has unused tensor blk.64.attn_output.weight (size = 33423360 bytes) -- ignoring
+0.00.576.143 W model has unused tensor blk.64.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+0.00.576.145 W model has unused tensor blk.64.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+0.00.576.147 W model has unused tensor blk.64.ffn_gate.weight (size = 94699520 bytes) -- ignoring
+0.00.576.148 W model has unused tensor blk.64.ffn_down.weight (size = 94699520 bytes) -- ignoring
+0.00.576.150 W model has unused tensor blk.64.ffn_up.weight (size = 94699520 bytes) -- ignoring
+0.00.576.153 W model has unused tensor blk.64.nextn.eh_proj.weight (size = 55705600 bytes) -- ignoring
+0.00.576.156 W model has unused tensor blk.64.nextn.enorm.weight (size = 20480 bytes) -- ignoring
+0.00.576.158 W model has unused tensor blk.64.nextn.hnorm.weight (size = 20480 bytes) -- ignoring
+0.00.576.164 W model has unused tensor blk.64.nextn.shared_head_norm.weight (size = 20480 bytes) -- ignoring
+0.01.934.001 I cmn          init: llama threadpool init, n_threads = 16
+0.03.296.357 W load_hparams: Qwen-VL models require at minimum 1024 image tokens to function correctly on grounding tasks
+0.03.296.363 W load_hparams: if you encounter problems with accuracy, try adding --image-min-tokens 1024
+0.03.296.363 W load_hparams: more info: https://github.com/ggml-org/llama.cpp/issues/16842
+
+0.03.757.593 I srv    load_model: loaded multimodal model, '/Users/ericjellerson/Newton_Local/models/qwen38-27b/mmproj-Qwen3.8-27B-f16.gguf'
+0.04.113.561 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 262144, kv_unified = 'false'
+0.04.117.898 I srv          init: chat template supports preserving reasoning, consider enabling it via --reasoning-preserve
+0.04.117.912 I srv  llama_server: model loaded
+0.04.117.916 I srv  llama_server: listening on http://127.0.0.1:8080
+0.04.117.916 W srv  llama_server: NOTICE: server default port will be changed to :9931 in a future release
+0.04.117.916 W srv  llama_server:         ref: https://github.com/ggml-org/llama.cpp/pull/26508
+2.16.668.211 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+2.16.668.422 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+2.23.163.992 I slot print_timing: id  0 | task 0 | n_gen =    100, tg =  21.15 t/s, tg_3s =  21.36 t/s
+2.26.200.960 I slot print_timing: id  0 | task 0 | n_gen =    165, tg =  21.25 t/s, tg_3s =  21.40 t/s
+2.29.233.002 I slot print_timing: id  0 | task 0 | n_gen =    230, tg =  21.30 t/s, tg_3s =  21.44 t/s
+2.30.447.766 I slot print_timing: id  0 | task 0 | prompt eval time =    1813.87 ms /    69 tokens (   26.29 ms per token,    38.04 tokens per second)
+2.30.447.769 I slot print_timing: id  0 | task 0 |        eval time =   11965.43 ms /   256 tokens (   46.92 ms per token,    21.31 tokens per second)
+2.30.447.769 I slot print_timing: id  0 | task 0 |       total time =   13779.30 ms /   325 tokens
+2.30.447.770 I slot print_timing: id  0 | task 0 |    graphs reused =        254
+2.30.447.783 I slot      release: id  0 | task 0 | stop processing: n_tokens = 324, truncated = 0
+2.43.363.061 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 1.000 (> 0.100 thold), f_keep = 0.213
+2.43.451.898 I slot launch_slot_: id  0 | task 259 | processing task, is_child = 0
+2.49.498.678 I slot print_timing: id  0 | task 259 | n_gen =    100, tg =  21.38 t/s, tg_3s =  21.60 t/s
+2.52.544.341 I slot print_timing: id  0 | task 259 | n_gen =    165, tg =  21.37 t/s, tg_3s =  21.34 t/s
+2.55.554.204 I slot print_timing: id  0 | task 259 | n_gen =    229, tg =  21.34 t/s, tg_3s =  21.26 t/s
+2.58.569.895 I slot print_timing: id  0 | task 259 | n_gen =    292, tg =  21.24 t/s, tg_3s =  20.89 t/s
+3.00.695.690 I slot print_timing: id  0 | task 259 | prompt eval time =    1416.87 ms /     4 tokens (  354.22 ms per token,     2.82 tokens per second)
+3.00.695.703 I slot print_timing: id  0 | task 259 |        eval time =   15826.90 ms /   336 tokens (   47.24 ms per token,    21.17 tokens per second)
+3.00.695.704 I slot print_timing: id  0 | task 259 |       total time =   17243.77 ms /   340 tokens
+3.00.695.706 I slot print_timing: id  0 | task 259 |    graphs reused =        587
+3.00.695.741 I slot      release: id  0 | task 259 | stop processing: n_tokens = 404, truncated = 0
+0.00.028.454 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.028.609 W srv  llama_server: -----------------
+0.00.028.610 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.028.611 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.028.611 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655

@@ -1,0 +1,22 @@
+[
+  {
+    "test": "long_context_128k",
+    "pass": true,
+    "detail": "prompt_tokens=150,170 (>131072 = True); needle 'PELICAN-93417-VERDIGRIS' recovered=True",
+    "evidence": {
+      "usage": {
+        "completion_tokens": 102,
+        "prompt_tokens": 150170,
+        "total_tokens": 150272,
+        "prompt_tokens_details": {
+          "cached_tokens": 42
+        }
+      },
+      "reply": "PELICAN-93417-VERDIGRIS",
+      "expected": "PELICAN-93417-VERDIGRIS",
+      "haystack_tokens": 150083,
+      "needle_line": 2870,
+      "seconds": 819.2
+    }
+  }
+]

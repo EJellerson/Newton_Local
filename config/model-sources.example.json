@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "Template for config/model-sources.local.json, which is machine-local and",
+    "untracked (.gitignore). It records where the model weights are downloaded",
+    "from: the Hugging Face repository and, where an upstream file name differs",
+    "from the local name, a local -> upstream file-name map.",
+    "Read by scripts/download-model.sh."
+  ],
+  "qwen27b": {
+    "hf_repo": "<owner>/<repository>",
+    "files": {
+      "Qwen3.8-27B-Q8_0.gguf": "<upstream file name>",
+      "mmproj-Qwen3.8-27B-f16.gguf": "<upstream file name>"
+    }
+  }
+}

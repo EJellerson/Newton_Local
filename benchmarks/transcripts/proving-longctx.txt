@@ -1,0 +1,23 @@
+
+==============================================================================
+== 8. LONG CONTEXT (>128K) NEEDLE RETRIEVAL
+==============================================================================
+[haystack tokens] 150,083
+[needle at line]  2,870 of 5,220 (depth 55%)
+[needle]          IMPORTANT RECORD: The Newton Local commissioning authorization code for reactor bay seven is PELICAN-93417-VERDIGRIS. Remember this code.
+[expected answer] PELICAN-93417-VERDIGRIS
+
+[server usage] {"completion_tokens": 102, "prompt_tokens": 150170, "total_tokens": 150272, "prompt_tokens_details": {"cached_tokens": 42}}
+[model reply]  PELICAN-93417-VERDIGRIS
+[elapsed]      819.2s
+
+PASS  long_context_128k  --  prompt_tokens=150,170 (>131072 = True); needle 'PELICAN-93417-VERDIGRIS' recovered=True
+
+==============================================================================
+== SUMMARY
+==============================================================================
+  PASS  long_context_128k    prompt_tokens=150,170 (>131072 = True); needle 'PELICAN-93417-VERDIGRIS' recovered=True
+
+  1/1 passed
+  wrote benchmarks/proving-longctx.json
+EXIT=0

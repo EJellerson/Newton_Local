@@ -1,0 +1,277 @@
+
+==============================================================================
+== 1. API HEALTH
+==============================================================================
+GET /health -> 200 {"status": "ok"}
+GET /v1/models -> 200 {"models": [{"name": "qwen-a", "model": "qwen-a", "modified_at": "", "size": "", "digest": "", "type": "model", "description": "", "tags": [""], "capabilities": ["completion", "multimodal"], "parameters": "", "details": {"parent_model": "", "format": "gguf", "family": "", "families": [""], "parameter_size": "", "quantization_level": ""}}], "object": "list", "data": [{"id": "qwen-a", "aliases": ["q
+GET /props -> n_ctx=262144  total_slots=1
+           model_path=/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf
+
+PASS  api_health  --  /health status=ok, /v1/models returned 1 model(s), /props n_ctx=262144
+
+==============================================================================
+== 2. MULTI-TURN CONVERSATION
+==============================================================================
+[turn 1 user]      My name is Eric and I'm setting up a Mac Pro with an M2 Ultra. Reply in one short sentence.
+[turn 1 assistant] Nice setup, Eric—enjoy that M2 Ultra!  (4.7s)
+[turn 2 user]      What machine did I just say I was setting up, and what is my name? Answer in one line.
+[turn 2 assistant] Your name is Eric, and you are setting up a Mac Pro with an M2 Ultra.  (4.9s)
+[turn 3 user]      How much unified memory does that chip have in my setup? I told you the model earlier. If I didn't state the memory, say so.
+[turn 3 assistant] You didn't state the memory amount for your M2 Ultra Mac Pro.  (20.7s)
+
+PASS  conversation  --  3-turn exchange; turn 2 correctly recalled both the name and the machine stated in turn 1
+
+==============================================================================
+== 3. REASONING
+==============================================================================
+[prompt] Three switches outside a windowless room control three bulbs inside. You may flip switches as much as you like, but you may enter the room only once, and after entering you may not go back out to the switches. Determine  ...
+
+[reasoning_content len] 2252 chars
+[reasoning excerpt] We need answer user. Need solve classic switch puzzle and bat ball. Need final end exact line: BALL=<value>. Need likely value 0.05? Let's analyze.  User: "Three switches outside a windowless room control three bulbs inside. You may flip switches as much as you like, but you may enter the room only once, and after entering you may not go back out to the switches. Determine which switch controls which bulb. Explain the method and why it works. Then, separately, answer: a bat and a ball cost $1.10 together; the bat costs $1.00 more than the ball; how much is the ball? End your reply with the exa ...
+
+[answer]
+Label the switches A, B, and C.
+
+1. Turn switch A on and leave it on for several minutes.
+2. Turn switch A off.
+3. Turn switch B on.
+4. Immediately enter the room.
+
+Now:
+
+- The bulb that is on is controlled by switch B.
+- The bulb that is off but warm is controlled by switch A, because it was on long enough to heat up.
+- The bulb that is off and cold is controlled by switch C, because it was never turned on.
+
+This works because the state of each bulb when you enter encodes three distinct possibilities: currently on, recently on, or never on.
+
+For the bat and ball problem:
+
+Let the ball cost \(x\). Then the bat costs \(x + 1.00\).
+
+\[
+x + (x + 1.00) = 1.10
+\]
+
+\[
+2x + 1.00 = 1.10
+\]
+
+\[
+2x = 0.10
+\]
+
+\[
+x = 0.05
+\]
+
+BALL=0.05
+
+(40.3s)
+
+PASS  reasoning  --  switch puzzle used the heat/timing insight=True; bat-and-ball answered BALL=0.05 (correct=0.05) -> True
+
+==============================================================================
+== 4. CODING
+==============================================================================
+[prompt] Write a single self-contained Python 3 function:
+
+    def merge_intervals(intervals: list[tuple[int,int]]) -> list[tuple[int,int]]
+
+It merges overlapping closed intervals and returns them sorted by st ...
+
+[raw reply]
+```python
+def merge_intervals(intervals: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    if not intervals:
+        return []
+
+    sorted_intervals = sorted(intervals, key=lambda interval: (interval[0], interval[1]))
+    merged = [sorted_intervals[0]]
+
+    for start, end in sorted_intervals[1:]:
+        last_start, last_end = merged[-1]
+
+        if start <= last_end:
+            if end > last_end:
+                merged[-1] = (last_start, end)
+        else:
+            merged.append((start, end))
+
+    return merged
+```
+
+[extracted code]
+def merge_intervals(intervals: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    if not intervals:
+        return []
+
+    sorted_intervals = sorted(intervals, key=lambda interval: (interval[0], interval[1]))
+    merged = [sorted_intervals[0]]
+
+    for start, end in sorted_intervals[1:]:
+        last_start, last_end = merged[-1]
+
+        if start <= last_end:
+            if end > last_end:
+                merged[-1] = (last_start, end)
+        else:
+            merged.append((start, end))
+
+    return merged
+  ok  f([]) = []   expected []
+  ok  f([(1, 3)]) = [(1, 3)]   expected [(1, 3)]
+  ok  f([(1, 3), (2, 6), (8, 10), (15, 18)]) = [(1, 6), (8, 10), (15, 18)]   expected [(1, 6), (8, 10), (15, 18)]
+  ok  f([(1, 2), (2, 3)]) = [(1, 3)]   expected [(1, 3)]
+  ok  f([(5, 6), (1, 2)]) = [(1, 2), (5, 6)]   expected [(1, 2), (5, 6)]
+  ok  f([(1, 10), (2, 3), (4, 5)]) = [(1, 10)]   expected [(1, 10)]
+
+PASS  coding  --  generated code executed and passed all 6 unit cases including the touching-interval case
+
+==============================================================================
+== 5. STRUCTURED JSON OUTPUT
+==============================================================================
+[response_format] json_schema (strict), schema:
+{
+  "type": "object",
+  "properties": {
+    "city": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "population_millions": {
+      "type": "number"
+    },
+    "landmarks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "maxItems": 4
+    },
+    "is_capital": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "city",
+    "country",
+    "population_millions",
+    "landmarks",
+    "is_capital"
+  ],
+  "ad
+
+[raw content]
+{
+  "city": "Tokyo",
+  "country": "Japan",
+  "population_millions": 14.0,
+  "landmarks": [
+    "Tokyo Tower",
+    "Shibuya Crossing",
+    "Senso-ji Temple",
+    "Imperial Palace"
+  ],
+  "is_capital": true
+}
+
+[json.loads OK] -> {"city": "Tokyo", "country": "Japan", "population_millions": 14.0, "landmarks": ["Tokyo Tower", "Shibuya Crossing", "Senso-ji Temple", "Imperial Palace"], "is_capital": true}
+
+PASS  structured_json  --  json.loads() succeeded; all 5 required keys present=True; types conform=True
+
+==============================================================================
+== 6. NATIVE TOOL CALLING
+==============================================================================
+[tools supplied] ['get_weather', 'convert_currency']
+[prompt] What's the weather in Reykjavik right now? Use celsius.
+
+[finish_reason] tool_calls
+[message.content] 
+[message.tool_calls]
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "get_weather",
+      "arguments": "{\"location\":\"Reykjavik\",\"unit\":\"celsius\"}"
+    },
+    "id": "gDSGOFlIN2HMFo7yDxOJLUYMT1IFyalg"
+  }
+]
+
+[tool result fed back] {"temperature": -3, "conditions": "light snow"}
+[final assistant] It's currently **-3°C** in Reykjavik with **light snow** falling. Bundle up if you're heading out! 🌨️
+
+PASS  tool_calling  --  server returned a structured tool_calls array (not prose): name=get_weather, args={'location': 'Reykjavik', 'unit': 'celsius'}, finish_reason=tool_calls
+
+==============================================================================
+== 7. VISION (mmproj)
+==============================================================================
+[image] assets/vision-test.png  (7740 bytes)
+[known ground truth] red circle, blue square, green triangle, the number 47, caption 'NEWTON LOCAL VISION TEST'
+
+[model description]
+**Shapes and colours (top row, left to right):**
+1. Circle – red
+2. Square – blue
+3. Triangle – green
+
+**Number:**
+- 47 (large, black, centred below the shapes)
+
+**Text:**
+- "NEWTON LOCAL VISION TEST" (small, black, at the bottom)
+
+**Background:** plain light off‑white / cream.
+
+That is everything visible in the image: three geometric shapes (red circle, blue square, green triangle), the number 47, and the caption text "NEWTON LOCAL VISION TEST".
+
+(19.8s)
+  ok  red circle
+  ok  blue square
+  ok  green triangle
+  ok  number 47
+  ok  caption text
+
+PASS  vision  --  5/5 ground-truth elements recovered from the image: {'red circle': True, 'blue square': True, 'green triangle': True, 'number 47': True, 'caption text': True}
+(skipping longctx -- not configured)
+
+==============================================================================
+== 9. REPEATED-REQUEST STABILITY (12 sequential requests)
+==============================================================================
+  req  1/12    1.86s  correct=True  reply='0'
+  req  2/12    0.50s  correct=True  reply='7'
+  req  3/12    2.03s  correct=True  reply='14'
+  req  4/12    1.97s  correct=True  reply='21'
+  req  5/12    1.97s  correct=True  reply='28'
+  req  6/12    2.00s  correct=True  reply='35'
+  req  7/12    1.91s  correct=True  reply='42'
+  req  8/12    1.95s  correct=True  reply='49'
+  req  9/12    1.95s  correct=True  reply='56'
+  req 10/12    1.96s  correct=True  reply='63'
+  req 11/12    1.99s  correct=True  reply='70'
+  req 12/12    1.91s  correct=True  reply='77'
+
+[/health after 12 requests] 200 {"status": "ok"}
+
+PASS  stability  --  12/12 requests completed without error, 12/12 content-correct, server /health still ok=True
+
+==============================================================================
+== SUMMARY
+==============================================================================
+  PASS  api_health           /health status=ok, /v1/models returned 1 model(s), /props n_ctx=262144
+  PASS  conversation         3-turn exchange; turn 2 correctly recalled both the name and the machine stated in turn 1
+  PASS  reasoning            switch puzzle used the heat/timing insight=True; bat-and-ball answered BALL=0.05 (correct=0.05) -> T
+  PASS  coding               generated code executed and passed all 6 unit cases including the touching-interval case
+  PASS  structured_json      json.loads() succeeded; all 5 required keys present=True; types conform=True
+  PASS  tool_calling         server returned a structured tool_calls array (not prose): name=get_weather, args={'location': 'Reyk
+  PASS  vision               5/5 ground-truth elements recovered from the image: {'red circle': True, 'blue square': True, 'green
+  PASS  stability            12/12 requests completed without error, 12/12 content-correct, server /health still ok=True
+
+  8/8 passed
+  wrote benchmarks/proving-core.json
+EXIT=0

@@ -1,0 +1,14 @@
+test                          prompt_n   pp tok/s   gen_n   tg tok/s
+----------------------------------------------------------------------
+short prompt / gen 1                27       17.0     400      21.21
+short prompt / gen 2                 4       43.1     400      21.17
+short prompt / gen 3                 4       42.7     400      21.15
+medium prompt / pp 1                 4       35.7      19      20.13
+medium prompt / pp 2                 4       31.8      19      21.02
+long prompt / pp                  4386      300.0      21      18.29
+----------------------------------------------------------------------
+generation (short ctx)  median 21.17 tok/s  min 21.15  max 21.21
+prompt processing (~4k) median 33.7 tok/s
+prompt processing (~26k)       300.0 tok/s
+wrote benchmarks/throughput.json
+EXIT=0

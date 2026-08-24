@@ -1,0 +1,3 @@
+=== local sha256 ===
+31756fca94beca71ea4b8706d6fdc896dab2a3c6376ab0c1863b98512a24f8d6  Qwen3.8-27B-Q8_0.gguf
+add205b7bfdb3f71f6da36b0a82aa20928dd829a920878c602628cdfbebc5288  mmproj-Qwen3.8-27B-f16.gguf
