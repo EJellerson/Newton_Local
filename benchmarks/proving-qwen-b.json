@@ -1,0 +1,105 @@
+{
+  "url": "http://127.0.0.1:8081",
+  "alias": "qwen-b",
+  "ts": 1787614441.837868,
+  "ts_iso": "2026-08-24T19:34:01-0400",
+  "passed": 5,
+  "total": 5,
+  "results": [
+    {
+      "test": "identity_parity",
+      "pass": true,
+      "detail": "alias=qwen-b ftype=Q8_0 n_ctx=262144 vision=True canonical_weights=True",
+      "evidence": {
+        "props_subset": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144,
+          "modalities": {
+            "vision": true,
+            "video": true,
+            "audio": false
+          },
+          "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf",
+          "build_info": "b1-f280b26",
+          "total_slots": 1
+        },
+        "models_ids": [
+          "qwen-b"
+        ]
+      }
+    },
+    {
+      "test": "basic_inference",
+      "pass": true,
+      "detail": "21.43 tok/s, answer contains W/74",
+      "evidence": {
+        "prompt": "Answer with one short sentence only. What is the chemical symbol for tungsten and its atomic number?",
+        "answer": "Tungsten has the chemical symbol W and atomic number 74.",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 72,
+          "prompt_ms": 2220.15,
+          "prompt_per_token_ms": 30.835416666666667,
+          "prompt_per_second": 32.430241199918925,
+          "predicted_n": 90,
+          "predicted_ms": 4152.677,
+          "predicted_per_token_ms": 46.65929213483146,
+          "predicted_per_second": 21.43195822839099
+        }
+      }
+    },
+    {
+      "test": "tool_calling",
+      "pass": true,
+      "detail": "emitted 1 tool_call(s); parsed args={'city': 'Reykjavik', 'country_code': 'IS'}",
+      "evidence": {
+        "prompt": "What is the air quality right now in Reykjavik, Iceland? Use the tool.",
+        "tool_calls": [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_air_quality",
+              "arguments": "{\"city\":\"Reykjavik\",\"country_code\":\"IS\"}"
+            },
+            "id": "X1Zix1xyhlxEMQtxTPFer0H5Uv1nFbVB"
+          }
+        ],
+        "parsed_args": {
+          "city": "Reykjavik",
+          "country_code": "IS"
+        },
+        "finish_reason": "tool_calls"
+      }
+    },
+    {
+      "test": "tool_roundtrip",
+      "pass": true,
+      "detail": "model consumed the tool result and cited AQI 17",
+      "evidence": {
+        "answer": "The current air quality in **Reykjavik, Iceland** is:\n\n- **AQI:** 17\n- **Category:** \ud83d\udfe2 **Good**\n\nThe air quality is currently good, meaning air pollution levels are low and pose little to no risk to health."
+      }
+    },
+    {
+      "test": "vision",
+      "pass": true,
+      "detail": "vision response 87 chars in 14.6s",
+      "evidence": {
+        "image": "/Users/ericjellerson/Newton_Local/assets/vision-test.png",
+        "prompt": "Look at this image. List every distinct shape you see and the exact text rendered in it. Be literal and concise.",
+        "answer": "- Red circle\n- Blue square\n- Green triangle\n- Text: 47\n- Text: NEWTON LOCAL VISION TEST",
+        "timings": {
+          "cache_n": 42,
+          "prompt_n": 336,
+          "prompt_ms": 1510.935,
+          "prompt_per_token_ms": 4.496830357142857,
+          "prompt_per_second": 222.37885812427405,
+          "predicted_n": 278,
+          "predicted_ms": 13067.852,
+          "predicted_per_token_ms": 47.17636101083033,
+          "predicted_per_second": 21.1970567159775
+        }
+      }
+    }
+  ]
+}

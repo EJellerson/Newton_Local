@@ -1,0 +1,14 @@
+#!/bin/bash
+# Newton_Local — operator entry point for the Qwen-B elastic worker.
+# Thin wrapper over scripts/qwenctl.py so operators never need to remember
+# launchd domains, labels, or plist paths.
+#
+#   qwen-b status
+#   qwen-b acquire --owner <job-id>
+#   qwen-b health
+#   qwen-b release --owner <job-id>
+#   qwen-b terminate
+#   qwen-b reconcile
+#   qwen-b reap
+#   qwen-b logs
+exec /usr/bin/env python3 /Users/ericjellerson/Newton_Local/scripts/qwenctl.py "$@"

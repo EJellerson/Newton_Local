@@ -1,0 +1,49 @@
+== waiting for a quiet window (no ML_Model/SP6 run_e* process)
+   quiet at 19:56:28
+
+==============================================================
+ CAPACITY BENCHMARK  tag=clean tokens=500 pad_words=3000
+ started 19:56:28   ml_busy=no
+==============================================================
+
+######## PHASE 1: A ALONE (B stopped) ########
+  qwen-b state: qwen-b  state=STOPPED
+== phase 'a-alone-clean'  targets=['a']  max_tokens=500  prompt_chars=19375  nonce=clean-1787615788-p1
+   qwen-a: ftype=Q8_0 n_ctx=262144 slots=1
+
+-- phase wall 39.885s
+   qwen-a: gen=19.692 tok/s  prompt=332.405 tok/s  n=500  wall=39.883s  finish=length  err=None
+   in-flight: gpu_alloc_max=47.02 GiB  swapouts=0  compressor_max=1.439 GiB  pressure_levels=['1']
+   contaminated_by_unrelated_load = True
+   wrote benchmarks/bench-a-alone-clean.json
+
+######## PHASE 2: A + B CONCURRENT ########
+  acquired pid 6115 ready_s 7.17
+== phase 'ab-concurrent-clean'  targets=['a', 'b']  max_tokens=500  prompt_chars=19461  nonce=clean-1787615788-p2
+   qwen-a: ftype=Q8_0 n_ctx=262144 slots=1
+   qwen-b: ftype=Q8_0 n_ctx=262144 slots=1
+
+-- phase wall 69.483s
+   qwen-a: gen=12.004 tok/s  prompt=189.446 tok/s  n=500  wall=66.728s  finish=length  err=None
+   qwen-b: gen=11.177 tok/s  prompt=192.14 tok/s  n=500  wall=69.481s  finish=length  err=None
+   overlap: 66.728s (100% of the shorter request); both-processing samples 29/30
+   in-flight: gpu_alloc_max=93.14 GiB  swapouts=0  compressor_max=1.288 GiB  pressure_levels=['1']
+   contaminated_by_unrelated_load = True
+   wrote benchmarks/bench-ab-clean.json
+
+######## PHASE 3: A AFTER B STOPPED ########
+TERMINATED qwen-b  state=STOPPED  stop=1.03s
+  before  pid=6115 listening=True
+  after   pid=None listening=False processes=0
+== phase 'a-after-b-clean'  targets=['a']  max_tokens=500  prompt_chars=19431  nonce=clean-1787615788-p3
+   qwen-a: ftype=Q8_0 n_ctx=262144 slots=1
+
+-- phase wall 39.759s
+   qwen-a: gen=19.657 tok/s  prompt=334.605 tok/s  n=500  wall=39.759s  finish=length  err=None
+   in-flight: gpu_alloc_max=47.0 GiB  swapouts=0  compressor_max=1.224 GiB  pressure_levels=['1']
+   contaminated_by_unrelated_load = True
+   wrote benchmarks/bench-a-after-b-clean.json
+
+== ml_busy at finish: no
+1188.1 /Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python ML_Model/SP6/tools/run_e004.py
+== done 19:59:14

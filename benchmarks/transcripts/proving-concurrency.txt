@@ -1,0 +1,17 @@
+== concurrent A+B correctness proof
+
+-- qwen-a  correct=True  finish=stop  wall=13.0s  gen=15.205 tok/s  n=163
+   question : Answer in one short sentence. A freight train leaves at 14:20 and arrives at 21:05 the same day. How long is the journey in hours and minutes? Then state the capital of Portugal.
+   answer   : 'The journey is 6 hours 45 minutes, and the capital of Portugal is Lisbon.'
+   expected substrings ['6', '45', 'lisbon'] -> ALL PRESENT
+
+-- qwen-b  correct=True  finish=stop  wall=9.236s  gen=12.328 tok/s  n=107
+   question : Answer in one short sentence. What is 17 * 23, and what is the chemical symbol for potassium?
+   answer   : '17 × 23 is 391, and the chemical symbol for potassium is K.'
+   expected substrings ['391', 'k'] -> ALL PRESENT
+
+-- overlap 9.236s = 100% of the shorter request; both-processing samples 5/9
+-- n_ctx observed DURING flight: a=[262144] b=[262144]
+-- quant observed DURING flight: a=['Q8_0'] b=['Q8_0']
+
+PASS — wrote benchmarks/proving-concurrency.json

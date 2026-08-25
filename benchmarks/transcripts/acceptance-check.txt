@@ -1,0 +1,50 @@
+== 1-2. both services identity
+  PASS  A healthy on 8080
+  PASS  A socket loopback-only  (127.0.0.1:8080)
+  PASS  B launchd registered in gui/501  (yes)
+== 6-7. B normally stopped, no autoload, memory reclaimed
+  PASS  B controller state  (STOPPED)
+  PASS  B process count  (0)
+  PASS  port 8081 closed  (CLOSED)
+  PASS  B RunAtLoad  (false)
+  PASS  B KeepAlive  (false)
+  PASS  GPU alloc back to A-only (~46 GiB)  (yes)
+== 3. shared canonical artifacts, no duplicate model
+  PASS  GGUF copies on disk  (1)
+  PASS  mmproj copies on disk  (1)
+== 8. deterministic start -> READY
+  PASS  acquire state  (BUSY)
+      start: spawn=0.04s ready=6.62s
+== 4-5. B runtime + loopback
+  PASS  B ftype  (Q8_0)
+  PASS  B n_ctx  (262144)
+  PASS  B vision  (True)
+  PASS  B model == A model  (/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf)
+  PASS  B socket loopback-only  (127.0.0.1:8081)
+  PASS  B unreachable on LAN IP  (000)
+== 9. A usable while B is up
+  PASS  A inference with B running
+== 18. duplicate acquire prevented
+  PASS  conflicting acquire exit code  (3)
+  PASS  still exactly one B process  (1)
+== 19-20. release -> IDLE, reacquire reuses
+  PASS  state after release  (IDLE)
+  PASS  reacquire reused worker  (True)
+  PASS  reacquire did not reload  (False)
+  PASS  same pid across reacquire  (12646)
+== 14-15-21. terminate, reclaim, A unaffected
+      GPU alloc 93.2 -> 47.03 GiB
+  PASS  GPU reclaimed >40 GiB  (yes)
+  PASS  B process gone  (0)
+  PASS  port 8081 closed  (CLOSED)
+  PASS  A healthy after B stop
+  PASS  final B state  (STOPPED)
+== 27-29. scope exclusions
+  PASS  no Hermes  (0)
+  PASS  no Foreman impl  (0)
+  PASS  no third instance (8082+)  (0)
+  PASS  llama-server processes total  (1)
+
+==============================================
+ ACCEPTANCE: 34 passed, 0 failed
+==============================================

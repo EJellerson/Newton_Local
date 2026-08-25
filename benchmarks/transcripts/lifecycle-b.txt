@@ -1,0 +1,227 @@
+==============================================================
+ QWEN-B ELASTIC WORKER — LIFECYCLE PROVING RUN
+ started 2026-08-24 19:46:22 -0400   idle TTL = 180s
+==============================================================
+
+################ 0. GROUND TRUTH BEFORE ANYTHING ################
+
+---- controller
+qwen-b  state=BUSY  owner=commission2-start-proof  pid=1587
+  endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+  launchd    state=running bootstrapped=True runs=1 last_exit=(never exited)
+  socket     listening=True bind=127.0.0.1:8081
+  health     ok=True   observed=UP
+  runtime    alias=qwen-b ftype=Q8_0 n_ctx=262144 vision=True slots=1
+  rss        18.25 GiB
+
+---- process
+pid=1587 rss=18.25GiB
+
+---- port 8081
+OPEN
+
+---- qwen-a
+{"status":"ok"}
+---- memory
+  gpu_alloc=93.15GiB app=78.74GiB cached=43.79GiB free=0.06GiB headroom=43.98GiB compressor=1.893GiB swapouts=0 pressure=1
+  llama: [('qwen-b', 1587, 18.25), ('qwen-a', 97191, 22.94)]
+
+################ 1. RELEASE  (BUSY -> IDLE, idle TTL starts, worker STAYS LOADED) ################
+RELEASED qwen-b  state=IDLE  pid=1587  (was owned by commission2-start-proof)
+  worker stays loaded for 180s; re-acquire inside that window avoids a model reload
+  terminates at ~2026-08-24T19:49:23-0400
+
+---- state
+qwen-b  state=IDLE  pid=1587
+  endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+  launchd    state=running bootstrapped=True runs=1 last_exit=(never exited)
+
+---- process still present?
+pid=1587 rss=18.25GiB
+
+################ 2. RE-ACQUIRE INSIDE THE IDLE TTL  (must NOT reload the model) ################
+pid before re-acquire = 1587   generation before = 1
+{
+  "ok": true,
+  "worker": "qwen-b",
+  "state": "BUSY",
+  "owner": "commission2-reuse-proof",
+  "pid": 1587,
+  "endpoint": "http://127.0.0.1:8081",
+  "openai_base_url": "http://127.0.0.1:8081/v1",
+  "model": "qwen-b",
+  "domain": "gui/501",
+  "label": "com.newton.qwen38server.b",
+  "reused_loaded_worker": true,
+  "model_reloaded": false,
+  "acquire_wall_s": 0.47,
+  "last_start": {
+    "kickstart_at": "2026-08-24T19:40:09-0400",
+    "spawn_latency_s": 0.03,
+    "load_to_ready_s": 6.71,
+    "generation": 1
+  },
+  "runtime": {
+    "alias": "qwen-b",
+    "ftype": "Q8_0",
+    "n_ctx": 262144,
+    "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf",
+    "modalities": {
+      "vision": true,
+      "video": true,
+      "audio": false
+    },
+    "total_slots": 1,
+    "build_info": "b1-f280b26"
+  },
+  "idle_ttl_seconds": 180,
+  "generation": 1,
+  "note": "reused loaded worker from IDLE; no model reload"
+}
+pid after  re-acquire = 1587    generation after  = 1
+RESULT: SAME PID, SAME GENERATION -> model was NOT reloaded. PASS
+
+################ 3. DUPLICATE-ACQUIRE PREVENTION  (second owner must be refused) ################
+
+---- attempt by a different owner while BUSY
+{
+  "error": "lease_conflict",
+  "state": "BUSY",
+  "held_by": "commission2-reuse-proof",
+  "requested_by": "commission2-intruder",
+  "pid": 1587,
+  "acquired_at": "2026-08-24T19:46:24-0400",
+  "last_activity": "2026-08-24T19:46:24-0400",
+  "hint": "wait for release, or pass --steal to take it over deliberately"
+}
+exit code = 3   (3 = lease conflict, as designed)
+
+---- worker process count (must still be exactly 1)
+pid=1587 rss=18.25GiB
+qwen-b process count = 1
+
+################ 4. CONCURRENT ACQUIRE RACE  (two simultaneous cold acquirers) ################
+
+---- release + terminate first, so both racers see STOPPED
+TERMINATED qwen-b  state=STOPPED  stop=0.78s
+  before  pid=1587 listening=True
+  after   pid=None listening=False processes=0
+NONE
+CLOSED
+
+---- firing two acquires at once
+racer-1 exit=0
+racer-2 exit=3
+
+---- racer-1 result
+{
+  "ok": true,
+  "worker": "qwen-b",
+  "state": "BUSY",
+  "owner": "racer-1",
+  "pid": 3008,
+  "endpoint": "http://127.0.0.1:8081",
+  "openai_base_url": "http://127.0.0.1:8081/v1",
+  "model": "qwen-b",
+  "domain": "gui/501",
+  "label": "com.newton.qwen38server.b",
+  "reused_loaded_worker": false,
+  "model_reloaded": true,
+  "acquire_wall_s": 5.03,
+  "last_start": {
+    "kickstart_at": "2026-08-24T19:46:26-0400",
+    "spawn_latency_s": 0.03,
+    "load_to_ready_s": 4.61,
+    "generation": 2
+  },
+  "runtime": {
+    "alias": "qwen-b",
+    "ftype": "Q8_0",
+    "n_ctx": 262144,
+    "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf",
+   
+
+---- racer-2 result
+{
+  "error": "lease_conflict",
+  "state": "BUSY",
+  "held_by": "racer-1",
+  "requested_by": "racer-2",
+  "pid": 3008,
+  "acquired_at": "2026-08-24T19:46:26-0400",
+  "last_activity": "2026-08-24T19:46:30-0400",
+  "hint": "wait for release, or pass --steal to take it over deliberately"
+}
+
+
+---- process count after the race (must be exactly 1)
+qwen-b process count = 1
+pid=3008 rss=17.40GiB
+
+---- launchd job count (must be exactly 1)
+	state = running
+	runs = 2
+	pid = 3008
+
+---- qwen-a
+{"status":"ok"}
+################ 5. INFERENCE ON THE ACQUIRED WORKER ################
+lease owner = racer-1
+answer: B-LEASED-OK
+gen tok/s: 21.28
+
+################ 6. IDLE-TTL EXPIRY PATH  (release, then let the reaper terminate it) ################
+
+---- memory BEFORE release
+  gpu_alloc=92.25GiB app=39.19GiB cached=17.18GiB free=21.15GiB headroom=38.45GiB compressor=1.893GiB swapouts=0 pressure=1
+  llama: [('qwen-b', 3008, 17.7), ('qwen-a', 97191, 22.94)]
+RELEASED qwen-b  state=IDLE  pid=3008  (was owned by racer-1)
+  worker stays loaded for 180s; re-acquire inside that window avoids a model reload
+  terminates at ~2026-08-24T19:49:34-0400
+
+---- state right after release
+qwen-b  state=IDLE  pid=3008
+  endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+  launchd    state=running bootstrapped=True runs=2 last_exit=0
+  socket     listening=True bind=127.0.0.1:8081
+  health     ok=True   observed=UP
+  runtime    alias=qwen-b ftype=Q8_0 n_ctx=262144 vision=True slots=1
+  rss        17.7 GiB
+  idle       179.8s left of 180s TTL
+
+waiting 240s for the 180s idle TTL to expire (reaper runs every 30s)...
+  t+30s  state/idle_remaining = IDLE 149.6   proc=pid=3008 rss=17.70GiB
+  t+60s  state/idle_remaining = IDLE 119.4   proc=pid=3008 rss=17.70GiB
+  t+90s  state/idle_remaining = IDLE 89.2   proc=pid=3008 rss=17.70GiB
+  t+120s  state/idle_remaining = IDLE 58.8   proc=pid=3008 rss=17.70GiB
+  t+150s  state/idle_remaining = IDLE 28.6   proc=pid=3008 rss=17.70GiB
+  t+180s  state/idle_remaining = IDLE -1.7   proc=pid=3008 rss=17.70GiB
+  t+210s  state/idle_remaining = STOPPED None   proc=NONE
+
+---- state after TTL
+qwen-b  state=STOPPED
+  endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+  launchd    state=not running bootstrapped=True runs=2 last_exit=0
+  socket     listening=False bind=None
+  health     ok=False   observed=DOWN
+  note       terminated by idle-TTL reaper at 2026-08-24T19:50:05-0400 after 210s idle
+
+---- process
+NONE
+
+---- port 8081
+CLOSED
+
+---- reaper log
+reap: idle TTL expired (210s >= 180s) — terminating qwen-b pid 3008
+reap: state=STOPPED listening=False processes=0
+
+---- memory AFTER ttl-terminate
+  gpu_alloc=46.11GiB app=37.69GiB cached=46.27GiB free=38.66GiB headroom=85.05GiB compressor=1.885GiB swapouts=0 pressure=1
+  llama: [('qwen-a', 97191, 22.94)]
+
+---- qwen-a
+{"status":"ok"}
+==============================================================
+ LIFECYCLE PROVING RUN COMPLETE  19:50:06
+==============================================================

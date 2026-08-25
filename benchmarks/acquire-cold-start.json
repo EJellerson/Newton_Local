@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "worker": "qwen-b",
+  "state": "BUSY",
+  "owner": "commission2-start-proof",
+  "pid": 1587,
+  "endpoint": "http://127.0.0.1:8081",
+  "openai_base_url": "http://127.0.0.1:8081/v1",
+  "model": "qwen-b",
+  "domain": "gui/501",
+  "label": "com.newton.qwen38server.b",
+  "reused_loaded_worker": false,
+  "model_reloaded": true,
+  "acquire_wall_s": 7.14,
+  "last_start": {
+    "kickstart_at": "2026-08-24T19:40:09-0400",
+    "spawn_latency_s": 0.03,
+    "load_to_ready_s": 6.71,
+    "generation": 1
+  },
+  "runtime": {
+    "alias": "qwen-b",
+    "ftype": "Q8_0",
+    "n_ctx": 262144,
+    "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf",
+    "modalities": {
+      "vision": true,
+      "video": true,
+      "audio": false
+    },
+    "total_slots": 1,
+    "build_info": "b1-f280b26"
+  },
+  "idle_ttl_seconds": 180,
+  "generation": 1,
+  "note": "cold start; model loaded"
+}

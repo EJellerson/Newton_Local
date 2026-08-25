@@ -1,0 +1,224 @@
+[
+{
+ "cycle": 1,
+ "pid": "4511",
+ "spawn_latency_s": "0.03",
+ "load_to_ready_s": "5.27",
+ "n_ctx": "262144",
+ "answer": "CYCLE-1-OK",
+ "mem_before": {
+  "gpu_alloc_gib": "46.11",
+  "free_gib": "25.62",
+  "headroom_gib": "72.02",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_worker_up": {
+  "gpu_alloc_gib": "92.25",
+  "free_gib": "3.33",
+  "headroom_gib": "23.11",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_after_stop": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "23.23",
+  "headroom_gib": "69.63",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "qwen_b_processes_after": 0,
+ "zombies": 0,
+ "launchd_jobs": 1,
+ "port_8081_after": "CLOSED",
+ "qwen_a_health": "ok"
+},
+{
+ "cycle": 2,
+ "pid": "4688",
+ "spawn_latency_s": "0.04",
+ "load_to_ready_s": "6.16",
+ "n_ctx": "262144",
+ "answer": "CYCLE-2-OK",
+ "mem_before": {
+  "gpu_alloc_gib": "46.11",
+  "free_gib": "23.29",
+  "headroom_gib": "69.7",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_worker_up": {
+  "gpu_alloc_gib": "92.25",
+  "free_gib": "3.21",
+  "headroom_gib": "22.99",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_after_stop": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "23.26",
+  "headroom_gib": "69.65",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "qwen_b_processes_after": 0,
+ "zombies": 0,
+ "launchd_jobs": 1,
+ "port_8081_after": "CLOSED",
+ "qwen_a_health": "ok"
+},
+{
+ "cycle": 3,
+ "pid": "4865",
+ "spawn_latency_s": "0.04",
+ "load_to_ready_s": "6.15",
+ "n_ctx": "262144",
+ "answer": "CYCLE-3-OK",
+ "mem_before": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "23.21",
+  "headroom_gib": "69.6",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_worker_up": {
+  "gpu_alloc_gib": "92.25",
+  "free_gib": "3.19",
+  "headroom_gib": "22.97",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_after_stop": {
+  "gpu_alloc_gib": "46.11",
+  "free_gib": "23.21",
+  "headroom_gib": "69.61",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "qwen_b_processes_after": 0,
+ "zombies": 0,
+ "launchd_jobs": 1,
+ "port_8081_after": "CLOSED",
+ "qwen_a_health": "ok"
+},
+{
+ "cycle": 4,
+ "pid": "5040",
+ "spawn_latency_s": "0.06",
+ "load_to_ready_s": "6.68",
+ "n_ctx": "262144",
+ "answer": "CYCLE-4-OK",
+ "mem_before": {
+  "gpu_alloc_gib": "46.11",
+  "free_gib": "22.17",
+  "headroom_gib": "68.58",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_worker_up": {
+  "gpu_alloc_gib": "92.25",
+  "free_gib": "3.06",
+  "headroom_gib": "22.85",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_after_stop": {
+  "gpu_alloc_gib": "46.11",
+  "free_gib": "23.18",
+  "headroom_gib": "69.58",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "qwen_b_processes_after": 0,
+ "zombies": 0,
+ "launchd_jobs": 1,
+ "port_8081_after": "CLOSED",
+ "qwen_a_health": "ok"
+},
+{
+ "cycle": 5,
+ "pid": "5229",
+ "spawn_latency_s": "0.04",
+ "load_to_ready_s": "6.18",
+ "n_ctx": "262144",
+ "answer": "CYCLE-5-OK",
+ "mem_before": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "23.18",
+  "headroom_gib": "69.58",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_worker_up": {
+  "gpu_alloc_gib": "92.25",
+  "free_gib": "3.12",
+  "headroom_gib": "22.91",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_after_stop": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "23.19",
+  "headroom_gib": "69.6",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "qwen_b_processes_after": 0,
+ "zombies": 0,
+ "launchd_jobs": 1,
+ "port_8081_after": "CLOSED",
+ "qwen_a_health": "ok"
+},
+{
+ "cycle": 6,
+ "pid": "5405",
+ "spawn_latency_s": "0.04",
+ "load_to_ready_s": "6.15",
+ "n_ctx": "262144",
+ "answer": "CYCLE-6-OK",
+ "mem_before": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "23.19",
+  "headroom_gib": "69.6",
+  "compressor_gib": "1.441",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_worker_up": {
+  "gpu_alloc_gib": "92.25",
+  "free_gib": "3.15",
+  "headroom_gib": "22.94",
+  "compressor_gib": "1.44",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "mem_after_stop": {
+  "gpu_alloc_gib": "46.12",
+  "free_gib": "22.93",
+  "headroom_gib": "69.34",
+  "compressor_gib": "1.44",
+  "swapouts": "0",
+  "pressure": "1"
+ },
+ "qwen_b_processes_after": 0,
+ "zombies": 0,
+ "launchd_jobs": 1,
+ "port_8081_after": "CLOSED",
+ "qwen_a_health": "ok"
+},
+null]

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Newton_Local — Qwen-B elastic worker (Commission #2).
+
+  DOMAIN
+    User LaunchAgent, bootstrapped into gui/<uid>. Deliberately NOT a system
+    LaunchDaemon: the elastic-worker controller must be able to start and stop
+    this job without sudo, and without any passwordless-root grant. Qwen-A's
+    root LaunchDaemon on :8080 is untouched by this file.
+
+  ON-DEMAND SEMANTICS
+    RunAtLoad = false  -> bootstrapping registers the job but does not run it.
+    KeepAlive = false  -> once stopped it STAYS stopped; launchd never respawns.
+    The job is therefore "registered but absent": zero model RAM when idle.
+    Start:  launchctl kickstart  gui/<uid>/com.newton.qwen38server.b
+    Stop:   launchctl kill TERM  gui/<uid>/com.newton.qwen38server.b
+
+  ARGUMENT VECTOR
+    Must match scripts/qwen-b-argv.sh token-for-token. That equality is
+    enforced as a drift check by scripts/install-launchagent-b.sh; do not edit
+    one side without the other.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.newton.qwen38server.b</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ericjellerson/Newton_Local/tools/llama.cpp/build/bin/llama-server</string>
+        <string>--model</string>
+        <string>/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf</string>
+        <string>--mmproj</string>
+        <string>/Users/ericjellerson/Newton_Local/models/qwen38-27b/mmproj-Qwen3.8-27B-f16.gguf</string>
+        <string>--alias</string>
+        <string>qwen-b</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>8081</string>
+        <string>--ctx-size</string>
+        <string>262144</string>
+        <string>--n-gpu-layers</string>
+        <string>999</string>
+        <string>--flash-attn</string>
+        <string>on</string>
+        <string>--jinja</string>
+        <string>--parallel</string>
+        <string>1</string>
+        <string>--cont-batching</string>
+        <string>--metrics</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/ericjellerson/Newton_Local</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/ericjellerson/Newton_Local/logs/qwen-b/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ericjellerson/Newton_Local/logs/qwen-b/stderr.log</string>
+
+    <!-- Absolute PATH only. The job must never depend on shell startup files. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Match Qwen-A: no ProcessType override, so both instances receive the
+         same "Standard" scheduling class and the A-vs-A+B comparison is fair. -->
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+</dict>
+</plist>

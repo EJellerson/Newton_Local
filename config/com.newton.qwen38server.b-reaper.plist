@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Newton_Local — Qwen-B idle-TTL reaper (Commission #2).
+
+  The elastic worker's idle TTL is only real if something enforces it without
+  a caller present. This agent runs `qwenctl reap` every 30 seconds. `reap` is
+  a no-op unless the recorded state is IDLE and the TTL has expired, in which
+  case it stops the worker and reclaims its memory.
+
+  It manages NOTHING else: it does not start workers, it does not touch
+  Qwen-A, and it holds the same controller lock as every other operation, so
+  it can never race an acquire.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.newton.qwen38server.b-reaper</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/ericjellerson/Newton_Local/scripts/qwenctl.py</string>
+        <string>reap</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>30</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/ericjellerson/Newton_Local</string>
+    <key>StandardOutPath</key>
+    <string>/Users/ericjellerson/Newton_Local/logs/qwen-b/reaper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ericjellerson/Newton_Local/logs/qwen-b/reaper.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>

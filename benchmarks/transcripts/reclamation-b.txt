@@ -1,0 +1,70 @@
+==============================================================
+ QWEN-B STOP / RECLAMATION EVIDENCE   20:17:24
+==============================================================
+
+######## BEFORE B STOP (dual-running) ########
+  qwen-b controller: qwen-b  state=BUSY  owner=concurrency-correctness  pid=10240
+  qwen-b process   : pid=10240
+  port 8081        : OPEN
+  gpu_alloc               93.14 GiB
+  free                     0.96 GiB
+  app_memory              80.45 GiB
+  cached_files            39.89 GiB
+  reclaimable_headroom    40.89 GiB
+  wired                    2.69 GiB
+  compressor              3.187 GiB
+  swapouts                   56
+  swap_used                 0.9 MiB
+  pressure_level              1
+  llama_servers        [('qwen-b', 10240, 17.78), ('qwen-a', 97191, 25.26)]
+  listeners            ['127.0.0.1:8081', '127.0.0.1:8080']
+  health A/B           {'a_8080': True, 'b_8081': True}
+
+######## STOP VIA THE CONTROLLER ########
+RELEASED qwen-b  state=IDLE  pid=10240  (was owned by concurrency-correctness)
+TERMINATED qwen-b  state=STOPPED  stop=0.84s
+  before  pid=10240 listening=True
+  after   pid=None listening=False processes=0
+
+######## AFTER B STOP ########
+  qwen-b controller: qwen-b  state=STOPPED
+  qwen-b process   : NONE
+  port 8081        : CLOSED
+  gpu_alloc               47.03 GiB
+  free                    20.94 GiB
+  app_memory              60.49 GiB
+  cached_files            39.89 GiB
+  reclaimable_headroom    60.87 GiB
+  wired                    2.66 GiB
+  compressor              3.187 GiB
+  swapouts                   56
+  swap_used                 0.9 MiB
+  pressure_level              1
+  llama_servers        [('qwen-a', 97191, 25.26)]
+  listeners            ['127.0.0.1:8080']
+  health A/B           {'a_8080': True, 'b_8081': False}
+
+######## DELTA ########
+  gpu_alloc                   93.14 ->     47.03   (-46.11 GiB)
+  free                         0.96 ->     20.94   (+19.98 GiB)
+  app_memory                  80.45 ->     60.49   (-19.96 GiB)
+  cached_files                39.89 ->     39.89   (+0.00 GiB)
+  reclaimable_headroom        40.89 ->     60.87   (+19.98 GiB)
+  wired                        2.69 ->      2.66   (-0.03 GiB)
+  compressor                   3.19 ->      3.19   (+0.00 GiB)
+  swapouts                       56 ->        56
+  pressure_level                  1 ->         1
+
+######## QWEN-A AFTER B STOP ########
+  endpoint    = http://127.0.0.1:8080
+  alias       = qwen-a
+  model_path  = /Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf
+  model_ftype = Q8_0
+  n_ctx       = 262144
+  total_slots = 1
+  modalities  = {'vision': True, 'video': True, 'audio': False}
+  build_info  = b1-f280b26
+[answer] A-HEALTHY-AFTER-B-STOP
+[speed] prompt 12.3 tok/s | gen 20.12 tok/s | gen_n 60
+
+==============================================================

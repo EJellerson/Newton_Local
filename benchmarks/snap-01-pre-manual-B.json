@@ -1,0 +1,63 @@
+{
+  "label": "pre-manual-B-start",
+  "ts": 1787614294.701926,
+  "ts_iso": "2026-08-24T19:31:34-0400",
+  "memory": {
+    "page_size_bytes": 16384,
+    "free_gib": 12.7,
+    "active_gib": 56.04,
+    "inactive_gib": 55.15,
+    "speculative_gib": 0.68,
+    "wired_gib": 2.55,
+    "compressor_occupied_gib": 0.057,
+    "pages_stored_in_compressor": 12589,
+    "swapins": 0,
+    "swapouts": 0,
+    "available_gib": 68.53
+  },
+  "swap": {
+    "total_mib": 0.0,
+    "used_mib": 0.0,
+    "free_mib": 0.0
+  },
+  "pressure": {
+    "free_percentage": 97,
+    "vm_pressure_level": "1"
+  },
+  "gpu": {
+    "available": true,
+    "alloc_system_memory_gib": 46.14,
+    "in_use_system_memory_gib": 0.14,
+    "device_utilization_pct": 25,
+    "renderer_utilization_pct": 24
+  },
+  "llama_servers": [
+    {
+      "pid": 97191,
+      "rss_gib": 23.2,
+      "cpu_pct": 0.0,
+      "etime": "22:41",
+      "port": 8080,
+      "alias": "qwen-a"
+    }
+  ],
+  "unrelated_hot_processes": [
+    {
+      "pid": 99413,
+      "cpu_pct": 100.0,
+      "rss_gib": 15.4,
+      "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+    }
+  ],
+  "listeners_8080_8081": [
+    {
+      "command": "llama-ser",
+      "pid": 97191,
+      "name": "127.0.0.1:8080"
+    }
+  ],
+  "health": {
+    "a_8080": true,
+    "b_8081": false
+  }
+}

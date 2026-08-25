@@ -1,0 +1,1612 @@
+{
+  "phase": "a-after-b-clean",
+  "targets": [
+    "a"
+  ],
+  "max_tokens": 500,
+  "ts": 1787615914.468243,
+  "ts_iso": "2026-08-24T19:58:34-0400",
+  "phase_wall_s": 39.759,
+  "prompt_nonce": "clean-1787615788-p3",
+  "prompt_pad_words": 3000,
+  "prompt_chars": 19431,
+  "prompt": "Below is a reference corpus. Read it, then answer the question that follows.\n\nCORPUS [clean-1787615788-p3]:\nzulu golf victor quebec papa uniform delta charlie foxtrot oscar foxtrot uniform bravo charlie romeo oscar november uniform delta oscar foxtrot india romeo mike delta yankee zulu kilo tango mike delta echo foxtrot india delta mike november sierra tango sierra xray india romeo whiskey delta whiskey november oscar hotel echo romeo quebec papa sierra delta uniform delta yankee november echo tango charlie xray oscar papa quebec delta india papa uniform november alpha romeo alpha tango oscar victor quebec romeo echo victor sierra bravo oscar juliet whiskey xray yankee delta mike victor kilo xray india romeo uniform hotel india juliet whiskey lima kilo delta golf zulu charlie romeo golf de ...[truncated]... romeo charlie papa kilo tango mike victor yankee lima mike\n\nQUESTION:\nWrite a precise, self-contained technical explanation of how a write-ahead log guarantees crash consistency in a database. Cover: the log record format, the commit protocol, checkpointing, and recovery via redo and undo passes. Use plain prose, no lists, no headings. Be thorough and keep writing until the topic is fully covered.",
+  "runtime_props_before": {
+    "a": {
+      "alias": "qwen-a",
+      "model_ftype": "Q8_0",
+      "n_ctx": 262144,
+      "total_slots": 1,
+      "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf",
+      "modalities": {
+        "vision": true,
+        "video": true,
+        "audio": false
+      },
+      "build_info": "b1-f280b26"
+    }
+  },
+  "runtime_props_during": {
+    "a": {
+      "alias": "qwen-a",
+      "model_ftype": "Q8_0",
+      "n_ctx": 262144,
+      "total_slots": 1,
+      "model_path": "/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf",
+      "modalities": {
+        "vision": true,
+        "video": true,
+        "audio": false
+      },
+      "build_info": "b1-f280b26"
+    }
+  },
+  "results": {
+    "a": {
+      "target": "a",
+      "alias": "qwen-a",
+      "endpoint": "http://127.0.0.1:8080",
+      "max_tokens": 500,
+      "t_start": 1787615914.468395,
+      "t_end": 1787615954.227603,
+      "wall_s": 39.759,
+      "http_status": 200,
+      "finish_reason": "length",
+      "answer_chars": 0,
+      "answer_head": "",
+      "answer_tail": "",
+      "timings": {
+        "cache_n": 42,
+        "prompt_n": 4736,
+        "prompt_ms": 14154.018,
+        "prompt_per_token_ms": 2.9886017736486488,
+        "prompt_per_second": 334.6046331154871,
+        "predicted_n": 500,
+        "predicted_ms": 25385.874,
+        "predicted_per_token_ms": 50.87349498997996,
+        "predicted_per_second": 19.656601147551587
+      },
+      "gen_tok_s": 19.657,
+      "prompt_tok_s": 334.605,
+      "predicted_n": 500,
+      "prompt_n": 4736,
+      "error": null
+    }
+  },
+  "overlap": null,
+  "inflight": {
+    "samples": 17,
+    "gpu_alloc_gib_max": 47.0,
+    "gpu_util_pct_max": 100,
+    "free_gib_min": 20.29,
+    "app_memory_gib_max": 54.23,
+    "cached_files_gib_min": 17.01,
+    "reclaimable_headroom_gib_min": 37.37,
+    "compressor_gib_max": 1.224,
+    "wired_gib_max": 47.74,
+    "swapouts_max": 0,
+    "swap_used_mib_max": 0.0,
+    "pressure_free_pct_min": 62,
+    "pressure_levels": [
+      "1"
+    ],
+    "rss_gib_max": {
+      "qwen-a": 25.67
+    },
+    "unrelated_hot_processes_seen": [
+      {
+        "pid": 3938,
+        "cpu_pct": 100.0,
+        "rss_gib": 13.91,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 99.9,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 100.0,
+        "rss_gib": 14.32,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 99.7,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 96.7,
+        "rss_gib": 14.41,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 54.7,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 99.7,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 99.6,
+        "rss_gib": 16.41,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1786.2,
+        "rss_gib": 17.22,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 88.9,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 796.6,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1200.8,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 99.1,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1087.8,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 96.5,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1098.8,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 97.3,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1073.0,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 81.0,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1132.0,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 79.0,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1153.9,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 90.6,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1085.8,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 95.3,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1138.1,
+        "rss_gib": 18.33,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 76.7,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1296.5,
+        "rss_gib": 18.7,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 79.5,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1674.2,
+        "rss_gib": 17.82,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 1198.4,
+        "rss_gib": 18.34,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 93.7,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      }
+    ],
+    "contaminated": true
+  },
+  "metrics_after": {
+    "a": {
+      "llamacpp:prompt_tokens_total": "16076",
+      "llamacpp:prompt_tokens_cached_total": "1911",
+      "llamacpp:tokens_predicted_total": "8168",
+      "llamacpp:tokens_predicted_seconds_total": "456.846",
+      "llamacpp:n_decode_total": "8215",
+      "llamacpp:prompt_tokens_seconds": "335.193",
+      "llamacpp:requests_processing": "0",
+      "llamacpp:requests_deferred": "0",
+      "llamacpp:n_busy_slots_per_decode": "1"
+    }
+  },
+  "snapshot_pre": {
+    "label": "a-after-b-clean-pre",
+    "ts": 1787615914.283649,
+    "ts_iso": "2026-08-24T19:58:34-0400",
+    "memory": {
+      "page_size_bytes": 16384,
+      "free_gib": 25.32,
+      "active_gib": 60.4,
+      "inactive_gib": 37.42,
+      "speculative_gib": 0.03,
+      "wired_gib": 2.71,
+      "compressor_occupied_gib": 1.288,
+      "pages_stored_in_compressor": 152242,
+      "swapins": 0,
+      "swapouts": 0,
+      "available_gib": 62.77,
+      "app_memory_gib": 54.23,
+      "cached_files_gib": 43.63,
+      "reclaimable_headroom_gib": 69.02
+    },
+    "swap": {
+      "total_mib": 0.0,
+      "used_mib": 0.0,
+      "free_mib": 0.0
+    },
+    "pressure": {
+      "free_percentage": 96,
+      "vm_pressure_level": "1"
+    },
+    "gpu": {
+      "available": true,
+      "alloc_system_memory_gib": 47.0,
+      "in_use_system_memory_gib": 0.14,
+      "device_utilization_pct": 25,
+      "renderer_utilization_pct": 25
+    },
+    "llama_servers": [
+      {
+        "pid": 97191,
+        "rss_gib": 24.62,
+        "cpu_pct": 0.1,
+        "etime": "49:41",
+        "port": 8080,
+        "alias": "qwen-a"
+      }
+    ],
+    "unrelated_hot_processes": [
+      {
+        "pid": 1127,
+        "cpu_pct": 99.8,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      },
+      {
+        "pid": 3938,
+        "cpu_pct": 99.0,
+        "rss_gib": 13.91,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      }
+    ],
+    "listeners_8080_8081": [
+      {
+        "command": "llama-ser",
+        "pid": 97191,
+        "name": "127.0.0.1:8080"
+      }
+    ],
+    "health": {
+      "a_8080": true,
+      "b_8081": false
+    }
+  },
+  "snapshot_post": {
+    "label": "a-after-b-clean-post",
+    "ts": 1787615954.2533078,
+    "ts_iso": "2026-08-24T19:59:14-0400",
+    "memory": {
+      "page_size_bytes": 16384,
+      "free_gib": 20.66,
+      "active_gib": 28.19,
+      "inactive_gib": 30.04,
+      "speculative_gib": 0.04,
+      "wired_gib": 47.74,
+      "compressor_occupied_gib": 0.519,
+      "pages_stored_in_compressor": 101839,
+      "swapins": 0,
+      "swapouts": 0,
+      "available_gib": 50.73,
+      "app_memory_gib": 41.25,
+      "cached_files_gib": 17.01,
+      "reclaimable_headroom_gib": 37.74
+    },
+    "swap": {
+      "total_mib": 0.0,
+      "used_mib": 0.0,
+      "free_mib": 0.0
+    },
+    "pressure": {
+      "free_percentage": 62,
+      "vm_pressure_level": "1"
+    },
+    "gpu": {
+      "available": true,
+      "alloc_system_memory_gib": 47.0,
+      "in_use_system_memory_gib": 45.17,
+      "device_utilization_pct": 98,
+      "renderer_utilization_pct": 98
+    },
+    "llama_servers": [
+      {
+        "pid": 97191,
+        "rss_gib": 25.67,
+        "cpu_pct": 156.3,
+        "etime": "50:21",
+        "port": 8080,
+        "alias": "qwen-a"
+      }
+    ],
+    "unrelated_hot_processes": [
+      {
+        "pid": 3938,
+        "cpu_pct": 1126.3,
+        "rss_gib": 18.34,
+        "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+      },
+      {
+        "pid": 1127,
+        "cpu_pct": 97.5,
+        "rss_gib": 0.5,
+        "comm": "/usr/libexec/signpost_reporter"
+      }
+    ],
+    "listeners_8080_8081": [
+      {
+        "command": "llama-ser",
+        "pid": 97191,
+        "name": "127.0.0.1:8080"
+      }
+    ],
+    "health": {
+      "a_8080": true,
+      "b_8081": false
+    }
+  },
+  "samples": [
+    {
+      "ts": 1787615914.467319,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 25.39,
+        "active_gib": 60.24,
+        "inactive_gib": 37.59,
+        "speculative_gib": 0.03,
+        "wired_gib": 2.71,
+        "compressor_occupied_gib": 1.224,
+        "pages_stored_in_compressor": 148046,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 63.0,
+        "app_memory_gib": 54.23,
+        "cached_files_gib": 43.63,
+        "reclaimable_headroom_gib": 69.09
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 96,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 0.14,
+        "device_utilization_pct": 35,
+        "renderer_utilization_pct": 35
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 24.62,
+          "cpu_pct": 0.1,
+          "etime": "49:41",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 100.0,
+          "rss_gib": 13.91,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 99.9,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615916.7213619,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 24.7,
+        "active_gib": 24.12,
+        "inactive_gib": 30.08,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101843,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 54.8,
+        "app_memory_gib": 37.21,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 41.77
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 81,
+        "renderer_utilization_pct": 81
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 12.3,
+          "etime": "49:43",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 100.0,
+          "rss_gib": 14.32,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 99.7,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615918.93813,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.48,
+        "active_gib": 28.33,
+        "inactive_gib": 30.07,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101843,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.59,
+        "app_memory_gib": 41.42,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.56
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 100,
+        "renderer_utilization_pct": 100
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 20.4,
+          "etime": "49:46",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 96.7,
+          "rss_gib": 14.41,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 54.7,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615921.264825,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 22.53,
+        "active_gib": 26.28,
+        "inactive_gib": 30.07,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101842,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 52.63,
+        "app_memory_gib": 39.37,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 39.61
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 100,
+        "renderer_utilization_pct": 100
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 0.0,
+          "etime": "49:48",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 1127,
+          "cpu_pct": 99.7,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        },
+        {
+          "pid": 3938,
+          "cpu_pct": 99.6,
+          "rss_gib": 16.41,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615923.4902558,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 21.73,
+        "active_gib": 27.09,
+        "inactive_gib": 30.07,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101842,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 51.83,
+        "app_memory_gib": 40.17,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 38.81
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 100,
+        "renderer_utilization_pct": 100
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 3.1,
+          "etime": "49:50",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1786.2,
+          "rss_gib": 17.22,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 88.9,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615925.863457,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.57,
+        "active_gib": 28.25,
+        "inactive_gib": 30.07,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101842,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.67,
+        "app_memory_gib": 41.33,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.65
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 100,
+        "renderer_utilization_pct": 100
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 4.8,
+          "etime": "49:53",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 796.6,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615928.2686138,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.61,
+        "active_gib": 28.21,
+        "inactive_gib": 30.07,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101841,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.71,
+        "app_memory_gib": 41.29,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.69
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 100,
+        "renderer_utilization_pct": 100
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 0.2,
+          "etime": "49:55",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1200.8,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 99.1,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615930.766952,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.61,
+        "active_gib": 28.23,
+        "inactive_gib": 30.07,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.72,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101841,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.71,
+        "app_memory_gib": 41.31,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.69
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.15,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 177.9,
+          "etime": "49:57",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1087.8,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 96.5,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615933.0530958,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.61,
+        "active_gib": 28.21,
+        "inactive_gib": 30.06,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101841,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.7,
+        "app_memory_gib": 41.3,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.69
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 180.0,
+          "etime": "50:00",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1098.8,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 97.3,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615935.366233,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.61,
+        "active_gib": 28.21,
+        "inactive_gib": 30.06,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101840,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.71,
+        "app_memory_gib": 41.29,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.69
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 246.4,
+          "etime": "50:02",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1073.0,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 81.0,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615937.656079,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.61,
+        "active_gib": 28.21,
+        "inactive_gib": 30.06,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101840,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.71,
+        "app_memory_gib": 41.29,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.69
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 274.7,
+          "etime": "50:04",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1132.0,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 79.0,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615939.984721,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.65,
+        "active_gib": 28.18,
+        "inactive_gib": 30.05,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101840,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.73,
+        "app_memory_gib": 41.26,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.73
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 196.0,
+          "etime": "50:07",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1153.9,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 90.6,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615942.338082,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.65,
+        "active_gib": 28.18,
+        "inactive_gib": 30.05,
+        "speculative_gib": 0.03,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101839,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.74,
+        "app_memory_gib": 41.25,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.73
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 160.5,
+          "etime": "50:09",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1085.8,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 95.3,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615944.6486669,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.65,
+        "active_gib": 28.18,
+        "inactive_gib": 30.05,
+        "speculative_gib": 0.04,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101839,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.74,
+        "app_memory_gib": 41.25,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.73
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 264.9,
+          "etime": "50:11",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1138.1,
+          "rss_gib": 18.33,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 76.7,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615946.9852202,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.29,
+        "active_gib": 28.54,
+        "inactive_gib": 30.05,
+        "speculative_gib": 0.04,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101839,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.37,
+        "app_memory_gib": 41.61,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.37
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 211.3,
+          "etime": "50:14",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1296.5,
+          "rss_gib": 18.7,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 79.5,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615949.549439,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 21.17,
+        "active_gib": 27.66,
+        "inactive_gib": 30.05,
+        "speculative_gib": 0.04,
+        "wired_gib": 47.74,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101839,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 51.25,
+        "app_memory_gib": 40.73,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 38.25
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.17,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 99
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 228.3,
+          "etime": "50:16",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1674.2,
+          "rss_gib": 17.82,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    },
+    {
+      "ts": 1787615951.989664,
+      "memory": {
+        "page_size_bytes": 16384,
+        "free_gib": 20.64,
+        "active_gib": 28.22,
+        "inactive_gib": 30.04,
+        "speculative_gib": 0.04,
+        "wired_gib": 47.72,
+        "compressor_occupied_gib": 0.519,
+        "pages_stored_in_compressor": 101839,
+        "swapins": 0,
+        "swapouts": 0,
+        "available_gib": 50.71,
+        "app_memory_gib": 41.28,
+        "cached_files_gib": 17.01,
+        "reclaimable_headroom_gib": 37.72
+      },
+      "swap": {
+        "total_mib": 0.0,
+        "used_mib": 0.0,
+        "free_mib": 0.0
+      },
+      "pressure": {
+        "free_percentage": 62,
+        "vm_pressure_level": "1"
+      },
+      "gpu": {
+        "available": true,
+        "alloc_system_memory_gib": 47.0,
+        "in_use_system_memory_gib": 45.15,
+        "device_utilization_pct": 99,
+        "renderer_utilization_pct": 98
+      },
+      "llama_servers": [
+        {
+          "pid": 97191,
+          "rss_gib": 25.67,
+          "cpu_pct": 171.6,
+          "etime": "50:19",
+          "port": 8080,
+          "alias": "qwen-a"
+        }
+      ],
+      "unrelated_hot_processes": [
+        {
+          "pid": 3938,
+          "cpu_pct": 1198.4,
+          "rss_gib": 18.34,
+          "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Pyt"
+        },
+        {
+          "pid": 1127,
+          "cpu_pct": 93.7,
+          "rss_gib": 0.5,
+          "comm": "/usr/libexec/signpost_reporter"
+        }
+      ],
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144,
+            "n_decoded": null
+          }
+        ]
+      }
+    }
+  ]
+}

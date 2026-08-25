@@ -1,0 +1,23 @@
+==============================================================
+ QWEN-B REPEATED LIFECYCLE CYCLES  (N=6)   19:53:50
+==============================================================
+
+#   pid       spawn   ready   procs  zomb   jobs   port   gpu_alloc  free      swapout  A     
+----------------------------------------------------------------------------------------------
+1   4511      0.03    5.27    0      0      1      CLOSED 46.12      23.23     0        ok    
+2   4688      0.04    6.16    0      0      1      CLOSED 46.12      23.26     0        ok    
+3   4865      0.04    6.15    0      0      1      CLOSED 46.11      23.21     0        ok    
+4   5040      0.06    6.68    0      0      1      CLOSED 46.11      23.18     0        ok    
+5   5229      0.04    6.18    0      0      1      CLOSED 46.12      23.19     0        ok    
+6   5405      0.04    6.15    0      0      1      CLOSED 46.12      22.93     0        ok    
+----------------------------------------------------------------------------------------------
+
+== FINAL INVARIANTS ==
+  qwen-b processes : 0   (must be 0)
+  zombie processes : 0   (must be 0)
+  launchd b jobs   : 1   (must be 1 — registered, not running)
+  port 8081        : CLOSED   (must be CLOSED)
+  controller state : qwen-b  state=STOPPED
+  qwen-a           : {"status":"ok"}
+  launchd b detail : state = not running runs = 12 
+  wrote benchmarks/cycles-b.json

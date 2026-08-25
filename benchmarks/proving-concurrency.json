@@ -1,0 +1,344 @@
+{
+  "ts_iso": "2026-08-24T20:16:57-0400",
+  "results": {
+    "b": {
+      "alias": "qwen-b",
+      "t_start": 1787617004.52048,
+      "t_end": 1787617013.756889,
+      "wall_s": 9.236,
+      "finish_reason": "stop",
+      "answer": "17 \u00d7 23 is 391, and the chemical symbol for potassium is K.",
+      "reasoning_chars": 272,
+      "gen_tok_s": 12.328,
+      "prompt_tok_s": 140.361,
+      "predicted_n": 107,
+      "expected_substrings": [
+        "391",
+        "k"
+      ],
+      "correct": true,
+      "error": null
+    },
+    "a": {
+      "alias": "qwen-a",
+      "t_start": 1787617004.5210109,
+      "t_end": 1787617017.5212228,
+      "wall_s": 13.0,
+      "finish_reason": "stop",
+      "answer": "The journey is 6 hours 45 minutes, and the capital of Portugal is Lisbon.",
+      "reasoning_chars": 445,
+      "gen_tok_s": 15.205,
+      "prompt_tok_s": 27.226,
+      "predicted_n": 163,
+      "expected_substrings": [
+        "6",
+        "45",
+        "lisbon"
+      ],
+      "correct": true,
+      "error": null
+    }
+  },
+  "overlap_seconds": 9.236,
+  "overlap_fraction_of_shortest": 0.9999,
+  "samples_with_both_processing": 5,
+  "total_samples": 9,
+  "n_ctx_during_flight": {
+    "a": [
+      262144
+    ],
+    "b": [
+      262144
+    ]
+  },
+  "ftype_during_flight": {
+    "a": [
+      "Q8_0"
+    ],
+    "b": [
+      "Q8_0"
+    ]
+  },
+  "pass": true,
+  "samples": [
+    {
+      "ts": 1787617004.520101,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": false,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": false,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617006.1051269,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617008.2379498,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617009.746463,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617011.255423,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617012.762982,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617014.324956,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": false,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617015.835896,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": false,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    },
+    {
+      "ts": 1787617017.34565,
+      "slots": {
+        "a": [
+          {
+            "id": 0,
+            "is_processing": true,
+            "n_ctx": 262144
+          }
+        ],
+        "b": [
+          {
+            "id": 0,
+            "is_processing": false,
+            "n_ctx": 262144
+          }
+        ]
+      },
+      "props": {
+        "a": {
+          "alias": "qwen-a",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        },
+        "b": {
+          "alias": "qwen-b",
+          "ftype": "Q8_0",
+          "n_ctx": 262144
+        }
+      }
+    }
+  ]
+}

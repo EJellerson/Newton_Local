@@ -1,0 +1,66 @@
+{
+  "label": "reclaim-after",
+  "ts": 1787617052.1731021,
+  "ts_iso": "2026-08-24T20:17:32-0400",
+  "memory": {
+    "page_size_bytes": 16384,
+    "free_gib": 20.94,
+    "active_gib": 43.6,
+    "inactive_gib": 56.77,
+    "speculative_gib": 0.01,
+    "wired_gib": 2.66,
+    "compressor_occupied_gib": 3.187,
+    "pages_stored_in_compressor": 295834,
+    "swapins": 0,
+    "swapouts": 56,
+    "available_gib": 77.73,
+    "app_memory_gib": 60.49,
+    "cached_files_gib": 39.89,
+    "reclaimable_headroom_gib": 60.87
+  },
+  "swap": {
+    "total_mib": 1024.0,
+    "used_mib": 0.88,
+    "free_mib": 1023.12
+  },
+  "pressure": {
+    "free_percentage": 95,
+    "vm_pressure_level": "1"
+  },
+  "gpu": {
+    "available": true,
+    "alloc_system_memory_gib": 47.03,
+    "in_use_system_memory_gib": 0.13,
+    "device_utilization_pct": 17,
+    "renderer_utilization_pct": 17
+  },
+  "llama_servers": [
+    {
+      "pid": 97191,
+      "rss_gib": 25.26,
+      "cpu_pct": 0.0,
+      "etime": "01:08:39",
+      "port": 8080,
+      "alias": "qwen-a"
+    }
+  ],
+  "unrelated_hot_processes": [
+    {
+      "pid": 8278,
+      "cpu_pct": 1149.3,
+      "rss_gib": 20.69,
+      "comm": "/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python ML_Model/SP6/tools/run_e005.py"
+    }
+  ],
+  "listeners_8080_8081": [
+    {
+      "command": "llama-ser",
+      "pid": 97191,
+      "name": "127.0.0.1:8080"
+    }
+  ],
+  "health": {
+    "a_8080": true,
+    "b_8081": false
+  }
+}

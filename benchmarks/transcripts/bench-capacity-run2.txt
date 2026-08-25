@@ -1,0 +1,47 @@
+
+==============================================================
+ CAPACITY BENCHMARK  tag=asrun tokens=500 pad_words=3000
+ started 20:12:07   ml_busy=no
+==============================================================
+
+######## PHASE 1: A ALONE (B stopped) ########
+  qwen-b state: qwen-b  state=STOPPED
+== phase 'a-alone-asrun'  targets=['a']  max_tokens=500  prompt_chars=19439  nonce=asrun-1787616727-p1
+   qwen-a: ftype=Q8_0 n_ctx=262144 slots=1
+
+-- phase wall 39.692s
+   qwen-a: gen=19.874 tok/s  prompt=329.114 tok/s  n=500  wall=39.687s  finish=length  err=None
+   in-flight: gpu_alloc_max=47.03 GiB  swapouts=0  compressor_max=0.451 GiB  pressure_levels=['1']
+   contaminated_by_unrelated_load = True
+   wrote benchmarks/bench-a-alone-asrun.json
+
+######## PHASE 2: A + B CONCURRENT ########
+  acquired pid 9053 ready_s 9.13
+== phase 'ab-concurrent-asrun'  targets=['a', 'b']  max_tokens=500  prompt_chars=19468  nonce=asrun-1787616727-p2
+   qwen-a: ftype=Q8_0 n_ctx=262144 slots=1
+   qwen-b: ftype=Q8_0 n_ctx=262144 slots=1
+
+-- phase wall 69.194s
+   qwen-a: gen=11.657 tok/s  prompt=192.953 tok/s  n=500  wall=67.836s  finish=length  err=None
+   qwen-b: gen=11.013 tok/s  prompt=202.44 tok/s  n=500  wall=69.194s  finish=length  err=None
+   overlap: 67.836s (100% of the shorter request); both-processing samples 29/30
+   in-flight: gpu_alloc_max=93.17 GiB  swapouts=0  compressor_max=0.476 GiB  pressure_levels=['1']
+   contaminated_by_unrelated_load = True
+   wrote benchmarks/bench-ab-asrun.json
+
+######## PHASE 3: A AFTER B STOPPED ########
+TERMINATED qwen-b  state=STOPPED  stop=1.62s
+  before  pid=9053 listening=True
+  after   pid=None listening=False processes=0
+== phase 'a-after-b-asrun'  targets=['a']  max_tokens=500  prompt_chars=19324  nonce=asrun-1787616727-p3
+   qwen-a: ftype=Q8_0 n_ctx=262144 slots=1
+
+-- phase wall 39.447s
+   qwen-a: gen=19.931 tok/s  prompt=331.227 tok/s  n=500  wall=39.446s  finish=length  err=None
+   in-flight: gpu_alloc_max=47.03 GiB  swapouts=0  compressor_max=0.476 GiB  pressure_levels=['1']
+   contaminated_by_unrelated_load = True
+   wrote benchmarks/bench-a-after-b-asrun.json
+
+== ml_busy at finish: no
+449.7 /Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python ML_Model/SP6/tools/run_e005.py
+== done 20:14:55

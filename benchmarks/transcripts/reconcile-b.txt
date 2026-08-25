@@ -1,0 +1,175 @@
+==============================================================
+ QWEN-B RECONCILIATION / ORPHAN PROVING RUN  19:52:23
+==============================================================
+
+################ CASE A/C — worker RUNNING but controller says STOPPED (orphan, no lease) ################
+
+---- start B behind the controller's back, straight through launchd
+worker is healthy on 8081
+
+---- force the recorded lease back to STOPPED to simulate a controller that never saw it
+recorded lease: {'state': 'STOPPED', 'owner': None, 'pid': None, 'generation': 1, 'idle_since': None}
+observed      : pid=4142  port=OPEN
+
+---- reconcile (default policy = adopt)
+{
+  "recorded_before": "STOPPED",
+  "recorded_before_owner": null,
+  "observed": "LOADING",
+  "state_after": "STARTING",
+  "owner_after": null,
+  "pid": 4142,
+  "duplicate_processes": false,
+  "processes": [
+    {
+      "pid": 4142,
+      "rss_gib": 0.34
+    }
+  ],
+  "launchd": {
+    "bootstrapped": true,
+    "state": "running",
+    "pid": 4142,
+    "runs": 5,
+    "last_exit": "0"
+  },
+  "socket": {
+    "listening": true,
+    "pid": 4142,
+    "name": "127.0.0.1:8081"
+  },
+  "health_ok": false,
+  "orphan_policy": "adopt",
+  "corrections": [
+    {
+      "from": "STOPPED",
+      "to": "STARTING",
+      "reason": "orphan_adopted"
+    }
+  ],
+  "notes": [
+    "adopted orphan worker pid=4142 at 2026-08-24T19:52:25-0400; no lease existed, so it enters STARTING and is subject to the 180s idle TTL"
+  ]
+}
+
+---- lease after reconcile
+{'state': 'STARTING', 'owner': None, 'pid': 4142, 'generation': 1, 'idle_since': None}
+POLICY: an orphan is ADOPTED, never silently killed — into IDLE if it is
+        already healthy, or STARTING if it is still loading. Either way it
+        carries no owner and falls under the normal idle TTL, so an
+        unclaimed worker cannot leak forever.
+
+################ CASE B — controller says BUSY but the worker DIED ################
+
+---- take a legitimate lease
+acquired pid 4142 state BUSY
+
+---- kill -9 the worker out from under the controller (simulated crash)
+recorded lease still claims: {'state': 'BUSY', 'owner': 'case-b-owner', 'pid': 4142, 'generation': 1, 'idle_since': None}
+observed                   : NONE
+
+---- status (reconciles automatically)
+qwen-b  state=STOPPED
+  endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+  launchd    state=not running bootstrapped=True runs=5 last_exit=None
+  socket     listening=False bind=None
+  health     ok=False   observed=DOWN
+  RECONCILED {"from": "BUSY", "to": "STOPPED", "reason": "worker_vanished", "cleared_owner": "case-b-owner"}
+  note       stale BUSY lease cleared at 2026-08-24T19:52:34-0400; owner was case-b-owner
+
+---- lease after
+{'state': 'STOPPED', 'owner': None, 'pid': None, 'generation': 1, 'idle_since': None}
+RESULT: stale BUSY lease cleared, owner released, state derived from reality.
+
+################ CASE D — controller restarts with NO state at all (lease file lost) ################
+
+---- start a worker, then delete the lease file entirely
+acquired pid 4224
+lease file removed: (no lease file)
+observed          : pid=4224
+
+---- reconcile from a cold controller
+{
+  "recorded_before": "STOPPED",
+  "recorded_before_owner": null,
+  "observed": "UP",
+  "state_after": "IDLE",
+  "owner_after": null,
+  "pid": 4224,
+  "duplicate_processes": false,
+  "processes": [
+    {
+      "pid": 4224,
+      "rss_gib": 17.5
+    }
+  ],
+  "launchd": {
+    "bootstrapped": true,
+    "state": "running",
+    "pid": 4224,
+    "runs": 6,
+    "last_exit": null
+  },
+  "socket": {
+    "listening": true,
+    "pid": 4224,
+    "name": "127.0.0.1:8081"
+  },
+  "health_ok": true,
+  "orphan_policy": "adopt",
+  "corrections": [
+    {
+      "from": "STOPPED",
+      "to": "IDLE",
+      "reason": "orphan_adopted"
+    }
+  ],
+  "notes": [
+    "adopted orphan worker pid=4224 at 2026-08-24T19:52:41-0400; no lease existed, so it enters IDLE and is subject to the 180s idle TTL"
+  ]
+}
+
+---- lease rebuilt from reality
+{'state': 'IDLE', 'owner': None, 'pid': 4224, 'generation': 0, 'idle_since': 1787615561.8697531}
+RESULT: state was rebuilt from launchd/process/socket/health, not from
+        a remembered value — there was nothing to remember.
+
+################ CASE E — BUSY lease abandoned (owner vanished, no heartbeat) ################
+
+---- acquire, then back-date last_activity beyond QWEN_B_LEASE_MAX_AGE (1800s)
+back-dated last_activity by 2 hours
+recorded: {'state': 'BUSY', 'owner': 'case-e-owner', 'pid': 4224, 'generation': 0, 'idle_since': None}
+
+---- reconcile
+reconcile  recorded=BUSY observed=UP -> IDLE
+  policy=adopt  pid=4224  duplicates=False
+  CORRECTION {"from": "BUSY", "to": "IDLE", "reason": "busy_lease_abandoned", "age_s": 7200.2, "max_age_s": 1800}
+  note BUSY lease from owner case-e-owner exceeded 1800s without heartbeat; released to IDLE at 2026-08-24T19:52:42-0400
+
+---- lease after
+{'state': 'IDLE', 'owner': None, 'pid': 4224, 'generation': 0, 'idle_since': 1787615562.61489}
+RESULT: an abandoned BUSY lease is demoted to IDLE (not killed), so the
+        worker becomes acquirable again and the idle TTL can reclaim it.
+
+################ CASE F — orphan policy 'terminate' (explicit operator choice) ################
+
+---- create an orphan again
+recorded: {'state': 'STOPPED', 'owner': None, 'pid': None, 'generation': 0, 'idle_since': None}   observed: pid=4224
+
+---- reconcile --orphan-policy terminate
+reconcile  recorded=STOPPED observed=UP -> STOPPED
+  policy=terminate  pid=None  duplicates=False
+  CORRECTION {"from": "STOPPED", "to": "STOPPED", "reason": "orphan_terminated_by_policy"}
+  note BUSY lease from owner case-e-owner exceeded 1800s without heartbeat; released to IDLE at 2026-08-24T19:52:42-0400
+
+---- after
+{'state': 'STOPPED', 'owner': None, 'pid': None, 'generation': 0, 'idle_since': None}
+NONE
+port 8081: CLOSED
+
+################ QWEN-A UNAFFECTED THROUGHOUT ################
+{"status":"ok"}answer: A-UNAFFECTED
+
+==============================================================
+ RECONCILIATION PROVING RUN COMPLETE  19:52:46
+==============================================================
