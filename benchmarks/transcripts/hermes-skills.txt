@@ -1,0 +1,162 @@
+Query: Answer using your skills mechanism.
+1. Name the skill tools you have and explain, in one sentence each, how you 
+DISCOVER a skill versus how you LOAD one.
+2. There is a skill on this machine about operating the local Qwen inference 
+services. Find it and load it.
+3. From that skill (not from memory, not from the terminal, not from the 
+repository) report: (a) its provenance marker string, (b) the Qwen-B idle TTL in
+seconds, (c) the exact command to rent Qwen-B for a job called 'demo', and (d) 
+what the skill says you must NOT do on your own initiative.
+4. State the on-disk path of the skill file you loaded, and say explicitly 
+whether loading it changed which tools you have available or only what is in 
+your prompt.
+Initializing agent...
+────────────────────────────────────────
+
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+The user is asking me to answer using my skill mechanism. Let me break down the task
+:
+
+1. Name the skill tools I have, and explain in one sentence each how I "discover"
+ a skill and how I "load" a skill.
+2. Find and load the skill related to operating the local Qwen inference service.
+
+3. From that skill, report: (a) the provenance marker string, (b) the Qwen-B idle
+ TTL (in seconds), (c) the exact command to rent Qwen-B for the job 'demo', (d) what
+ the skill says I must not do on my own initiative.
+4. State the path of the skill file on disk, and explain whether loading it changed
+ the tools, or just what's in the prompt.
+
+My skill tools: `skills_list`, `skill_view`, `skill_manage`.
+
+- Discovery: `skills_list` (lists available skills with names + descriptions; the
+ system prompt also injects an index of available skills).
+- Loading: `skill_view(name)` loads the full content of SKILL.md (and linked files
+).
+
+Regarding the Qwen inference service: the skill list shows a `newton` category, with
+ the `newton-local` skill: "Operating the Newton_Local machine: the Qwen-A always
+-on ...". There's also a memory note about the primary local model being Qwen-A served
+ by llama.cpp.
+
+Let me first list the skills to confirm, then load the newton-local skill. Actually
+ I could just do skill_view directly, but for safety let me do skills_list (discovery
+) and then skill_view (load). The user is asking to "find it and load it" — discovery
+ via skills_list, loading via skill_view.
+
+Also, the memory says "the provenance marker for commission #3 is HALYARD-72118" —
+ but the user is explicitly asking from the skill, not from memory. I should load
+ the skill and report from the skill's content.
+
+Let me also get the on-disk path. The active profile is localchat, and skills are
+ at ~/.hermes/profiles/localchat/skills/. But skills can also come from plugins or
+ other locations. After loading, I can verify the path with search_files or terminal
+. Let me do skills_list and then skill_view.
+
+First, let me batch the independent calls: skills_list (discovery). Then skill_view
+ (depends on knowing the name — though I can already guess it's newton-local; the
+ category is "newton" and the skill name is "newton-local").
+
+Actually, I can call skills_list and skill_view('newton-local') in parallel, since
+ I'm fairly confident. But to be rigorous about "find and load", let me first do skills
+_list, then skill_view. These are somewhat dependent (I want to confirm the name),
+ but I'm fairly confident. Let me run them together to save round trips: skills_list
+() and skill_view(name='newton-local').
+
+After that, verify the path on disk with search_files (target='files', pattern='SK
+ILL.md' inside the newton directory, or find the file). The path is probably /Users
+/ericjellerson/.hermes/profiles/localchat/skills/newton/newton-local/SKILL.md (category
+ directory "newton"). Let me confirm with a file search.
+
+For question 4: loading a skill does not change available tools — it only injects
+ content into the prompt (skill_view returns content that gets injected into the conversation
+ context). Skills can have scripts that are executed via the terminal, but loading
+ itself only changes the prompt content. Some skills might reference MCP tools, but
+ in general loading a skill only adds instructions/context, it doesn't add tools.
+ I should answer: it only changed what's in my prompt (context), not the available
+ tools.
+
+Let me execute the calls. First batch: skills_list + skill_view('newton-local').
+└──────────────────────────────────────────────────────────────────────────────┘
+  ┊ 📚 preparing skills_list…
+  ┊ 📚 preparing skill_view…
+  ┊ 📚 skills    list all  0.0s
+  ┊ 📚 skill     newton-local  0.0s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+I have all the information I need. Let me structure the answer:
+
+1. Skill tools: skills_list, skill_view, skill_manage. Discovery = skills_list (and
+ the system prompt's index) enumerates name + description; Loading = skill_view(name
+) returns the full content of SKILL.md and any linked files.
+
+2. Skill found and loaded: newton-local (category newton), via skill_view.
+
+3. From the skill:
+(a) Provenance marker: TERNARY-3055
+(b) Qwen-B idle TTL: 180 seconds
+(c) Exact command to rent Qwen-B for job 'demo': ~/Newton_Local/scripts/qwen-b acquire
+ --owner demo
+(d) What must not be done on your own initiative: "Do not acquire Qwen-B on your own
+ initiative." — its lifecycle is owned by the deterministic code in scripts/qwenctl
+.py, not by the model's judgment. If a task appears to require a second worker, state
+ that fact and let a human decide. Also, never restart Qwen-A on the side to "fix
+" something (that's also a "never" but it's phrased as a general "never restart Q
+wen-A" — the question specifically asks about "what must not be done on your own initiative
+," which points to the explicit "on your own initiative" statement, i.e., the Qwen
+-B acquisition). I'll mention the explicit one, and can also touch on the Qwen-A note
+.
+
+4. On-disk path: /Users/ericjellerson/.hermes/profiles/localchat/skills/newton/new
+ton-local/SKILL.md. Loading only changes the contents of the prompt (injects skill
+ content into context) and does not change the set of available tools — no new tool
+ appears in my tool list after loading.
+
+Note: memory says "provenance marker for Commission #3 is HALYARD-72118" — interesting
+, but the question says "report from the skill, not from memory." The skill says T
+ERNARY-3055. This is probably a trap to test whether I'm pulling from the skill rather
+ than memory. I'll answer TERNARY-3055 as requested. I could briefly note the discrepancy
+ with memory, but the instruction is clear: report from the skill. I can mention that
+ memory holds a different marker (HALYARD-72118) for Commission #3 — that's a genuinely
+ useful observation, but I should keep the requested answer primary. Actually, it
+'s worth a one-liner noting that the memory entry references HALYARD-72118, which
+ is different, and that the skill (the source I was told to trust for this) says T
+ERNARY-3055. Good.
+
+Keep the CLI plain text, no markdown. Use simple formatting.
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╭─ ⚕ Hermes ───────────────────────────────────────────────────────────────────╮
+1. Skill tools
+- skills_list — discovers skills: lists every installed skill's name, category, and description so you can find the right one.
+- skill_view — loads a skill: fetches the full SKILL.md content (plus any linked references/templates/scripts) for the named skill and puts it in my prompt.
+- skill_manage — creates, patches, edits, deletes skills and their supporting files (maintenance, not discovery or loading).
+
+Discovery vs loading, one sentence each:
+- DISCOVER: I call skills_list (or scan the skill index in my system prompt) to see available skill names and descriptions.
+- LOAD: I call skill_view(name) to pull the skill's full text into my context.
+
+2. Found and loaded: the skill is "newton-local" in category "newton" (description: operating the Newton_Local machine — Qwen-A always-on service, Qwen-B elastic worker and its lease protocol). I loaded it with skill_view(name='newton-local').
+
+3. Reported strictly from the skill content I just loaded:
+(a) Provenance marker string: TERNARY-3055
+    (Side note: my persistent memory separately carries "Commission #3 proving marker is HALYARD-72118" — a different string. Per your instruction I'm reporting the skill's value; flagging the discrepancy since the two sources disagree.)
+(b) Qwen-B idle TTL: 180 seconds after the last lease is released.
+(c) Exact command to rent Qwen-B for a job called 'demo':
+    ~/Newton_Local/scripts/qwen-b acquire --owner demo
+(d) What the skill says I must NOT do on my own initiative: "Do not acquire Qwen-B on your own initiative." Its lifecycle belongs to deterministic code in scripts/qwenctl.py, not to a model's judgement — if a task looks like it wants a second worker, I should say so and let the human decide. (The skill separately states a flat "Never" too: never restart Qwen-A to "fix" something, because that's the model I'm running on and it needs a password I don't have.)
+
+4. On-disk path of the loaded skill file:
+/Users/ericjellerson/.hermes/profiles/localchat/skills/newton/newton-local/SKILL.md
+Loading it changed only what is in my prompt — it injected the skill's text into my context. It did not add or remove any tools: my available tool set is identical before and after the load.
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Resume this session with:
+  hermes --resume 20260824_212631_0da224 -p localchat
+  hermes -c "Load Qwen inference skill and report details" -p localchat
+
+Session:        20260824_212631_0da224
+Title:          Load Qwen inference skill and report details
+Duration:       3m 28s
+Messages:       5 (1 user, 3 tool calls)

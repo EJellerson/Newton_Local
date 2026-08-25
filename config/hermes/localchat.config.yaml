@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------------------
+# Hermes Agent — `localchat` profile configuration (Commission #3)
+#
+# Reproducible copy of ~/.hermes/profiles/localchat/config.yaml.
+# This file contains NO secrets. The API-server bearer key lives only in
+# ~/.hermes/profiles/localchat/.env (mode 0600), which is never committed.
+#
+# Apply with:   scripts/install-hermes-localchat.sh
+#
+# Hermes merges this sparse file over its own shipped defaults; every key here
+# is a deliberate override.
+#
+#   model.*        point the agent at Qwen-A. provider `custom` + an explicit
+#                  base_url is the only inference path; fallback_providers is
+#                  left empty so there is no silent cloud escape hatch.
+#   context_length 262144 mirrors llama.cpp's `--ctx-size 262144` exactly.
+#   supports_vision Qwen-A serves an F16 mmproj, so images go to the model
+#                  natively as image_url parts instead of being pre-described
+#                  by an auxiliary `vision_analyze` model (which would need a
+#                  cloud key).
+#   approvals.mode `manual` — every dangerous-pattern match asks a human.
+#                  `smart` would let an auxiliary LLM auto-approve.
+#                  cron/single-query contexts have no human, so they deny.
+#   terminal.*     the real macOS host, rooted at $HOME rather than the
+#                  project, because this is a general machine assistant.
+#   delegation.*   flat (depth 1), at most 2 children — subagents inherit the
+#                  same local Qwen-A provider. Deliberately NOT wired to
+#                  Qwen-B; that remains deterministic infrastructure.
+#   platforms.api_server  loopback-only OpenAI-compatible agent endpoint that
+#                  Open WebUI talks to. Never bind this to 0.0.0.0: it hands
+#                  out terminal access to whoever can reach it.
+# ---------------------------------------------------------------------------
+
+model:
+  provider: custom
+  base_url: http://127.0.0.1:8080/v1
+  default: qwen-a
+  context_length: 262144
+  supports_vision: true
+approvals:
+  mode: manual
+  timeout: 300
+  cron_mode: deny
+  single_query_mode: deny
+terminal:
+  backend: local
+  cwd: /Users/ericjellerson
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+delegation:
+  max_spawn_depth: 1
+  max_concurrent_children: 2
+  max_iterations: 30
+platforms:
+  api_server:
+    enabled: true
+    extra:
+      host: 127.0.0.1
+      port: 8642
+auxiliary:
+  vision:
+    provider: main
+  web_extract:
+    provider: main
+  approval:
+    provider: main
+  compression:
+    provider: main
+  title_generation:
+    provider: main
+onboarding:
+  seen:
+    tool_progress_prompt: true

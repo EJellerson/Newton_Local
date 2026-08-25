@@ -1,0 +1,28 @@
+==============================================================================
+A. STREAMING + TOOL USE through POST /v1/chat/completions
+==============================================================================
+content deltas          : 12
+time to first token     : 36.3s
+total wall clock        : 36.9s
+tool-progress events    : 4
+    {"tool": "terminal", "emoji": "\ud83d\udcbb", "label": "sw_vers -productVersion", "toolCallId": "NKmAGB8XuOJtzYr78Rlb5ZaGuU1oBZKP", "status": "running"}
+    {"tool": "terminal", "toolCallId": "NKmAGB8XuOJtzYr78Rlb5ZaGuU1oBZKP", "status": "completed"}
+    {"tool": "terminal", "emoji": "\ud83d\udcbb", "label": "hostname -s", "toolCallId": "SmgP8lWkJ6jtrazVOA2b8XdJczbNcDGj", "status": "running"}
+    {"tool": "terminal", "toolCallId": "SmgP8lWkJ6jtrazVOA2b8XdJczbNcDGj", "status": "completed"}
+assistant text          : 14.8.5 on Erics-Mac-Pro
+
+==============================================================================
+B. STATEFUL CONVERSATION through POST /v1/responses (previous_response_id)
+==============================================================================
+turn 1 id               : resp_8ebcb8d4447747699056aceb8694
+turn 1 text             : noted.
+turn 2 id               : resp_f981aedf26934a74b813c29108c8
+turn 2 text             : 41983
+STATEFUL RECALL         : PASS
+
+==============================================================================
+C. SESSION-CONTINUITY HEADER on /v1/chat/completions (X-Hermes-Session-Id)
+==============================================================================
+turn 1 : ok.
+turn 2 : Vermilion.
+HEADER-SCOPED RECALL    : PASS

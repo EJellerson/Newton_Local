@@ -1,0 +1,122 @@
+
+Qwen-A (intelligence, persistent)
+  endpoint       http://127.0.0.1:8080
+  health         {"status":"ok"}
+  model          Qwen3.8-27B-Q8_0.gguf
+  n_ctx          262144
+  modalities     {'vision': True, 'video': True, 'audio': False}
+
+Qwen-B (elastic worker — Hermes must not start it)
+  qwen-b  state=STOPPED
+    endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+    launchd    state=not running bootstrapped=True runs=17 last_exit=0
+    socket     listening=False bind=None
+    health     ok=False   observed=DOWN
+
+Hermes gateway + API server (agency)
+  Launchd plist: /Users/ericjellerson/Library/LaunchAgents/ai.hermes.gateway-localchat.plist
+  ✓ Service definition matches the current Hermes install
+  ✓ Gateway is supervised by launchd (PID 19453)
+    Auto-start at login and auto-restart on crash are available.
+  socket         127.0.0.1:8642 listening
+  health         {"status": "ok", "platform": "hermes-agent", "version": "0.20.5"}
+
+Open WebUI (presentation)
+  url            http://127.0.0.1:3000
+  health         {"status":true}
+
+$ hermes-localchat url
+http://127.0.0.1:3000
+
+$ hermes-localchat memory
+
+/Users/ericjellerson/.hermes/profiles/localchat/memories/MEMORY.md
+Primary local model on this machine is Qwen-A: Qwen3.8-27B Q8_0 served by llama.cpp at http://127.0.0.1:8080, alias qwen-a, 262144-token context (Newton_Local, always-on LaunchDaemon).
+§
+Commission #3 proving marker is HALYARD-72118.
+/Users/ericjellerson/.hermes/profiles/localchat/memories/USER.md
+User provided the number 41983 to remember for this exchange (Aug 2026).
+§
+User's favourite colour is vermilion.
+
+$ hermes-localchat config
+
+/Users/ericjellerson/.hermes/profiles/localchat/config.yaml
+model:
+  provider: custom
+  base_url: http://127.0.0.1:8080/v1
+  default: qwen-a
+  context_length: 262144
+  supports_vision: true
+approvals:
+  mode: manual
+  timeout: 300
+  cron_mode: deny
+  single_query_mode: deny
+terminal:
+  backend: local
+  cwd: /Users/ericjellerson
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+delegation:
+  max_spawn_depth: 1
+  max_concurrent_children: 2
+  max_iterations: 30
+platforms:
+  api_server:
+    enabled: true
+    extra:
+      host: 127.0.0.1
+      port: 8642
+auxiliary:
+  vision:
+    provider: main
+  web_extract:
+    provider: main
+  approval:
+    provider: main
+  compression:
+    provider: main
+  title_generation:
+    provider: main
+onboarding:
+  seen:
+    tool_progress_prompt: true
+
+/Users/ericjellerson/.hermes/profiles/localchat/.env  (secrets redacted)
+# Per-profile secrets for this Hermes profile.
+# API keys and tokens set here override the shell environment.
+# Behavioral settings belong in config.yaml, not here.
+TERMINAL_ENV=local
+
+# --- Hermes API server (Commission #3): loopback only ---
+API_SERVER_ENABLED=true
+API_SERVER_KEY=<REDACTED>
+API_SERVER_HOST=127.0.0.1
+API_SERVER_PORT=8642
+
+
+
+=== memory inspect / edit / delete procedure (demonstrated) ===
+$ hermes-localchat memory
+  MEMORY.md
+    Primary local model on this machine is Qwen-A: Qwen3.8-27B Q8_0 served by
+    llama.cpp at http://127.0.0.1:8080, alias qwen-a, 262144-token context
+    (Newton_Local, always-on LaunchDaemon).
+    §
+    Commission #3 proving marker is HALYARD-72118.
+  USER.md
+    User provided the number 41983 to remember for this exchange (Aug 2026).
+    §
+    User's favourite colour is vermilion.
+
+Both USER.md entries were proving artifacts (the API-server stateful-conversation
+tests), so they were removed by hand — the store is plain Markdown with entries
+separated by "§", editable in any editor. MEMORY.md was left intact so the
+persistence proof stays verifiable; `hermes-localchat memory-clear` removes both
+files after a confirmation prompt.
+
+$ hermes-localchat memory      # after
+  MEMORY.md   (2 entries, unchanged)
+  USER.md     (empty)

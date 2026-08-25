@@ -1,0 +1,112 @@
+Query: Use your web tools (web_search and web_extract) for this — do not answer 
+from prior knowledge, and do not use the terminal.
+1. Find the latest published release of the GitHub repository 
+NousResearch/hermes-agent. Report the exact release tag and release title.
+2. Then use web_extract on the official Hermes Agent installation documentation 
+page and quote the exact one-line command it gives for a command-line-only 
+install on macOS.
+For each answer, state which tool you used and the URL the fact came from.
+Initializing agent...
+────────────────────────────────────────
+
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+The user is asking to use web_search and web_extract to find the following:
+1. The latest published release (exact tag and title) of the GitHub repository Nous
+Research/hermes-agent.
+2. The exact one-line command from the official Hermes Agent installation documentation
+ for a command-line-only install on macOS.
+
+For each answer, I need to specify which tool I used and the URL that the fact came
+ from.
+
+Let's start with a web search for the latest release of hermes-agent. I can search
+ GitHub releases. Let's run the searches in parallel:
+- web_search for "NousResearch hermes-agent latest release"
+- web_search for the installation page of the Hermes Agent documentation
+
+Actually, for the GitHub release, I could also fetch https://github.com/NousResearch
+/hermes-agent/releases using web_extract. But first, let's search to find the correct
+ URL.
+
+Let's make the independent calls in parallel:
+1. web_search: "NousResearch hermes-agent GitHub release"
+2. web_search: "Hermes Agent installation documentation macOS"
+└──────────────────────────────────────────────────────────────────────────────┘
+  ┊ 🔍 preparing web_search…
+  ┊ 🔍 preparing web_search…
+  ┊ 🔍 search    NousResearch hermes-agent latest release GitHub  0.6s
+  ┊ 🔍 search    Hermes Agent official installation documentation macOS command line install  0.5s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Got good data from the search results, but I should verify with web_extract:
+1. The release page for the exact latest tag and title — the search results already
+ show "Hermes Agent v0.20.5 (v2026.8.19)" as the latest. Let me extract the release
+ page to verify.
+2. The official installation docs page — https://hermes-agent.nousresearch.com/docs
+/getting-started/installation — for the exact one-liner command.
+
+Let me run both web_extracts in parallel.
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╭─ ⚕ Hermes ───────────────────────────────────────────────────────────────────╮
+Good initial results. Let me verify both facts directly with web_extract on the primary sources.
+
+  ┊ 📄 preparing web_extract…
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ┊ 📄 fetch     github.com +1  0.8s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Both facts have been verified directly from the primary sources.
+
+1. Latest release:
+- From the GitHub releases page (https://github.com/NousResearch/hermes-agent/releases
+), confirmed via web_search and verified with web_extract.
+- The latest release is marked "Latest" and is "Hermes Agent v0.20.5 (v2026.8.19)".
+
+- The release title is "Hermes Agent v0.20.5 (v2026.8.19)".
+- The tag: the release link is https://github.com/NousResearch/hermes-agent/releases
+/tag/v2026.8.19, so the tag is v2026.8.19.
+
+2. Command for macOS-only installation:
+- From the official documentation page https://hermes-agent.nousresearch.com/docs
+/getting-started/installation, confirmed via web_extract.
+- "To install only the command line without Hermes Desktop, run the following:"
+- Linux / macOS / WSL2 / Android (Termux):
+  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+
+Let me clearly present both answers along with the tools and URLs I used.
+⚠ Auxiliary title generation failed: Request timed out.
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╭─ ⚕ Hermes ───────────────────────────────────────────────────────────────────╮
+Both facts verified against primary sources. Here are the answers.
+
+1. Latest published release
+
+- Release tag: v2026.8.19
+- Release title: Hermes Agent v0.20.5 (v2026.8.19)
+
+Tool: web_search (to locate the releases page), then web_extract to confirm the "Latest" marker.
+Source URL: https://github.com/NousResearch/hermes-agent/releases
+(The extract shows the "Latest" badge on "Hermes Agent v0.20.5 (v2026.8.19)", released by teknium1 on Aug 19, 2026; the release link resolves to .../releases/tag/v2026.8.19, confirming the tag.)
+
+2. Exact one-line command for a command-line-only install on macOS
+
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+
+Tool: web_extract directly on the official installation doc.
+Source URL: https://hermes-agent.nousresearch.com/docs/getting-started/installation
+(The page states: "For a command-line only install without Hermes Desktop, run:" under the "Linux / macOS / WSL2 / Android (Termux)" heading, giving exactly that curl line. Note this is the official docs command — it differs from the raw.githubusercontent variant some third-party guides and even the release notes use.)
+
+One nuance worth flagging: the release notes for v0.20.5 quote a slightly different fresh-install URL (https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash). Since you asked for the official installation documentation page specifically, the hermes-agent.nousresearch.com/install.sh variant is the one quoted in answer 2.
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Resume this session with:
+  hermes --resume 20260824_212030_ea3664 -p localchat
+  hermes -c "Use your web tools (web_search and web_extract)…" -p localchat
+
+Session:        20260824_212030_ea3664
+Title:          Use your web tools (web_search and web_extract)…
+Duration:       2m 21s
+Messages:       7 (1 user, 5 tool calls)

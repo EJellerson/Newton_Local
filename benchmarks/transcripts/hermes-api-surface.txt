@@ -1,0 +1,126 @@
+=== bind check: is 8642 reachable from the LAN? ===
+LAN IP: 10.0.0.204
+curl: (7) Failed to connect to 10.0.0.204 port 8642 after 0 ms: Couldn't connect to server
+
+=== unauthenticated request (must be rejected) ===
+HTTP 401
+
+=== GET /health (authorized) ===
+{"status": "ok", "platform": "hermes-agent", "version": "0.20.5"}
+=== GET /health/detailed ===
+{
+    "status": "ok",
+    "readiness": {
+        "status": "ok",
+        "checks": {
+            "state_db": {
+                "status": "ok"
+            },
+            "session_store": {
+                "status": "ok"
+            },
+            "config": {
+                "status": "ok"
+            },
+            "model": {
+                "status": "ok"
+            },
+            "disk": {
+                "status": "ok",
+                "used_percent": 80.4,
+                "free_bytes": 195184775168
+            },
+            "gateway": {
+                "status": "ok",
+                "state": "running",
+                "connected_platforms": 1,
+                "platforms": 1
+            },
+            "background_queues": {
+                "status": "ok",
+                "active_api_runs": 0,
+                "process_completions": 0,
+                "active_delegations": 0
+            }
+        }
+    },
+    "platform": "hermes-agent",
+    "version": "0.20.5",
+    "gateway_state": "running",
+    "platforms": {
+=== GET /v1/models ===
+{
+    "object": "list",
+    "data": [
+        {
+            "id": "localchat",
+            "object": "model",
+            "created": 1787620786,
+            "owned_by": "hermes",
+            "permission": [],
+            "root": "localchat",
+            "parent": null
+        }
+    ]
+}
+=== GET /v1/capabilities ===
+{
+    "object": "hermes.api_server.capabilities",
+    "platform": "hermes-agent",
+    "model": "localchat",
+    "auth": {
+        "type": "bearer",
+        "required": true
+    },
+    "runtime": {
+        "mode": "server_agent",
+        "tool_execution": "server",
+        "split_runtime": false,
+        "description": "The API server creates a server-side Hermes AIAgent; tools execute on the API-server host unless a future explicit split-runtime mode is enabled."
+    },
+    "features": {
+        "chat_completions": true,
+        "chat_completions_streaming": true,
+        "responses_api": true,
+        "responses_streaming": true,
+        "run_submission": true,
+        "run_status": true,
+        "run_events_sse": true,
+        "run_stop": true,
+        "run_steer": true,
+        "run_approval_response": true,
+        "tool_progress_events": true,
+        "approval_events": true,
+        "session_resources": true,
+        "model_options": true,
+        "session_chat": true,
+        "session_chat_streaming": true,
+        "session_fork": true,
+        "session_model_lock": true,
+        "admin_config_rw": false,
+        "jobs_admin": false,
+        "memory_write_api": false,
+        "skills_api": true,
+        "audio_api": false,
+        "realtime_voice": false,
+        "session_continuity_header": "X-Hermes-Session-Id",
+        "session_key_header": "X-Hermes-Session-Key",
+        "cors": false,
+        "browser_extension_control": {
+            "enabled": false,
+            "protocol_version": 1,
+            "capabilities": [
+                "browser_back",
+                "browser_click",
+                "browser_navigate",
+                "browser_press",
+                "browser_screenshot",
+                "browser_scroll",
+                "browser_snapshot",
+                "browser_tab_activate",
+                "browser_tabs",
+                "browser_type",
+                "controller.noop"
+            ],
+            "artifact_capabilities": [
+                "browser_artifact_download",

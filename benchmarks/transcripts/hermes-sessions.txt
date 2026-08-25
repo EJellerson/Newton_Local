@@ -1,0 +1,21 @@
+=== localchat sessions list ===
+Title                        Workspace          Last Active   ID
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Answer reasoning check and   ericjellerson      just now      20260824_211644_4475db
+Answer context-only sessio   ericjellerson      2m ago        20260824_211510_934d52
+Do all of the following wi   ericjellerson      4m ago        20260824_211114_58fca9
+Inspect and fix stats.py u   ericjellerson      8m ago        20260824_210811_e248c5
+Run terminal commands and    ericjellerson      11m ago       20260824_210450_e16ffa
+Reply with exactly one lin   Newton_Local       16m ago       20260824_210047_4be44b
+
+=== localchat sessions stats ===
+Total sessions: 6
+Total messages: 55
+  cli: 6 sessions
+Database size: 0.5 MB
+
+=== MEMORY.md after the session-local codeword test (ORRERY-4417 must NOT appear) ===
+Primary local model on this machine is Qwen-A: Qwen3.8-27B Q8_0 served by llama.cpp at http://127.0.0.1:8080, alias qwen-a, 262144-token context (Newton_Local, always-on LaunchDaemon).
+§
+Commission #3 proving marker is HALYARD-72118.
+grep ORRERY in memories/: /Users/ericjellerson/.hermes/profiles/localchat/memories/MEMORY.md:0 /Users/ericjellerson/.hermes/profiles/localchat/memories/MEMORY.md.lock:0 

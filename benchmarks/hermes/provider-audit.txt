@@ -1,0 +1,15 @@
+Every (model, provider, endpoint) this profile has ever issued an inference
+call against, aggregated from ~/.hermes/profiles/localchat/state.db
+table session_model_usage — Hermes' own per-session billing ledger.
+
+model        provider   endpoint                           task               sessions   calls        in      out  cost_usd
+---------------------------------------------------------------------------------------------------------------------------
+qwen-a       custom     http://127.0.0.1:8080/v1           -                        17      61    150689    28961    0.0000
+qwen-a       main       http://127.0.0.1:8080/v1/          title_generation          5       5       614     1440    0.0000
+qwen-a       custom     http://127.0.0.1:8080/v1/          title_generation          4       4       607     1598    0.0000
+qwen-a       -          -                                  title_generation          3       3        12     1047    0.0000
+---------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                       73
+
+Distinct endpoints used: ['', 'http://127.0.0.1:8080/v1', 'http://127.0.0.1:8080/v1/']
+Calls to any endpoint other than Qwen-A: NONE

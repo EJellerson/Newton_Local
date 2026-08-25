@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Open WebUI — ChatGPT-like frontend for the Newton_Local general assistant.
+
+  It talks to the HERMES API SERVER (127.0.0.1:8642), never to Qwen-A directly.
+  Loopback bind only: HOST=127.0.0.1 means the UI is unreachable from the LAN.
+
+  Installed by scripts/install-openwebui.sh, which substitutes:
+    __HOME__            the user's home directory
+    __OPENWEBUI_BIN__   the uv-managed open-webui launcher
+    __API_KEY__         the Hermes API-server bearer key (from the profile .env)
+
+  This is a USER LaunchAgent (gui/<uid>). It does not run as root and needs no
+  sudo. It is unrelated to the root-owned com.newton.qwen38server.a daemon.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.newton.openwebui</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__OPENWEBUI_BIN__</string>
+        <string>serve</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>3000</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+        <key>DATA_DIR</key>
+        <string>__HOME__/.open-webui</string>
+
+        <!-- The whole point: the frontend speaks to Hermes, not to Qwen-A. -->
+        <key>ENABLE_OPENAI_API</key>
+        <string>true</string>
+        <key>OPENAI_API_BASE_URL</key>
+        <string>http://127.0.0.1:8642/v1</string>
+        <key>OPENAI_API_KEY</key>
+        <string>__API_KEY__</string>
+        <key>ENABLE_OLLAMA_API</key>
+        <string>false</string>
+
+        <!-- Single-user loopback appliance: no login wall. See docs/06. -->
+        <key>WEBUI_AUTH</key>
+        <string>false</string>
+        <key>WEBUI_NAME</key>
+        <string>Newton Local</string>
+
+        <!-- Every "task" call is a full Hermes agent run against a 27B local
+             model. Auto-generated titles/tags/queries would triple the cost of
+             every message, so they are off. -->
+        <key>ENABLE_TITLE_GENERATION</key>
+        <string>false</string>
+        <key>ENABLE_TAGS_GENERATION</key>
+        <string>false</string>
+        <key>ENABLE_RETRIEVAL_QUERY_GENERATION</key>
+        <string>false</string>
+        <key>ENABLE_AUTOCOMPLETE_GENERATION</key>
+        <string>false</string>
+        <key>ENABLE_FOLLOW_UP_GENERATION</key>
+        <string>false</string>
+
+        <!-- Open WebUI defaults CORS_ALLOW_ORIGIN to '*'. The bind is
+             loopback-only, but there is no reason to leave it wide. -->
+        <key>CORS_ALLOW_ORIGIN</key>
+        <string>http://127.0.0.1:3000</string>
+
+        <!-- No phoning home. -->
+        <key>ANONYMIZED_TELEMETRY</key>
+        <string>false</string>
+        <key>DO_NOT_TRACK</key>
+        <string>true</string>
+        <key>SCARF_NO_ANALYTICS</key>
+        <string>true</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/.open-webui/logs/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.open-webui/logs/stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__HOME__</string>
+</dict>
+</plist>

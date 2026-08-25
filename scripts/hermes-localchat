@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# hermes-localchat — operator entry point for the Newton_Local general
+# assistant (Commission #3).
+#
+#     Open WebUI  ->  Hermes Agent (localchat profile)  ->  Qwen-A :8080
+#
+# Hermes owns agency (tools, memory, sessions, delegation, skills, browser).
+# Qwen-A owns intelligence. This script owns nothing but lifecycle.
+#
+# Nothing here needs sudo. Qwen-A and Qwen-B are NOT touched by this script.
+# ---------------------------------------------------------------------------
+set -uo pipefail
+
+PROFILE=localchat
+HERMES_BIN="$HOME/.local/bin/hermes"
+PROFILE_HOME="$HOME/.hermes/profiles/$PROFILE"
+API_HOST=127.0.0.1
+API_PORT=8642
+UI_HOST=127.0.0.1
+UI_PORT=3000
+UI_LABEL=com.newton.openwebui
+UI_PLIST="$HOME/Library/LaunchAgents/${UI_LABEL}.plist"
+QWEN_A=http://127.0.0.1:8080
+
+export PATH="$HOME/.local/bin:$HOME/.hermes/bin:$PATH"
+
+die()  { printf 'hermes-localchat: %s\n' "$*" >&2; exit 1; }
+h()    { printf '\n\033[1m%s\033[0m\n' "$*"; }
+
+[ -x "$HERMES_BIN" ] || die "hermes not found at $HERMES_BIN"
+
+api_key() {
+  # Read the API-server key from the profile .env. Never printed in full.
+  /usr/bin/sed -n 's/^API_SERVER_KEY=//p' "$PROFILE_HOME/.env" 2>/dev/null | head -1
+}
+
+port_open() { /usr/bin/nc -z -G 1 "$1" "$2" >/dev/null 2>&1; }
+
+# --------------------------------------------------------------------------
+usage() {
+  cat <<'USAGE'
+usage: hermes-localchat <command> [args]
+
+  Talking to the assistant
+    chat                  interactive CLI session   (Hermes -> Qwen-A)
+    tui                   interactive full-screen TUI
+    ask "<prompt>"        one-shot, non-interactive query
+    resume [<id>]         resume a session (no id = most recent)
+
+  Services
+    status                everything: Qwen-A, Qwen-B, Hermes API, Open WebUI
+    api start|stop|restart|status|logs
+    ui  start|stop|restart|status|logs
+    up                    start API + UI
+    down                  stop UI + API
+
+  Inspection / maintenance
+    sessions [list|browse|stats]
+    memory                show what the agent has durably remembered
+    memory-clear          delete MEMORY.md / USER.md for this profile
+    config                resolved config, secrets redacted
+    logs                  hermes agent logs
+    doctor                hermes self-diagnosis
+    recover               clear a wedged gateway and restart the API service
+    url                   print the web-UI URL
+USAGE
+}
+
+# --------------------------------------------------------------------------
+cmd_status() {
+  h "Qwen-A (intelligence, persistent)"
+  if curl -sS -m 3 "$QWEN_A/health" >/dev/null 2>&1; then
+    printf '  %-14s %s\n' "endpoint" "$QWEN_A"
+    printf '  %-14s %s\n' "health" "$(curl -sS -m 3 "$QWEN_A/health")"
+    curl -sS -m 3 "$QWEN_A/props" 2>/dev/null | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+print("  %-14s %s" % ("model", d.get("model_path","?").rsplit("/",1)[-1]))
+print("  %-14s %s" % ("n_ctx", d.get("default_generation_settings",{}).get("n_ctx","?")))
+print("  %-14s %s" % ("modalities", d.get("modalities")))
+' 2>/dev/null
+  else
+    printf '  %-14s %s\n' "health" "DOWN — the assistant cannot think without this"
+  fi
+
+  h "Qwen-B (elastic worker — Hermes must not start it)"
+  if [ -x "$HOME/Newton_Local/scripts/qwen-b" ]; then
+    "$HOME/Newton_Local/scripts/qwen-b" status 2>&1 | /usr/bin/sed 's/^/  /'
+  else
+    printf '  controller not found\n'
+  fi
+
+  h "Hermes gateway + API server (agency)"
+  "$HERMES_BIN" -p "$PROFILE" gateway status 2>&1 | /usr/bin/sed 's/^/  /' | head -20
+  if port_open "$API_HOST" "$API_PORT"; then
+    printf '  %-14s %s\n' "socket" "$API_HOST:$API_PORT listening"
+    K="$(api_key)"
+    printf '  %-14s %s\n' "health" \
+      "$(curl -sS -m 5 -H "Authorization: Bearer $K" "http://$API_HOST:$API_PORT/health" 2>/dev/null || echo unreachable)"
+  else
+    printf '  %-14s %s\n' "socket" "$API_HOST:$API_PORT closed"
+  fi
+
+  h "Open WebUI (presentation)"
+  if port_open "$UI_HOST" "$UI_PORT"; then
+    printf '  %-14s %s\n' "url" "http://$UI_HOST:$UI_PORT"
+    printf '  %-14s %s\n' "health" \
+      "$(curl -sS -m 5 "http://$UI_HOST:$UI_PORT/health" 2>/dev/null || echo unreachable)"
+  else
+    printf '  %-14s %s\n' "socket" "$UI_HOST:$UI_PORT closed"
+  fi
+  echo
+}
+
+cmd_api() {
+  case "${1:-status}" in
+    start)   "$HERMES_BIN" -p "$PROFILE" gateway start ;;
+    stop)    "$HERMES_BIN" -p "$PROFILE" gateway stop ;;
+    restart) "$HERMES_BIN" -p "$PROFILE" gateway restart ;;
+    status)  "$HERMES_BIN" -p "$PROFILE" gateway status ;;
+    logs)    tail -n "${2:-60}" "$PROFILE_HOME/logs/gateway.log" 2>/dev/null \
+               || "$HERMES_BIN" -p "$PROFILE" logs gateway ;;
+    *) die "api: expected start|stop|restart|status|logs" ;;
+  esac
+}
+
+cmd_ui() {
+  case "${1:-status}" in
+    start)
+      [ -f "$UI_PLIST" ] || die "Open WebUI service not installed — run scripts/install-openwebui.sh"
+      launchctl kickstart -k "gui/$(id -u)/$UI_LABEL" 2>/dev/null \
+        || launchctl bootstrap "gui/$(id -u)" "$UI_PLIST"
+      printf 'Open WebUI starting — http://%s:%s\n' "$UI_HOST" "$UI_PORT" ;;
+    stop)
+      launchctl kill SIGTERM "gui/$(id -u)/$UI_LABEL" 2>/dev/null
+      printf 'Open WebUI stop requested\n' ;;
+    restart) launchctl kickstart -k "gui/$(id -u)/$UI_LABEL" ;;
+    status)
+      launchctl print "gui/$(id -u)/$UI_LABEL" 2>/dev/null \
+        | /usr/bin/grep -E '^\s*(state|pid|last exit code)' || printf 'not bootstrapped\n'
+      port_open "$UI_HOST" "$UI_PORT" && printf 'socket %s:%s listening\n' "$UI_HOST" "$UI_PORT" \
+                                      || printf 'socket %s:%s closed\n' "$UI_HOST" "$UI_PORT" ;;
+    logs) tail -n "${2:-60}" "$HOME/.open-webui/logs/stderr.log" 2>/dev/null || printf 'no log yet\n' ;;
+    *) die "ui: expected start|stop|restart|status|logs" ;;
+  esac
+}
+
+cmd_memory() {
+  for f in MEMORY.md USER.md; do
+    p="$PROFILE_HOME/memories/$f"
+    h "$p"
+    [ -f "$p" ] && cat "$p" || printf '  (not written yet)\n'
+  done
+  echo
+}
+
+cmd_memory_clear() {
+  printf 'Delete %s/memories/{MEMORY.md,USER.md}? [y/N] ' "$PROFILE_HOME"
+  read -r ans
+  case "$ans" in
+    y|Y) rm -f "$PROFILE_HOME/memories/MEMORY.md" "$PROFILE_HOME/memories/USER.md"
+         printf 'cleared\n' ;;
+    *)   printf 'aborted\n' ;;
+  esac
+}
+
+cmd_config() {
+  h "$PROFILE_HOME/config.yaml"
+  cat "$PROFILE_HOME/config.yaml"
+  h "$PROFILE_HOME/.env  (secrets redacted)"
+  /usr/bin/sed -E 's/^([A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*=).*/\1<REDACTED>/' "$PROFILE_HOME/.env"
+  echo
+}
+
+cmd_recover() {
+  h "Stopping the gateway service"
+  "$HERMES_BIN" -p "$PROFILE" gateway stop 2>&1 | /usr/bin/sed 's/^/  /'
+  h "Reaping any orphaned localchat gateway processes"
+  pkill -f "profiles/$PROFILE.*gateway" 2>/dev/null && printf '  killed orphans\n' || printf '  none found\n'
+  h "Restarting"
+  "$HERMES_BIN" -p "$PROFILE" gateway start 2>&1 | /usr/bin/sed 's/^/  /'
+  cmd_status
+}
+
+# --------------------------------------------------------------------------
+case "${1:-}" in
+  chat)         shift; exec "$HERMES_BIN" -p "$PROFILE" chat "$@" ;;
+  tui)          shift; exec "$HERMES_BIN" -p "$PROFILE" --tui "$@" ;;
+  ask)          shift; [ $# -ge 1 ] || die "ask: needs a prompt"
+                exec "$HERMES_BIN" -p "$PROFILE" chat -q "$*" ;;
+  resume)       shift
+                if [ $# -ge 1 ]; then exec "$HERMES_BIN" -p "$PROFILE" --resume "$1"
+                else exec "$HERMES_BIN" -p "$PROFILE" --continue; fi ;;
+  status)       cmd_status ;;
+  api)          shift; cmd_api "$@" ;;
+  ui)           shift; cmd_ui "$@" ;;
+  up)           cmd_api start; cmd_ui start ;;
+  down)         cmd_ui stop;  cmd_api stop ;;
+  sessions)     shift; exec "$HERMES_BIN" -p "$PROFILE" sessions "${1:-list}" ;;
+  memory)       cmd_memory ;;
+  memory-clear) cmd_memory_clear ;;
+  config)       cmd_config ;;
+  logs)         shift; exec "$HERMES_BIN" -p "$PROFILE" logs "$@" ;;
+  doctor)       exec "$HERMES_BIN" -p "$PROFILE" doctor ;;
+  recover)      cmd_recover ;;
+  url)          printf 'http://%s:%s\n' "$UI_HOST" "$UI_PORT" ;;
+  -h|--help|help|"") usage ;;
+  *)            die "unknown command '$1' (try: hermes-localchat help)" ;;
+esac

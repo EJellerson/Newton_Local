@@ -1,0 +1,28 @@
+=== Qwen-B controller status (after all Hermes + delegation proving) ===
+qwen-b  state=STOPPED
+  endpoint   http://127.0.0.1:8081   (gui/501/com.newton.qwen38server.b)
+  launchd    state=not running bootstrapped=True runs=17 last_exit=0
+  socket     listening=False bind=None
+  health     ok=False   observed=DOWN
+
+=== port 8081 listeners ===
+port 8081: no listener
+
+=== launchd view of com.newton.qwen38server.b ===
+	state = not running
+	program = /Users/ericjellerson/Newton_Local/tools/llama.cpp/build/bin/llama-server
+	runs = 17
+	last exit code = 0
+
+=== controller / plist integrity (git) ===
+(empty above == unmodified)
+2bc0fea Add Qwen-B elastic worker and deterministic lifecycle controller
+
+=== installed Qwen-B LaunchAgent vs repo template ===
+identical to template
+b5b55e31b3afe698bfe826362e56c9db9563a21826f43be89ce303063d2f7332  /Users/ericjellerson/Library/LaunchAgents/com.newton.qwen38server.b.plist
+
+=== Qwen-A still healthy ===
+{"status":"ok"}
+  PID  PPID USER           ELAPSED    RSS COMM
+97191     1 ericjellerson 03:13:22 31050096 /Users/ericjellerson/Newton_Local/tools/llama.cpp/build/bin/llama-server

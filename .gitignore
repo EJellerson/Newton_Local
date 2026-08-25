@@ -50,6 +50,25 @@ state/
 *.log
 *.pid
 
+# --- Assistant runtime state (Commission #3) -----------------------------
+# Hermes and Open WebUI keep everything private under $HOME, outside this
+# tree. These rules are defence in depth, for the day someone copies or
+# symlinks a profile in here "just to look at it".
+.hermes/
+**/.hermes/
+.open-webui/
+**/.open-webui/
+hermes-agent/
+*.db
+*.sqlite
+*.sqlite3
+memories/MEMORY.md
+memories/USER.md
+SOUL.md
+# Rendered LaunchAgent plists embed the API bearer key; only templates ship.
+config/com.newton.openwebui.plist
+!config/*.plist.template
+
 # --- macOS noise ---------------------------------------------------------
 .DS_Store
 ._*

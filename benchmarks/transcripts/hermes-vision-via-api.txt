@@ -1,0 +1,25 @@
+POST /v1/chat/completions  image=hermes-vision-test.png (12585 B, 16780 B base64)  Authorization: Bearer <REDACTED>
+HTTP 200 in 82.9s
+{
+  "id": "chatcmpl-adf6110485a74c4cabbb3c0246927",
+  "object": "chat.completion",
+  "created": 1787621034,
+  "model": "localchat",
+  "usage": {
+    "prompt_tokens": 19437,
+    "completion_tokens": 213,
+    "total_tokens": 19650
+  }
+}
+--- assistant content ---
+Looking at the image:
+
+(1) Shapes:
+- Orange circle, top-left
+- Purple square, top-right
+- Teal (blue-green) downward-pointing triangle, bottom-left
+- Black number "58", bottom-right
+
+(2) Exact number printed: 58
+
+(3) Exact caption text: COMMISSION THREE HERMES VISION
