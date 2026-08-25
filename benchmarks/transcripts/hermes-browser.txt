@@ -1,0 +1,150 @@
+Query: Use the interactive BROWSER tools specifically — browser_navigate and 
+browser_snapshot — not web_search and not web_extract, and not the terminal.
+1. Navigate to https://example.com
+2. Take a snapshot of the page and report the exact <h1> heading text and the 
+exact text of the single link on that page.
+3. Then navigate to https://httpbin.org/html and snapshot it: report the title 
+of the excerpt shown and the name of the ship mentioned in the first paragraph.
+For each step name the tool you called and say what the snapshot gave you 
+(accessibility tree, screenshot, or text).
+Initializing agent...
+────────────────────────────────────────
+
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+The user is asking me to use browser_navigate and browser_snapshot to do the following
+:
+1. Navigate to https://example.com
+2. Take a snapshot and report the exact <h1> text and the exact text of the single
+ link
+3. Navigate to https://httpbin.org/html and take a snapshot. Report the title of the
+ excerpt and the name of the ship mentioned in the first paragraph.
+4. For each step, specify which tool was called, and what the snapshot returned (
+accessibility tree, screenshot, or text).
+
+Let's start with browser_navigate to https://example.com first.
+└──────────────────────────────────────────────────────────────────────────────┘
+  ┊ 🌐 preparing browser_navigate…
+  ┊ 🌐 navigate  example.com  4.8s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+The user requested that browser_navigate and browser_snapshot be used. I already got
+ a snapshot from the navigate result. However, the user has explicitly asked me to
+ take a snapshot and report the exact text of the <h1> heading and the text of the
+ single link. Let me also call browser_snapshot for confirmation. This is because
+ the user explicitly requested that the snapshot be taken. Actually, browser_navigate
+ already returned a snapshot. But the user specifically asked me to use both browser
+_navigate and browser_snapshot. Just to be safe, let me explicitly call browser_snapshot
+.
+└──────────────────────────────────────────────────────────────────────────────┘
+  ┊ 📸 preparing browser_snapshot…
+  ┊ 📸 snapshot  compact  0.5s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Example.com is done. Next, I'll navigate to httpbin.org/html and take a snapshot.
+
+└──────────────────────────────────────────────────────────────────────────────┘
+  ┊ 🌐 preparing browser_navigate…
+  ┊ 🌐 navigate  httpbin.org  1.4s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+The snapshot only returned the heading — the paragraph might not be included in the
+ accessibility tree (since it's plain text). Let's try to get the full text with browser
+_snapshot full=true.
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╭─ ⚕ Hermes ───────────────────────────────────────────────────────────────────╮
+The compact snapshot only captured the heading, so let me get the full content to see the paragraph text:
+
+  ┊ 📸 preparing browser_snapshot…
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ┊ 📸 snapshot  full  0.5s
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Both snapshots complete. Reporting:
+
+Step 1: browser_navigate to example.com — the returned content includes a compact
+ snapshot of the accessibility tree.
+Step 2: browser_snapshot (default, compact) — the accessibility tree shows heading
+ "Example Domain" [level 1] and link "Learn more".
+Step 3: browser_navigate to httpbin.org/html — the compact snapshot only showed the
+ heading "Herman Melville - Moby-Dick". Then with browser_snapshot full=true, got
+ the full accessibility tree containing the paragraph text.
+
+The title of the excerpt displayed: "Herman Melville - Moby-Dick" (that's the h1 heading
+). Name of the ship: the first paragraph mentions "Ahab's leg" — but the name of the
+ ship? The paragraph says "his contributory work for Ahab's leg" — that's about A
+hab. The ship name in this excerpt is… the famous opening of Moby-Dick is about the
+ Pequod. This specific excerpt (the blacksmith Perth's paragraph) doesn't explicitly
+ name the ship — it mentions Ahab's leg. Hmm, "the name of the ship mentioned in the
+ first paragraph." The text mentions "Ahab's leg" — Ahab is a person, not a ship.
+ Wait, let me reread the text carefully for the ship name… "Perth, the begrimed, blister
+ed old blacksmith… his contributory work for Ahab's leg… the headsmen, and harpoone
+ers, and bowsmen… foremast… voyage… mariners…"
+
+Hmm, in this paragraph I don't see an explicit ship name. The famous ship is the Pequ
+od, but in this excerpt… let me check: "in preparation for the peculiarly active pursuits
+ shortly to be anticipated" — no ship name. Actually, in the original Moby-Dick, this
+ chapter (Chapter 27, "The Blacksmith") doesn't explicitly name the ship. But the
+ user is asking for "the name of the ship mentioned in the first paragraph." Maybe
+ they're assuming it's the Pequod. But based on the snapshot, the paragraph doesn
+'t explicitly name the ship.
+
+Wait — the httpbin.org/html page title is… the navigate response had title: "" (empty
+). The h1 heading is "Herman Melville - Moby-Dick". So "title of the excerpt displayed
+" = "Herman Melville - Moby-Dick".
+
+Regarding the ship: the paragraph mentions Ahab — captain of the Pequod. But strictly
+, the snapshot's text doesn't contain "Pequod." I should be accurate: the snapshot
+ text mentions "Ahab's leg" but no explicit ship name appears in the displayed text
+. However, the user is asking for "the name of the ship mentioned in the first paragraph
+" — probably expecting "Pequod." Hmm, but maybe I should double-check whether the
+ full text contains more. The full snapshot showed one paragraph of StaticText. Let
+ me search for "Pequod" — not there. So strictly, the ship isn't named in the displayed
+ text. I should honestly report: the paragraph doesn't explicitly name the ship; it
+ references Ahab (captain of the Pequod). Actually, wait — the user said "name of
+ the ship mentioned" — maybe they think Ahab… no, Ahab is a person.
+
+I should be honest: based on the snapshot, the ship isn't explicitly named in the
+ displayed text, but the excerpt is from Moby-Dick (the ship is the Pequod, and the
+ paragraph references its captain Ahab). I'll state exactly what the snapshot showed
+, and note that the ship name "Pequod" doesn't appear in the captured text, while
+ mentioning Ahab.
+
+Actually, let me reconsider: maybe I should double-check with browser_console? But
+ the user instructed to specifically use browser_navigate and browser_snapshot, not
+ web_search/web_extract/terminal. browser_console wasn't mentioned; better to stay
+ faithful to the snapshot. I have the full text from the full snapshot. There is no
+ "Pequod" in it. So I'll report honestly.
+
+Format: CLI, plain text, no markdown. For each step, state the tool name and what
+ the snapshot returned (accessibility tree, screenshot, or text).
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╭─ ⚕ Hermes ───────────────────────────────────────────────────────────────────╮
+Done. Here's the step-by-step report:
+
+STEP 1 — Tool: browser_navigate, url https://example.com
+The navigate call succeeded and returned a compact accessibility-tree snapshot inline (no separate call needed).
+
+STEP 2 — Tool: browser_snapshot (default compact mode)
+What it gave me: an accessibility tree, not a screenshot. It showed 2 elements:
+- heading "Example Domain" [level=1]  → exact <h1> text: Example Domain
+- link "Learn more"  → exact text of the single link: Learn more
+
+STEP 3 — Tool: browser_navigate, url https://httpbin.org/html, then browser_snapshot with full=true
+The compact snapshot after navigate showed only the heading element (element_count 1), so I took a full snapshot. What it gave me: a complete accessibility tree with the heading plus the full paragraph as StaticText.
+- Title of the excerpt shown: "Herman Melville - Moby-Dick" (the <h1> heading; the page's <title> tag came back empty)
+- Ship in the first paragraph: one honest caveat — the captured paragraph text never explicitly names a vessel. It is the "blacksmith" passage from Moby-Dick, and the ship it refers to (whose captain Ahab is mentioned via "Ahab's leg") is the Pequod. The word "Pequod" itself does not appear in the text the snapshot returned; what is explicitly there is Ahab, the Pequod's captain.
+
+Tool summary: I called browser_navigate twice and browser_snapshot twice (once compact, once full). All four returned accessibility-tree data; no screenshots were used. I did not use web_search, web_extract, or the terminal.
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Resume this session with:
+  hermes --resume 20260824_225802_928a41 -p localchat
+  hermes -c "Inspect example.com and httpbin.org pages" -p localchat
+
+Session:        20260824_225802_928a41
+Title:          Inspect example.com and httpbin.org pages
+Duration:       2m 9s
+Messages:       10 (1 user, 8 tool calls)

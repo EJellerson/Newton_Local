@@ -22,6 +22,11 @@ delegation. **Qwen-A supplies all of the intelligence** — 73 of 73 inference
 calls during proving went to `http://127.0.0.1:8080/v1` and nowhere else; no
 cloud LLM key exists on this machine and the fallback chain is empty.
 
+Both backends run as user LaunchAgents with `RunAtLoad` and `KeepAlive`, so the
+stack is already up when you log in and comes back on its own after a crash —
+`./scripts/hermes-localchat autostart status`. Only the backends auto-start; the
+TUI and the browser stay manual.
+
 Destructive shell commands require an explicit human approval in the CLI.
 Web tools do reach the internet when the model calls them, so **this assistant
 is not air-gapped** — the split is *internet as a tool*, never *intelligence

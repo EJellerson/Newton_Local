@@ -1,0 +1,125 @@
+Hermes / Open WebUI startup-persistence proving
+Machine: macOS 14.8.5, user LaunchAgents in gui/501, no root involved
+
+1. Service identity
+-------------------
+  ai.hermes.gateway-localchat
+    plist            /Users/ericjellerson/Library/LaunchAgents/ai.hermes.gateway-localchat.plist
+    domain           gui/501   (user LaunchAgent, runs as ericjellerson)
+    RunAtLoad        true
+    KeepAlive        true
+    ThrottleInterval 30
+    ExitTimeOut      25
+    ProcessType      (absent)
+    stdout           /Users/ericjellerson/.hermes/profiles/localchat/logs/gateway.log
+    stderr           /Users/ericjellerson/.hermes/profiles/localchat/logs/gateway.error.log
+    plutil -lint     OK
+    bind             127.0.0.1:8642
+  com.newton.openwebui
+    plist            /Users/ericjellerson/Library/LaunchAgents/com.newton.openwebui.plist
+    domain           gui/501   (user LaunchAgent, runs as ericjellerson)
+    RunAtLoad        true
+    KeepAlive        true
+    ThrottleInterval (absent)
+    ExitTimeOut      (absent)
+    ProcessType      Interactive
+    stdout           /Users/ericjellerson/.open-webui/logs/stdout.log
+    stderr           /Users/ericjellerson/.open-webui/logs/stderr.log
+    plutil -lint     OK
+    bind             127.0.0.1:3000
+
+2. Currently supervised by launchd, owned by launchd (PPID 1), not root
+-----------------------------------------------------------------------
+  ai.hermes.gateway-localchat
+    state=running pid=27560 runs=1 last_exit=(never exited)
+    27560     1 ericjellerson /opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python
+    socket holders on :8642 -> ['27563']
+  com.newton.openwebui
+    state=running pid=27562 runs=1 last_exit=(never exited)
+    27562     1 ericjellerson /opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python
+    socket holders on :3000 -> ['27562']
+
+3. Nothing interactive is auto-launched
+---------------------------------------
+  gateway ProgramArguments (tail): --profile localchat gateway run --replace --external-supervisor
+  -> 'gateway run': a headless backend. No 'chat', no '--tui', no window.
+  Open WebUI ProgramArguments: /Users/ericjellerson/.local/bin/open-webui serve --host 127.0.0.1 --port 3000
+  -> 'serve', an HTTP server. The TUI and the browser stay manual.
+
+4. KeepAlive — recovery from an unexpected process failure (kill -9)
+--------------------------------------------------------------------
+  ai.hermes.gateway-localchat
+    before   pid=27560 runs=1
+    kill -9  27560 27563  (supervisor AND the child holding the socket)
+    down     socket gone after 0.1s
+    up       serving again after 6.2s
+    after    pid=27629 runs=1 -> 2   RECOVERED
+  com.newton.openwebui
+    before   pid=27562 runs=1
+    kill -9  27562  (supervisor AND the child holding the socket)
+    down     socket gone after 0.1s
+    up       serving again after 7.2s
+    after    pid=27637 runs=1 -> 2   RECOVERED
+
+5. RunAtLoad — logout/login cycle
+---------------------------------
+  bootout removes the agent from the user domain exactly as logout does;
+  bootstrap re-loads it exactly as login does. No start command is issued,
+  so if the services come back, RunAtLoad is what did it.
+  after logout   ai.hermes.gateway-localchat      loaded=False  health=False
+  after logout   com.newton.openwebui             loaded=False  health=False
+  bootstrap      ai.hermes.gateway-localchat      rc=0 
+  bootstrap      com.newton.openwebui             rc=0 
+  after login    ai.hermes.gateway-localchat      state=running pid=27658 healthy after 1.5s
+  after login    com.newton.openwebui             state=running pid=27660 healthy after 7.2s
+
+6. Enabled state
+----------------
+  ai.hermes.gateway-localchat      enabled
+  com.newton.openwebui             not listed (== enabled)
+
+7. Service PATH carries nothing session-scoped
+----------------------------------------------
+  12 entries, 0 session-scoped: none
+    /Users/ericjellerson/.hermes/hermes-agent/venv/bin
+    /Users/ericjellerson/.hermes/hermes-agent/node_modules/.bin
+    /Users/ericjellerson/.hermes/node/bin
+    /Users/ericjellerson/.hermes/bin
+    /Users/ericjellerson/.local/bin
+    /usr/local/bin
+    /opt/homebrew/bin
+    /opt/homebrew/sbin
+    /usr/bin
+    /bin
+    /usr/sbin
+    /sbin
+
+8. Nothing else was disturbed
+-----------------------------
+  Qwen-A  97191     1 04:01:51 /Users/ericjellerson/Newton_Local/tools/llama.cpp/build/bin/llama-server
+  Qwen-A  health {"status":"ok"}
+  Qwen-B  qwen-b  state=STOPPED
+
+9. Boot vs login — the honest limit
+-----------------------------------
+  These are user LaunchAgents in gui/501. macOS loads ~/Library/LaunchAgents at
+  LOGIN, not at boot. So:
+    * you log in  -> Hermes and Open WebUI are already running before you reach
+                     the desktop. Nothing to type.
+    * the Mac boots to a login window with nobody logged in -> neither runs,
+      because there is no user session to run them in.
+
+  A system LaunchDaemon would start at boot, but it is the wrong tool here.
+  Hermes needs the user's home directory, the login keychain, a GUI session for
+  Playwright, and osascript clipboard access -- none of which a pre-login daemon
+  has. It would also mean a root-owned service holding a shell, which this
+  commission is explicitly forbidden to create.
+
+  If availability with nobody at the keyboard is wanted, the supported answer is
+  macOS automatic login (System Settings > Users & Groups > Automatically log in
+  as), which makes login happen at boot. That is a machine-policy decision for
+  the operator, not something this commission changes.
+
+  NOT OBSERVED: a physical reboot. What IS observed above is a full cold domain
+  load -- bootout, then bootstrap with no start command -- which is the same
+  mechanism login uses.

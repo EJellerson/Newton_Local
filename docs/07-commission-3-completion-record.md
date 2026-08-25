@@ -363,12 +363,24 @@ the Playwright Chromium the installer placed under `~/.hermes/`.
 free-tier rotation (Exa / Parallel / Tavily / Firecrawl / Keenable) served every
 request. Zero cost.
 
-**Proof** (`benchmarks/transcripts/hermes-web.txt`): asked for facts it could not
-know from training, it ran two `web_search` calls (0.6 s, 0.5 s) and one
-`web_extract`, then reported the latest `NousResearch/hermes-agent` release as
-tag **`v2026.8.19`**, title **"Hermes Agent v0.20.5 (v2026.8.19)"**, and quoted
-the official install command verbatim — all independently correct, with URLs
-cited. Repeated from the web UI against `api.github.com`.
+**Search / extract proof** (`benchmarks/transcripts/hermes-web.txt`): asked for
+facts it could not know from training, it ran two `web_search` calls (0.6 s,
+0.5 s) and one `web_extract`, then reported the latest
+`NousResearch/hermes-agent` release as tag **`v2026.8.19`**, title
+**"Hermes Agent v0.20.5 (v2026.8.19)"**, and quoted the official install command
+verbatim — all independently correct, with URLs cited. Repeated from the web UI
+against `api.github.com`.
+
+**Interactive browser proof** (`benchmarks/transcripts/hermes-browser.txt`): with
+search and extract explicitly forbidden, it drove the real Playwright browser —
+`browser_navigate` × 2 (4.8 s, 1.4 s) and `browser_snapshot` × 2 (compact, then
+full). Snapshots returned **accessibility trees**, not screenshots. From
+`example.com` it read the `<h1>` "Example Domain" and the single link
+"Learn more"; from `httpbin.org/html` it read the heading
+"Herman Melville - Moby-Dick" and then correctly refused the premise of the
+question — the captured paragraph mentions Ahab but never names the *Pequod*, and
+it said so rather than filling the gap from training. Exactly the behaviour you
+want from a tool-using agent.
 
 **Privacy, stated plainly:** inference is local; the web tools are not. A
 `web_search` sends the query to a third-party vendor. **This assistant is not
@@ -458,6 +470,103 @@ the browser has nobody to ask: it waits out the 300 s timeout and is then
 denied. Fail-closed, but a five-minute stall. Destructive work belongs in
 `hermes-localchat chat`, where the dialog exists. This is documented in the
 runbook rather than papered over.
+
+---
+
+## 12a. Startup persistence
+
+Added mid-commission at the user's direction: the Hermes backend must be
+available automatically whenever the Mac starts, without a manual launch.
+
+**Mechanism chosen: user LaunchAgents in `gui/501`.** For the gateway this is
+Hermes' own native mechanism (`hermes gateway install`); for Open WebUI it is
+`config/com.newton.openwebui.plist.template`. No system LaunchDaemon, no root,
+no sudoers change.
+
+| | Hermes gateway + API server | Open WebUI |
+|---|---|---|
+| **Label** | `ai.hermes.gateway-localchat` | `com.newton.openwebui` |
+| **Plist** | `~/Library/LaunchAgents/ai.hermes.gateway-localchat.plist` | `~/Library/LaunchAgents/com.newton.openwebui.plist` |
+| **Domain / user** | `gui/501`, `ericjellerson` — **not root** | same |
+| `RunAtLoad` / `KeepAlive` | `true` / `true` | `true` / `true` |
+| `ThrottleInterval` / `ExitTimeOut` | `30` s / `25` s | defaults |
+| **Bind** | `127.0.0.1:8642` | `127.0.0.1:3000` |
+| **Logs** | `~/.hermes/profiles/localchat/logs/gateway.log`, `gateway.error.log` | `~/.open-webui/logs/stdout.log`, `stderr.log` |
+| Supervisor PPID | 1 (launchd) | 1 (launchd) |
+| `plutil -lint` | OK | OK |
+
+**Only backends auto-start.** The gateway's `ProgramArguments` end in
+`gateway run --replace --external-supervisor`; Open WebUI's are
+`open-webui serve --host 127.0.0.1 --port 3000`. No window, no TUI, no browser
+is launched. `hermes-localchat chat` / `tui` and the web UI remain manual.
+
+### Proving (`benchmarks/transcripts/hermes-service-lifecycle.txt`, reproducible with `scripts/prove-hermes-service.py`)
+
+| Test | Result |
+|---|---|
+| `kill -9` gateway supervisor **and** its socket-holding child | socket gone in **0.1 s**, serving again in **6.2 s**, launchd `runs` 1 → 2 |
+| `kill -9` Open WebUI | socket gone in **0.1 s**, serving again in **7.2 s**, `runs` 1 → 2 |
+| **Logout/login cycle** — `bootout`, then `bootstrap` with **no start command** | gateway healthy in **1.5 s**, Open WebUI in **7.1 s** — only `RunAtLoad` can have done that |
+| `launchctl print-disabled gui/501` | gateway `enabled`; Open WebUI not listed (== enabled) |
+| Session-scoped entries in the service `PATH` | **0 of 12** |
+| Qwen-A / Qwen-B during all of it | untouched; Qwen-A still PID 97191, Qwen-B still `STOPPED` |
+
+An earlier measurement was discarded rather than reported: killing only the
+supervisor left the child briefly holding `:8642`, so "recovery" was being timed
+against a process that had not died. The test was rewritten to kill both and to
+confirm the socket actually goes down before claiming it came back.
+
+### Operator commands
+
+```bash
+hermes-localchat autostart status     # flags, launchd state, run counts, disabled list
+hermes-localchat autostart enable     # enable + load + start both
+hermes-localchat autostart disable    # stop + unload both, plists left in place
+hermes-localchat recover              # reap a wedged gateway and restart it
+```
+
+### Login, not boot — stated precisely
+
+macOS loads `~/Library/LaunchAgents` at **login**, not at boot. Logging in brings
+the stack up before the desktop appears; booting to an unattended login window
+does not, because there is no user session.
+
+A system LaunchDaemon would start at boot and is the wrong tool here: Hermes
+needs the user's home, the login keychain, a GUI session for Playwright and
+`osascript` clipboard access, none of which a pre-login daemon has — and it would
+put a root-owned process behind a shell-capable agent, which this commission is
+forbidden to create. (Qwen-A can be a root-owned boot daemon precisely because it
+is a dumb model server with no tools.)
+
+The supported way to get boot-time availability with nobody at the keyboard is
+macOS **automatic login** (System Settings → Users & Groups → *Automatically log
+in as*). That is an operator machine-policy decision and was **not** changed.
+
+**Not observed:** a physical reboot. What was observed is a full cold domain load
+(`bootout` → `bootstrap`, no start command), the same mechanism login uses.
+`sudo reboot` then `scripts/hermes-localchat status` closes the gap in two
+minutes.
+
+### Two upstream defects found and worked around
+
+Both are handled by `scripts/install-hermes-localchat.sh`; both bite anyone
+running `hermes gateway install` by hand.
+
+1. **It copies the calling shell's `$PATH` into the plist on every run.** The
+   first install of this commission was performed from an agent harness whose
+   `PATH` contained four session-scoped directories under
+   `~/Library/Application Support/Claude/local-agent-mode-sessions/…`. Those
+   directories evaporate with the session, so a service meant to outlive it had
+   been pinned to paths that would not exist at the next login. The installer now
+   hands Hermes a stable `PATH` to copy, and verifies afterwards that nothing
+   session-scoped survived.
+2. **`--force` races itself.** It calls `bootout` and then `bootstrap`
+   immediately; launchd is still tearing the old job down and returns `EIO (5)`.
+   Hermes concludes *"launchd cannot manage the gateway on this macOS version"*
+   and **silently falls back to an unsupervised background process that does not
+   survive logout or a crash** — while printing a success line. Reproduced
+   repeatedly. The installer waits for the old job to disappear and performs the
+   `bootstrap` itself, then verifies `state = running` under the plist path.
 
 ---
 
@@ -622,6 +731,22 @@ GPU slot.
 12. **Proving fixtures left on disk** at `~/hermes-proving/` (a scratch note and
     a disposable git fixture repo). Outside the repository, harmless, deletable.
 
+13. **Startup persistence is login-scoped, not boot-scoped** (§12a). User
+    LaunchAgents cannot start before a user session exists, and the alternative —
+    a root-owned system daemon behind a shell-capable agent — is exactly what
+    this commission is forbidden to build. macOS automatic login is the supported
+    bridge and is the operator's call.
+
+14. **No physical reboot was performed** (§12a). A full cold domain load was, and
+    it exercises the same `RunAtLoad` mechanism login uses.
+
+15. **`hermes gateway install` has two defects** (§12a): it bakes the calling
+    shell's `PATH` into the service on every run, and its `--force` path races
+    launchd and silently degrades to an unsupervised process while reporting
+    success. Both are worked around in `scripts/install-hermes-localchat.sh`; the
+    first one had already tainted the initial install of this commission and was
+    corrected.
+
 **Not built, as required:** no Foreman, no commission artifact, no
 coder/reviewer lifecycle, no automatic merges, no governed implementation
 framework, no `foreman` profile, no Qwen-B routing, no change to the Qwen-B
@@ -646,10 +771,11 @@ scripts/install-hermes-localchat.sh             profile installer
 scripts/install-hermes-skill.sh                 skill installer
 scripts/install-openwebui.sh                    frontend installer
 scripts/uninstall-openwebui.sh                  frontend uninstaller
+scripts/prove-hermes-service.py                 startup-persistence proving harness
 assets/hermes-vision-test.png                   vision fixture
 benchmarks/hermes/delegation-records.json       delegation evidence
 benchmarks/hermes/provider-audit.txt            73/73 local-inference audit
-benchmarks/transcripts/hermes-*.txt             12 proving transcripts
+benchmarks/transcripts/hermes-*.txt             22 proving transcripts
 README.md                                       updated for the new layer
 ```
 
@@ -677,8 +803,11 @@ rendered `com.newton.openwebui.plist` (it embeds the key).
 
 ## 18. Acceptance summary
 
-All 47 acceptance criteria were exercised. The three that carry a caveat rather
-than a clean pass are recorded in full above and repeated here so nothing is
-buried: approvals do not reach the web-UI path (§12, deviation 3); Open WebUI
-authentication is off (deviation 1); and the agent's one web-sourced fact was
-not independently reproduced (deviation 9).
+All 47 acceptance criteria were exercised, plus the mid-commission startup-
+persistence requirement (§12a). The four items that carry a caveat rather than a
+clean pass are recorded in full above and repeated here so nothing is buried:
+approvals do not reach the web-UI path (§12, deviation 3); Open WebUI
+authentication is off (deviation 1); the agent's one web-sourced fact was not
+independently reproduced (deviation 9); and startup persistence is login-scoped
+rather than boot-scoped, proven by cold domain load rather than by a physical
+reboot (deviations 13–14).

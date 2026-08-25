@@ -20,6 +20,8 @@ API_PORT=8642
 UI_HOST=127.0.0.1
 UI_PORT=3000
 UI_LABEL=com.newton.openwebui
+API_LABEL=ai.hermes.gateway-localchat
+API_PLIST="$HOME/Library/LaunchAgents/ai.hermes.gateway-localchat.plist"
 UI_PLIST="$HOME/Library/LaunchAgents/${UI_LABEL}.plist"
 QWEN_A=http://127.0.0.1:8080
 
@@ -54,6 +56,8 @@ usage: hermes-localchat <command> [args]
     ui  start|stop|restart|status|logs
     up                    start API + UI
     down                  stop UI + API
+    autostart [status|enable|disable]
+                          start automatically at login (both services)
 
   Inspection / maintenance
     sessions [list|browse|stats]
@@ -146,6 +150,49 @@ cmd_ui() {
   esac
 }
 
+cmd_autostart() {
+  local uid; uid="$(id -u)"
+  case "${1:-status}" in
+    status)
+      for L in "$API_LABEL" "$UI_LABEL"; do
+        P="$HOME/Library/LaunchAgents/$L.plist"
+        h "$L"
+        if [ ! -f "$P" ]; then printf '  not installed (%s missing)\n' "$P"; continue; fi
+        printf '  %-14s %s\n' "plist" "$P"
+        printf '  %-14s %s\n' "RunAtLoad" "$(plutil -extract RunAtLoad raw -o - "$P" 2>/dev/null || echo '(absent)')"
+        printf '  %-14s %s\n' "KeepAlive" "$(plutil -extract KeepAlive raw -o - "$P" 2>/dev/null || echo '(absent)')"
+        if launchctl print "gui/$uid/$L" >/dev/null 2>&1; then
+          launchctl print "gui/$uid/$L" 2>/dev/null | tr -d '\t' \
+            | /usr/bin/grep -E '^(state|pid|runs|last exit code) = ' | /usr/bin/sed 's/^/  /'
+        else
+          printf '  %-14s %s\n' "loaded" "no — run: hermes-localchat autostart enable"
+        fi
+        if launchctl print-disabled "gui/$uid" 2>/dev/null | /usr/bin/grep -q "\"$L\" => disabled"; then
+          printf '  %-14s %s\n' "disabled" "YES — launchctl enable gui/$uid/$L"
+        fi
+      done
+      echo
+      printf 'These are user LaunchAgents: they start at LOGIN, not at boot.\n'
+      printf 'For availability with nobody at the keyboard, turn on macOS\n'
+      printf 'automatic login (System Settings > Users & Groups).\n\n' ;;
+    enable)
+      for L in "$API_LABEL" "$UI_LABEL"; do
+        P="$HOME/Library/LaunchAgents/$L.plist"
+        [ -f "$P" ] || { printf 'skip %s (not installed)\n' "$L"; continue; }
+        launchctl enable "gui/$uid/$L" 2>/dev/null
+        launchctl bootout "gui/$uid/$L" 2>/dev/null
+        launchctl bootstrap "gui/$uid" "$P" && printf 'enabled + started %s\n' "$L"
+      done ;;
+    disable)
+      for L in "$API_LABEL" "$UI_LABEL"; do
+        launchctl bootout "gui/$uid/$L" 2>/dev/null
+        launchctl disable "gui/$uid/$L" 2>/dev/null
+        printf 'disabled %s (plist left in place; re-enable with: autostart enable)\n' "$L"
+      done ;;
+    *) die "autostart: expected status|enable|disable" ;;
+  esac
+}
+
 cmd_memory() {
   for f in MEMORY.md USER.md; do
     p="$PROFILE_HOME/memories/$f"
@@ -197,6 +244,7 @@ case "${1:-}" in
   ui)           shift; cmd_ui "$@" ;;
   up)           cmd_api start; cmd_ui start ;;
   down)         cmd_ui stop;  cmd_api stop ;;
+  autostart)    shift; cmd_autostart "${1:-status}" ;;
   sessions)     shift; exec "$HERMES_BIN" -p "$PROFILE" sessions "${1:-list}" ;;
   memory)       cmd_memory ;;
   memory-clear) cmd_memory_clear ;;

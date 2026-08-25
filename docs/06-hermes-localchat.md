@@ -308,7 +308,9 @@ Hermes install rotates across five vendors' public free tiers (Exa, Parallel,
 Tavily, Firecrawl, Keenable) and retries on the next when one throttles. Nothing
 was configured; nothing was paid for. Full browser automation
 (`browser_navigate`, `browser_snapshot`, …) is available through the bundled
-Playwright/Chromium the installer placed in `~/.hermes/`.
+Playwright/Chromium the installer placed in `~/.hermes/`; snapshots come back as
+accessibility trees rather than screenshots, which is what makes them cheap
+enough for a local model to read.
 
 **This assistant is not air-gapped.** The split to keep straight:
 
@@ -399,6 +401,92 @@ chat window.
 
 ---
 
+## 12a. Startup persistence — it is already running when you log in
+
+Both backend services are **user LaunchAgents** in `gui/501`. You do not start
+them; they are up before you reach the desktop.
+
+| | Hermes gateway + API server | Open WebUI |
+|---|---|---|
+| Label | `ai.hermes.gateway-localchat` | `com.newton.openwebui` |
+| Plist | `~/Library/LaunchAgents/ai.hermes.gateway-localchat.plist` | `~/Library/LaunchAgents/com.newton.openwebui.plist` |
+| Written by | `hermes gateway install` (Hermes' own native mechanism) | `scripts/install-openwebui.sh` from `config/com.newton.openwebui.plist.template` |
+| Domain | `gui/501`, runs as `ericjellerson` — **not root** | same |
+| `RunAtLoad` | `true` — starts at login | `true` |
+| `KeepAlive` | `true` — respawns after a crash | `true` |
+| `ThrottleInterval` | `30` s — no respawn storms | (default 10 s) |
+| `ExitTimeOut` | `25` s graceful drain before SIGKILL | (default) |
+| Bind | `127.0.0.1:8642` | `127.0.0.1:3000` |
+| stdout / stderr | `~/.hermes/profiles/localchat/logs/gateway.log` / `gateway.error.log` | `~/.open-webui/logs/stdout.log` / `stderr.log` |
+
+**Only backends auto-start.** The gateway's `ProgramArguments` end in
+`gateway run --replace --external-supervisor`, and Open WebUI's are
+`open-webui serve --host 127.0.0.1 --port 3000`. Neither opens a window, a TUI,
+or a browser. `hermes-localchat chat`, `… tui` and the browser stay entirely
+manual, exactly as before.
+
+### Measured (`benchmarks/transcripts/hermes-service-lifecycle.txt`)
+
+| | Result |
+|---|---|
+| `kill -9` of the gateway supervisor **and** its socket-holding child | socket gone in 0.1 s, serving again in **6.2 s**, launchd `runs` 1 → 2 |
+| `kill -9` of Open WebUI | socket gone in 0.1 s, serving again in **7.2 s**, `runs` 1 → 2 |
+| `bootout` then `bootstrap`, **no start command** (what login does) | gateway healthy in 1.5 s, Open WebUI in 7.1 s |
+| Session-scoped entries in the service `PATH` | **0 of 12** |
+| Qwen-A / Qwen-B | untouched throughout |
+
+Re-run it yourself with `python3 scripts/prove-hermes-service.py` — but not
+mid-conversation, since it kills both services.
+
+```bash
+hermes-localchat autostart status     # flags, launchd state, run counts
+hermes-localchat autostart disable    # stop and unload both, keep the plists
+hermes-localchat autostart enable     # re-enable and start both
+```
+
+### Login, not boot — the honest limit
+
+macOS loads `~/Library/LaunchAgents` at **login**, not at boot. Log in and the
+assistant is already there. Boot to a login window with nobody logged in and
+neither service runs, because there is no user session to run them in.
+
+A system LaunchDaemon *would* start at boot, and it is the wrong tool here:
+Hermes needs your home directory, your login keychain, a GUI session for
+Playwright, and `osascript` clipboard access — none of which a pre-login daemon
+has — and it would mean a root-owned process holding a shell. Qwen-A can be a
+root-owned boot daemon precisely because it is a dumb model server with no
+tools; Hermes is not.
+
+If you want the stack up with nobody at the keyboard, the supported answer is
+macOS **automatic login** (System Settings → Users & Groups → *Automatically log
+in as*). That is your machine-policy call, and nothing here changed it.
+
+**Not observed:** a physical reboot. What *was* observed is a full cold domain
+load — `bootout`, then `bootstrap` with no start command — which is the same
+mechanism login uses. `sudo reboot` followed by
+`~/Newton_Local/scripts/hermes-localchat status` would close the gap in two
+minutes.
+
+### Two upstream gotchas the installer works around
+
+`scripts/install-hermes-localchat.sh` handles both; they matter if you ever run
+`hermes gateway install` by hand.
+
+1. **It bakes the calling shell's `$PATH` into the plist, on every run.** Install
+   from a CI runner, an editor terminal or an agent harness and paths that vanish
+   with that session get pinned into a service meant to outlive it. The installer
+   passes a stable `PATH` for Hermes to copy.
+2. **`--force` does `bootout` immediately followed by `bootstrap`.** launchd is
+   still tearing the old job down and returns `EIO (5)`; Hermes concludes
+   *"launchd cannot manage the gateway on this macOS version"* and silently falls
+   back to an **unsupervised background process that does not survive logout or
+   crashes**. The installer waits for the old job to disappear and does the
+   `bootstrap` itself. If you ever see that warning, check
+   `hermes-localchat autostart status` — `state = running` under a plist path
+   means launchd really does own it.
+
+---
+
 ## 13. Operator commands
 
 Everything below is `~/Newton_Local/scripts/hermes-localchat <cmd>`. No sudo.
@@ -416,6 +504,7 @@ hermes-localchat resume [id]       # continue a conversation
 # services
 hermes-localchat up                # API + UI
 hermes-localchat down              # UI + API
+hermes-localchat autostart status|enable|disable
 hermes-localchat api start|stop|restart|status|logs
 hermes-localchat ui  start|stop|restart|status|logs
 
@@ -465,6 +554,8 @@ hermes -p localchat gateway install
 | First message takes ~90 s | expected on a cold prompt cache — §4 |
 | Command hangs then "denied" | an approval prompt with no one to answer it — §5 |
 | `hermes: command not found` | `export PATH="$HOME/.local/bin:$PATH"` |
+| Nothing running after login | `hermes-localchat autostart status`; if not loaded, `hermes-localchat autostart enable` |
+| "launchd cannot manage the gateway" | re-run `scripts/install-hermes-localchat.sh` — it loads the service itself |
 
 ---
 
