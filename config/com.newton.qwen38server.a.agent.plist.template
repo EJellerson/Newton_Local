@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Newton_Local — Qwen-A ON-DEMAND user LaunchAgent (Commission #4).
+
+  Rendered by scripts/install-launchagent-a.sh (substitutes __NEWTON_ROOT__)
+  into ~/Library/LaunchAgents/com.newton.qwen38server.a.plist.
+
+  DOMAIN
+    User LaunchAgent, bootstrapped into gui/<uid>. This REPLACES the
+    Commission-#1 root LaunchDaemon of the same label in the system domain:
+    the boot-without-login requirement that justified the system domain was
+    reversed by operator policy (Qwen must be OFF after every reboot until
+    explicitly started), and the gui domain is what lets Newton AI Control
+    start/stop the model with no sudo and no password (see docs/04 §"Why a
+    user LaunchAgent").
+
+    MIGRATION: the legacy daemon at
+      /Library/LaunchDaemons/com.newton.qwen38server.a.plist
+    is root-owned and must be removed once, by hand:
+      sudo ~/Newton_Local/scripts/uninstall-launchdaemon.sh
+    Until then a reboot would still auto-start Qwen from the system domain.
+
+  ON-DEMAND SEMANTICS (identical to Qwen-B's)
+    RunAtLoad = false  -> bootstrapping registers the job but does not run it.
+    KeepAlive = false  -> once stopped it STAYS stopped; launchd never
+                          respawns it. Crash recovery while INTENTIONALLY
+                          running is provided by the Newton AI Control
+                          watchdog, which is desired-state aware and is
+                          silenced by Stop and by a reboot.
+    Start:  scripts/qwen-a start        (or the control panel)
+    Stop:   scripts/qwen-a terminate    (or the control panel)
+
+  ARGUMENT VECTOR
+    Must match config/com.newton.qwen38server.a.plist (the frozen Commission-#1
+    daemon definition) token for token; install-launchagent-a.sh enforces this
+    as a drift check so both definitions always describe the same Qwen-A.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.newton.qwen38server.a</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__NEWTON_ROOT__/tools/llama.cpp/build/bin/llama-server</string>
+        <string>--model</string>
+        <string>__NEWTON_ROOT__/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf</string>
+        <string>--mmproj</string>
+        <string>__NEWTON_ROOT__/models/qwen38-27b/mmproj-Qwen3.8-27B-f16.gguf</string>
+        <string>--alias</string>
+        <string>qwen-a</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>8080</string>
+        <string>--ctx-size</string>
+        <string>262144</string>
+        <string>--n-gpu-layers</string>
+        <string>999</string>
+        <string>--flash-attn</string>
+        <string>on</string>
+        <string>--jinja</string>
+        <string>--parallel</string>
+        <string>1</string>
+        <string>--cont-batching</string>
+        <string>--metrics</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>WorkingDirectory</key>
+    <string>__NEWTON_ROOT__</string>
+
+    <key>StandardOutPath</key>
+    <string>__NEWTON_ROOT__/logs/qwen-a/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>__NEWTON_ROOT__/logs/qwen-a/stderr.log</string>
+
+    <!-- Absolute PATH only. The job must never depend on shell startup files. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Latency-sensitive inference service, same as the old daemon. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+</dict>
+</plist>

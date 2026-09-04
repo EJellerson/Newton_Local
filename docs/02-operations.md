@@ -1,5 +1,14 @@
 # Qwen-A — Operations Runbook
 
+> **SUPERSEDED (2026-09-04, Commission #4).** Qwen-A is no longer an
+> always-on system LaunchDaemon. It is an ON-DEMAND user LaunchAgent
+> controlled without sudo by `scripts/qwen-a` and the Newton AI Control
+> panel; the root daemon described below has been uninstalled. Current
+> runbook: [09-qwen-on-demand-control.md](09-qwen-on-demand-control.md).
+> Everything below is kept as the accurate record of the Commission-#1
+> architecture (identity, flags, troubleshooting still apply to the runtime
+> itself).
+
 The single reference for running and troubleshooting Qwen-A. A future agent
 should not need to rediscover anything about this machine to operate it.
 

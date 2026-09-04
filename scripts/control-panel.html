@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Newton AI Control</title>
+<style>
+  :root {
+    --bg: #f4f2ec; --card: #ffffff; --ink: #1c1a15; --muted: #6f6a5e;
+    --line: #e2ddd2; --gold: #b8860b; --green: #1e7d32; --red: #b3261e;
+    --amber: #9a6b00; --amber-bg: #fdf3d7; --red-bg: #fbeae9;
+    --btn: #26231d; --btn-ink: #f7f5ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171512; --card: #211e19; --ink: #ece8de; --muted: #a49d8e;
+      --line: #37332b; --gold: #d4a017; --green: #63c76f; --red: #ef8a80;
+      --amber: #e5b64a; --amber-bg: #2e2717; --red-bg: #34201e;
+      --btn: #ece8de; --btn-ink: #171512;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 -apple-system, "SF Pro Text", Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
+  .model-head { display: flex; align-items: center; justify-content: space-between;
+                gap: 12px; flex-wrap: wrap; }
+  .model-title { font-size: 16px; font-weight: 600; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 600;
+          font-size: 15px; padding: 6px 14px; border-radius: 999px;
+          border: 1px solid var(--line); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted);
+         flex: none; }
+  .dot.on   { background: var(--green); }
+  .dot.off  { background: var(--muted); }
+  .dot.warn { background: var(--amber); }
+  .dot.err  { background: var(--red); }
+  .dot.busy { background: var(--amber); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .detail { color: var(--muted); font-size: 13px; margin-top: 8px; min-height: 18px; }
+  .btnrow { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  button, .linkbtn {
+    appearance: none; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); font: 600 14px/1 -apple-system, sans-serif;
+    padding: 11px 18px; border-radius: 10px; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  button.primary, .linkbtn.primary { background: var(--btn); color: var(--btn-ink);
+                                     border-color: var(--btn); }
+  button:disabled { opacity: .40; cursor: default; }
+  button:not(:disabled):hover, .linkbtn:hover { filter: brightness(1.06); }
+  .rows { margin: 4px 0 0; }
+  .row { display: flex; align-items: center; justify-content: space-between;
+         padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .row:first-child { border-top: none; }
+  .row .name { display: flex; align-items: center; gap: 10px; }
+  .row .val { color: var(--muted); font-size: 13px; text-align: right; }
+  .banner { border-radius: 12px; padding: 12px 16px; font-size: 13.5px;
+            margin-bottom: 14px; border: 1px solid var(--line); display: none; }
+  .banner.amber { background: var(--amber-bg); color: var(--amber); display: block; }
+  .banner.red   { background: var(--red-bg);   color: var(--red);   display: block; }
+  .banner code { font: 12px ui-monospace, Menlo, monospace; user-select: all;
+                 word-break: break-all; }
+  .lastop { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .lastop.err { color: var(--red); }
+  footer { color: var(--muted); font-size: 12px; margin-top: 22px;
+           text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Newton AI Control</h1>
+    <span class="sub">local AI on this Mac</span>
+  </header>
+
+  <div id="banner-legacy" class="banner"></div>
+  <div id="banner-b" class="banner"></div>
+  <div id="banner-chat" class="banner"></div>
+
+  <div class="card">
+    <div class="model-head">
+      <div class="model-title">AI model &nbsp;<span class="sub" id="model-name"></span></div>
+      <span class="pill"><span class="dot" id="model-dot"></span><span id="model-state">…</span></span>
+    </div>
+    <div class="detail" id="model-detail">Checking…</div>
+    <div class="btnrow">
+      <button id="btn-start"   class="primary" onclick="op('start')">Start the AI Model</button>
+      <button id="btn-stop"    onclick="op('stop')">Stop the AI Model</button>
+      <button id="btn-restart" onclick="op('restart')">Restart the AI Model</button>
+    </div>
+    <div class="lastop" id="lastop"></div>
+  </div>
+
+  <div class="card">
+    <div class="model-head">
+      <div class="model-title">Chat</div>
+      <a class="linkbtn primary" id="btn-chat" href="http://127.0.0.1:3000" target="_blank" rel="noopener">Start Chat</a>
+    </div>
+    <div class="detail" id="chat-detail"></div>
+  </div>
+
+  <div class="card">
+    <div class="rows">
+      <div class="row"><span class="name"><span class="dot" id="dot-hermes"></span>Hermes gateway</span><span class="val" id="val-hermes"></span></div>
+      <div class="row"><span class="name"><span class="dot" id="dot-webui"></span>Open WebUI</span><span class="val" id="val-webui"></span></div>
+      <div class="row"><span class="name"><span class="dot on"></span>Control service</span><span class="val" id="val-control"></span></div>
+      <div class="row"><span class="name"><span class="dot" id="dot-mem"></span>Memory</span><span class="val" id="val-mem"></span></div>
+    </div>
+  </div>
+
+  <footer>Everything on this page runs only on this Mac (127.0.0.1). Nothing goes to the cloud.</footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let busyClick = false;
+
+async function op(name) {
+  if (busyClick) return;
+  busyClick = true;
+  try {
+    const r = await fetch("/api/model/" + name, {
+      method: "POST",
+      headers: { "X-Newton-Control": "1" }
+    });
+    await r.json().catch(() => ({}));
+  } catch (e) { /* status poll will surface it */ }
+  busyClick = false;
+  refresh();
+}
+
+function dotClass(state) {
+  return { Running: "on", Stopped: "off", Starting: "busy",
+           Stopping: "busy", Recovering: "busy", Unhealthy: "err" }[state] || "warn";
+}
+
+function render(s) {
+  const m = s.model, opn = s.operation;
+  $("model-state").textContent = m.state;
+  $("model-dot").className = "dot " + dotClass(m.state);
+  $("model-name").textContent = m.alias ? "(" + m.alias + ", local)" : "";
+
+  let detail = "";
+  if (m.state === "Running") {
+    detail = "Serving on " + (m.endpoint || "127.0.0.1:8080");
+    if (m.pid) detail += " · pid " + m.pid;
+    if (m.rss_gib) detail += " · " + m.rss_gib + " GiB";
+  } else if (m.state === "Stopped") {
+    detail = "The model is unloaded and using no memory. Start it when you need the local AI.";
+  } else if (m.state === "Starting") {
+    detail = "Loading the model into memory — this can take a minute or two…";
+  } else if (m.state === "Stopping") {
+    detail = "Unloading the model…";
+  } else if (m.state === "Recovering") {
+    detail = "The model stopped unexpectedly — bringing it back…";
+  } else if (m.state === "Unhealthy") {
+    detail = "The model is not responding normally." +
+             (m.recovery && m.recovery.gave_up
+              ? " Automatic recovery gave up — try Restart." : "");
+  }
+  if (m.error) detail += "  (" + m.error + ")";
+  $("model-detail").textContent = detail;
+
+  const inOp = !!opn;
+  $("btn-start").disabled   = inOp || ["Running","Starting","Stopping","Recovering"].includes(m.state);
+  $("btn-stop").disabled    = inOp || m.state === "Stopped";
+  $("btn-restart").disabled = inOp || ["Stopped","Starting","Stopping"].includes(m.state);
+
+  const lo = s.last_operation;
+  const el = $("lastop");
+  if (lo) {
+    el.textContent = "Last action — " + lo.name + " at " + lo.finished_at_iso +
+                     (lo.ok ? ": " : " FAILED: ") + (lo.message || "");
+    el.className = "lastop" + (lo.ok ? "" : " err");
+  } else { el.textContent = ""; }
+
+  // chat
+  $("btn-chat").href = s.chat_url;
+  const webUp = s.openwebui && s.openwebui.up;
+  $("btn-chat").style.opacity = webUp ? "" : ".4";
+  $("chat-detail").textContent = webUp
+    ? "Opens the Newton chat in your browser."
+    : "Open WebUI is not responding — chat is unavailable right now.";
+  const bc = $("banner-chat");
+  if (webUp && m.state !== "Running" && m.state !== "Starting") {
+    bc.className = "banner amber";
+    bc.textContent = "Chat is available, but the AI model is stopped — messages will fail until you start the model. Nothing is ever sent to a cloud model.";
+  } else { bc.className = "banner"; }
+
+  // infra rows
+  const hermesUp = s.hermes && s.hermes.up;
+  $("dot-hermes").className = "dot " + (hermesUp ? "on" : "err");
+  $("val-hermes").textContent = hermesUp ? "running · 127.0.0.1:8642" : "down";
+  $("dot-webui").className = "dot " + (webUp ? "on" : "err");
+  $("val-webui").textContent = webUp ? "running · 127.0.0.1:3000" : "down";
+  $("val-control").textContent = "running · 127.0.0.1:" + s.control.port;
+  const mem = s.memory || {};
+  const memWarn = mem.pressure && mem.pressure !== "normal";
+  $("dot-mem").className = "dot " + (memWarn ? "warn" : "on");
+  $("val-mem").textContent = (mem.available_gib != null ? mem.available_gib + " GiB available · " : "")
+                             + "pressure " + (mem.pressure || "?");
+
+  // banners
+  const bl = $("banner-legacy");
+  if (s.legacy_daemon && s.legacy_daemon.installed) {
+    bl.className = "banner amber";
+    bl.innerHTML = "<b>One-time migration pending:</b> the old always-on boot service " +
+      "for the model is still installed, so a reboot would auto-start the model. " +
+      "Fix it once in Terminal:<br><code>" + s.legacy_daemon.migration_cmd + "</code>";
+  } else { bl.className = "banner"; }
+
+  const bb = $("banner-b");
+  if (s.qwen_b && s.qwen_b.active) {
+    bb.className = "banner amber";
+    bb.textContent = "The maintenance worker (Qwen-B) is active (" + s.qwen_b.state +
+      "). The production model cannot start until it stops.";
+  } else { bb.className = "banner"; }
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/status", { cache: "no-store" });
+    render(await r.json());
+  } catch (e) {
+    $("model-state").textContent = "…";
+    $("model-detail").textContent = "Control service unreachable — retrying…";
+  }
+}
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

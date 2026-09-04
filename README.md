@@ -32,20 +32,38 @@ Web tools do reach the internet when the model calls them, so **this assistant
 is not air-gapped** — the split is *internet as a tool*, never *intelligence
 from a cloud model*. Runbook: [docs/06-hermes-localchat.md](docs/06-hermes-localchat.md).
 
+## Newton AI Control
+
+One Dock application operates the whole stack (Commission #4):
+
+```
+Dock: Newton AI Control  →  http://127.0.0.1:8765/
+  Start Chat · Start the AI Model · Stop the AI Model · Restart the AI Model
+```
+
+Hermes, Open WebUI and the control panel are always on from login; **the 27B
+model is OFF until you click Start, and OFF again after every reboot**. Stop
+unloads it and keeps it unloaded (`KeepAlive=false` plus a desired-state
+watchdog that never resurrects an intentional stop); while it is
+*intentionally* running, that same watchdog recovers it after a crash. The
+production path enforces **at most one** active Qwen instance. A chat sent
+while the model is off fails clearly — there is no cloud fallback to leak to.
+Runbook: [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md).
+
 
 ## Current state
 
 Two Qwen3.8-27B **Q8_0 / 262144-context** instances, both Metal-accelerated,
 both OpenAI-compatible, both loopback-only, sharing **one** set of model weights.
 
-| | **Qwen-A** — persistent primary | **Qwen-B** — elastic worker |
+| | **Qwen-A** — production primary | **Qwen-B** — elastic worker |
 |---|---|---|
 | Bind | `127.0.0.1:8080` | `127.0.0.1:8081` |
 | Alias | `qwen-a` | `qwen-b` |
-| Availability | always running | **normally stopped**, started on demand |
-| launchd | `com.newton.qwen38server.a` (system LaunchDaemon) | `com.newton.qwen38server.b` (user LaunchAgent, `gui/501`) |
-| Autostart | yes | **no** (`RunAtLoad=false`, `KeepAlive=false`) |
-| Control | `sudo launchctl` | `scripts/qwen-b` — **no sudo** |
+| Availability | **on demand** — operator Start/Stop, OFF at boot | **normally stopped**, leased on demand |
+| launchd | `com.newton.qwen38server.a` (user LaunchAgent, `gui/501`) | `com.newton.qwen38server.b` (user LaunchAgent, `gui/501`) |
+| Autostart | **no** (`RunAtLoad=false`, `KeepAlive=false`) | **no** (`RunAtLoad=false`, `KeepAlive=false`) |
+| Control | `scripts/qwen-a` / Newton AI Control — **no sudo** | `scripts/qwen-b` — **no sudo** |
 | Model | Qwen3.8-27B Q8_0 + F16 vision projector | **the same files** — no duplicate copy |
 | Runtime | llama.cpp `b10615` / `f280b26`, Apple Metal | identical |
 
@@ -92,7 +110,8 @@ not — is written up in
 ## Quick start
 
 ```bash
-# Is the primary up?
+# The primary (no sudo; the same verbs sit behind the Newton AI Control panel)
+./scripts/qwen-a status
 curl -sS http://127.0.0.1:8080/health
 
 # Both services + machine memory
@@ -127,6 +146,7 @@ tail -f logs/qwen-a/stderr.log
 | [docs/06-hermes-localchat.md](docs/06-hermes-localchat.md) | **Assistant runbook** — architecture, Qwen wiring, approvals, memory, sessions, web, delegation, skills, the two front doors, operator commands |
 | [docs/07-commission-3-completion-record.md](docs/07-commission-3-completion-record.md) | Commission #3 record: Hermes identity, proving results, security posture, deviations |
 | [docs/08-foreman-relevant-hermes-findings.md](docs/08-foreman-relevant-hermes-findings.md) | Research note: which Hermes primitives a future Foreman can reuse, and what it must still build |
+| [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md) | **Newton AI Control runbook** — on-demand Qwen-A, boot policy, singleton enforcement, watchdog semantics, the control panel and app, deferred live tests |
 
 ## What is not in this repository
 
@@ -147,7 +167,11 @@ docs/        documentation           skills/    Hermes skill source
 state/       lease + lock (untracked)  tools/   llama.cpp, hf-venv (untracked)
 
 Key scripts
-  qwenctl.py / qwen-b    elastic-worker controller + operator entry point
+  qwenctl.py             instance-parametric lifecycle controller (A and B)
+  qwen-a / qwen-b        operator entry points for each instance
+  newton_control.py      Newton AI Control service (127.0.0.1:8765)
+  install-launchagent-a.sh / install-control.sh / build-control-app.sh /
+  pin-dock-app.py        on-demand Qwen-A + control panel + Dock app setup
   qwen-status.sh         A and B side by side, plus machine memory
   hermes-localchat       assistant lifecycle: chat, status, api, ui, memory,
                          sessions, logs, recover

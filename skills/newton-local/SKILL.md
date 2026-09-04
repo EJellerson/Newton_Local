@@ -1,7 +1,7 @@
 ---
 name: newton-local
-description: "Operating the Newton_Local machine: the Qwen-A always-on inference service, the Qwen-B elastic worker and its lease protocol, and the Hermes localchat assistant stack. Use this whenever asked to start, stop, inspect, or reason about local inference on this Mac."
-version: 1.0.0
+description: "Operating the Newton_Local machine: the on-demand Qwen-A production service (Newton AI Control), the Qwen-B elastic worker and its lease protocol, and the Hermes localchat assistant stack. Use this whenever asked to start, stop, inspect, or reason about local inference on this Mac."
+version: 1.1.0
 author: Newton_Local
 license: MIT
 platforms: [macos]
@@ -25,22 +25,29 @@ Skill provenance marker: TERNARY-3055
 |---|---|---|
 | Bind | `127.0.0.1:8080` | `127.0.0.1:8081` |
 | Alias | `qwen-a` | `qwen-b` |
-| Availability | always on | **normally stopped** |
-| launchd | `com.newton.qwen38server.a` (system daemon, needs sudo) | `com.newton.qwen38server.b` (user agent, no sudo) |
-| Idle TTL | n/a | 180 s after the last lease is released |
+| Availability | **on demand** — the operator starts/stops it from Newton AI Control; OFF after every reboot | **normally stopped** |
+| launchd | `com.newton.qwen38server.a` (user agent, no sudo, no autostart) | `com.newton.qwen38server.b` (user agent, no sudo) |
+| Idle TTL | none — runs until explicitly stopped | 180 s after the last lease is released |
 
-Qwen-A is the brain you are thinking with right now. **Never restart Qwen-A
-to "fix" something** — you would be sawing off the branch you are sitting on,
-and it needs a password you do not have.
+Since Commission #4 the operator controls Qwen-A from the **Newton AI
+Control** app in the Dock (`http://127.0.0.1:8765/`): Start Chat, and
+Start/Stop/Restart for the model. When you are answering anyone, Qwen-A is
+the brain you are thinking with right now. **Never stop or restart Qwen-A to
+"fix" something** — you would be sawing off the branch you are sitting on.
+Starting or stopping the model is the operator's decision, made in Newton AI
+Control, not yours; the production path also refuses to run two Qwen
+instances at once.
 
 ## Commands that are safe to run
 
 ```bash
 ~/Newton_Local/scripts/qwen-status.sh          # both services + machine memory
+~/Newton_Local/scripts/qwen-a status           # A lifecycle state (read-only)
 ~/Newton_Local/scripts/qwen-a-health.sh        # A only
 ~/Newton_Local/scripts/qwen-b status           # B state, pid, idle countdown
 ~/Newton_Local/scripts/hermes-localchat status # the assistant stack
 curl -sS http://127.0.0.1:8080/health
+curl -sS http://127.0.0.1:8765/api/status      # Newton AI Control panel state
 ```
 
 ## The Qwen-B lease protocol

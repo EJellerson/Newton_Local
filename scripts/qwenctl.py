@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
-Newton_Local — deterministic elastic-worker controller for Qwen-B.
+Newton_Local — deterministic lifecycle controller for the local Qwen instances.
+
+Commission #2 built this for the Qwen-B elastic worker. Commission #4
+generalised it: the SAME controller now drives any instance described by a
+config env file (--config, default config/qwen-b.env), and the canonical
+production instance (Qwen-A, config/qwen-a-controller.env) gains explicit
+start/restart verbs with production semantics — no lease owner, no idle TTL,
+and a refusal to coexist with a peer instance. Qwen-B behaviour is unchanged.
 
 This is ORDINARY INFRASTRUCTURE CODE. The model never decides when it starts,
 when it stops, which launchctl verbs run, or whether another worker should
@@ -27,11 +34,16 @@ LIFECYCLE
 COMMANDS
     status      report reconciled lifecycle state (read-only)
     health      probe the worker's HTTP health/identity
+    start       ensure the instance is running, ownerless (production verb;
+                refuses while another Qwen instance is active)
+    restart     stop, confirm termination, then start — never two instances
     acquire     ensure a READY worker and take the lease (starts B if needed)
     release     give the lease back; worker goes IDLE and starts its TTL
-    terminate   stop the worker now and return to STOPPED
+    terminate   stop the worker now and return to STOPPED (idempotent when
+                already stopped)
     reconcile   force reconciliation, handle orphans and stale leases
-    reap        terminate the worker if its idle TTL has expired
+    reap        terminate the worker if its idle TTL has expired (a no-op for
+                instances whose idle TTL is disabled)
     heartbeat   refresh the activity timestamp of a held lease
     logs        tail the worker + controller logs
 
@@ -50,7 +62,10 @@ import time
 import urllib.error
 import urllib.request
 
-CONFIG = "/Users/ericjellerson/Newton_Local/config/qwen-b.env"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG = os.environ.get(
+    "QWENCTL_CONFIG",
+    os.path.normpath(os.path.join(SCRIPT_DIR, "..", "config", "qwen-b.env")))
 
 STOPPED, STARTING, READY, BUSY, IDLE, STOPPING = (
     "STOPPED", "STARTING", "READY", "BUSY", "IDLE", "STOPPING")
@@ -72,21 +87,35 @@ def load_config(path=CONFIG):
         if "=" in line:
             k, v = line.split("=", 1)
             env[k] = v
-    need = ["LLAMA_BIN", "MODEL", "MMPROJ", "ALIAS", "HOST", "PORT", "CTX",
-            "QWEN_B_LABEL", "QWEN_B_LOGDIR", "QWEN_B_LEASE", "QWEN_B_LOCK",
-            "QWEN_B_IDLE_TTL", "QWEN_B_START_TIMEOUT", "QWEN_B_LEASE_MAX_AGE"]
-    missing = [k for k in need if k not in env]
+
+    def ctl(name, default=None):
+        # Generic controller keys (CTL_*) with fallback to the legacy
+        # Commission-#2 names (QWEN_B_*), so config/qwen-b.env keeps working
+        # unchanged while other instances use the generic spelling.
+        for k in (f"CTL_{name}", f"QWEN_B_{name}"):
+            if k in env:
+                return env[k]
+        return default
+
+    need_runtime = ["LLAMA_BIN", "MODEL", "MMPROJ", "ALIAS", "HOST", "PORT", "CTX"]
+    missing = [k for k in need_runtime if k not in env]
+    need_ctl = ["LABEL", "LOGDIR", "LEASE", "LOCK",
+                "IDLE_TTL", "START_TIMEOUT", "LEASE_MAX_AGE"]
+    missing += [f"CTL_{k} (or QWEN_B_{k})" for k in need_ctl if ctl(k) is None]
     if missing:
         die(f"{path} is missing required keys: {missing}")
     return {
         "llama_bin": env["LLAMA_BIN"], "model": env["MODEL"],
         "mmproj": env["MMPROJ"], "alias": env["ALIAS"], "host": env["HOST"],
         "port": int(env["PORT"]), "ctx": int(env["CTX"]),
-        "label": env["QWEN_B_LABEL"], "logdir": env["QWEN_B_LOGDIR"],
-        "lease": env["QWEN_B_LEASE"], "lock": env["QWEN_B_LOCK"],
-        "idle_ttl": int(env["QWEN_B_IDLE_TTL"]),
-        "start_timeout": int(env["QWEN_B_START_TIMEOUT"]),
-        "lease_max_age": int(env["QWEN_B_LEASE_MAX_AGE"]),
+        "instance": ctl("INSTANCE", env["ALIAS"]),
+        "label": ctl("LABEL"), "logdir": ctl("LOGDIR"),
+        "lease": ctl("LEASE"), "lock": ctl("LOCK"),
+        # idle_ttl <= 0 disables the idle TTL entirely (production instances
+        # run until explicitly stopped; no reaper ever collects them).
+        "idle_ttl": int(ctl("IDLE_TTL")),
+        "start_timeout": int(ctl("START_TIMEOUT")),
+        "lease_max_age": int(ctl("LEASE_MAX_AGE")),
         "uid": os.getuid(),
     }
 
@@ -155,7 +184,10 @@ def read_lease(cfg):
 def write_lease(cfg, lease):
     lease["updated_at"] = now()
     os.makedirs(os.path.dirname(cfg["lease"]), exist_ok=True)
-    tmp = cfg["lease"] + ".tmp"
+    # Per-process tmp name: an unlocked status reconcile racing a locked
+    # mutation must never steal the other's rename source. The rename is
+    # atomic and last-writer-wins, which reconciliation already assumes.
+    tmp = f"{cfg['lease']}.tmp.{os.getpid()}"
     with open(tmp, "w") as f:
         json.dump(lease, f, indent=2)
         f.write("\n")
@@ -220,23 +252,52 @@ def obs_launchd(cfg):
             "last_exit": g(r'^\s*last exit code\s*=\s*(.+)$')}
 
 
-def obs_processes(cfg):
-    """Every process that IS a Qwen-B llama-server, matched on exact argv."""
-    rc, out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
-    found = []
-    for line in out.splitlines():
+def classify_llama_processes(cfg, ps_lines):
+    """Split every llama-server process into THIS instance vs peer instances.
+
+    Pure decision logic (unit-testable with injected ps output): a process is
+    OURS when its argv starts with this instance's binary and carries this
+    instance's --port and --alias; any other llama-server launched from the
+    same binary is a PEER — a second Qwen instance that the production
+    control path must refuse to run concurrently.
+    """
+    ours, peers = [], []
+    for line in ps_lines:
         parts = line.strip().split(None, 2)
         if len(parts) < 3:
             continue
         pid, rss_kb, cmd = parts
         if not cmd.startswith(cfg["llama_bin"]):
             continue
-        if f"--port {cfg['port']}" not in cmd:
-            continue
-        if f"--alias {cfg['alias']}" not in cmd:
-            continue
-        found.append({"pid": int(pid), "rss_gib": round(int(rss_kb) / 2**20, 2)})
-    return found
+        m_port = re.search(r'--port\s+(\d+)', cmd)
+        m_alias = re.search(r'--alias\s+(\S+)', cmd)
+        rec = {"pid": int(pid), "rss_gib": round(int(rss_kb) / 2**20, 2),
+               "port": int(m_port.group(1)) if m_port else None,
+               "alias": m_alias.group(1) if m_alias else None}
+        if rec["port"] == cfg["port"] and rec["alias"] == cfg["alias"]:
+            ours.append(rec)
+        else:
+            peers.append(rec)
+    return ours, peers
+
+
+def obs_processes(cfg):
+    """Every process that IS this instance's llama-server, matched on argv."""
+    rc, out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
+    ours, _ = classify_llama_processes(cfg, out.splitlines())
+    return ours
+
+
+def obs_peers(cfg):
+    """Every llama-server process that is NOT this instance."""
+    rc, out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
+    _, peers = classify_llama_processes(cfg, out.splitlines())
+    return peers
+
+
+def _fmt_peers(peers):
+    return ", ".join(f"pid={p['pid']} alias={p.get('alias')} port={p.get('port')}"
+                     for p in peers)
 
 
 def obs_socket(cfg):
@@ -281,7 +342,8 @@ def obs_health(cfg, timeout=5):
 
 def observe(cfg, health_timeout=5):
     ld = obs_launchd(cfg)
-    procs = obs_processes(cfg)
+    rc, ps_out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
+    procs, peers = classify_llama_processes(cfg, ps_out.splitlines())
     sock = obs_socket(cfg)
     hp = obs_health(cfg, health_timeout)
 
@@ -303,6 +365,7 @@ def observe(cfg, health_timeout=5):
         "pid": pid,
         "launchd": ld,
         "processes": procs,
+        "peer_processes": peers,
         "duplicate_processes": len(procs) > 1,
         "launchd_owned": bool(ld["pid"] and pid == ld["pid"]),
         "socket": sock,
@@ -405,10 +468,12 @@ def reconcile(cfg, lease=None, orphan_policy="adopt", health_timeout=5):
             lease["idle_since"] = now() if target == IDLE else None
             lease["start_deadline"] = (now() + cfg["start_timeout"]
                                        if target == STARTING else None)
+            ttl_note = (f" and is subject to the {cfg['idle_ttl']}s idle TTL"
+                        if cfg["idle_ttl"] > 0
+                        else "; the idle TTL is disabled for this instance")
             lease["notes"] = [
                 f"adopted orphan worker pid={o['pid']} at {iso(now())}; "
-                f"no lease existed, so it enters {target} and is subject to the "
-                f"{cfg['idle_ttl']}s idle TTL"]
+                f"no lease existed, so it enters {target}" + ttl_note]
 
     elif obs == OBS_UP and rec == STARTING:
         move(READY, "start_completed")
@@ -497,6 +562,191 @@ def wait_ready(cfg, deadline, poll=0.5):
     return False, t_spawn, None
 
 
+# ----------------------------------------------- production start / restart
+def _start_locked(cfg, args, t0):
+    """Bring THIS instance to a healthy running state with no lease owner.
+
+    Production semantics (Commission #4 / Newton AI Control): the instance
+    runs until an explicit stop. With the idle TTL disabled no reaper ever
+    collects it. Refuses to create a second Qwen instance: both a duplicate
+    of THIS instance and a running PEER instance abort the start.
+
+    Caller must hold the controller Lock. Returns a process exit code.
+    """
+    lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy)
+
+    peers = o.get("peer_processes") or []
+    if peers and not args.allow_peer:
+        log(cfg, "start.refused_peer_active", peers=peers)
+        die(f"refusing to start {cfg['instance']}: another Qwen instance is "
+            f"already active ({_fmt_peers(peers)}). Stop it first, or pass "
+            f"--allow-peer for a deliberate dual-instance experiment.", 5)
+
+    if o["duplicate_processes"]:
+        die(f"refusing to start: multiple {cfg['instance']} processes exist "
+            f"({[p['pid'] for p in o['processes']]}). Run: "
+            f"reconcile --orphan-policy terminate", 5)
+
+    state = lease["state"]
+
+    if state == STOPPING:
+        dl = now() + 60
+        while now() < dl and observe(cfg)["observed_state"] != OBS_DOWN:
+            time.sleep(0.5)
+        lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
+        state = lease["state"]
+
+    if state == STARTING:
+        timeout = args.timeout or cfg["start_timeout"]
+        ok, _, _ = wait_ready(cfg, deadline=now() + timeout)
+        lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
+        state = lease["state"]
+        if not ok and state not in (READY, IDLE, BUSY):
+            log(cfg, "start.starting_timeout", timeout_s=timeout)
+            _do_stop(cfg)
+            reconcile(cfg, orphan_policy=args.orphan_policy)
+            die(f"a worker was already STARTING but did not become healthy "
+                f"within {timeout}s; it has been stopped", 4)
+
+    if state in (READY, IDLE, BUSY):
+        if not observe(cfg)["health"]["ok"]:
+            lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
+            state = lease["state"]
+    if state in (READY, IDLE, BUSY):
+        if state == IDLE:
+            # An explicit start cancels any pending idle TTL.
+            lease["state"] = READY
+            lease["idle_since"] = None
+            write_lease(cfg, lease)
+        log(cfg, "start.already_running", pid=lease["pid"], previous_state=state)
+        return _start_result(cfg, read_lease(cfg), started=False, t0=t0,
+                             args=args, note=f"already running (was {state})")
+
+    if state == STOPPED:
+        if not o["launchd"]["bootstrapped"]:
+            die(f"launchd job {cfg['label']} is not bootstrapped in "
+                f"gui/{cfg['uid']}. Run the matching install script first.", 1)
+        if obs_socket(cfg)["listening"]:
+            die(f"port {cfg['port']} is occupied by a foreign process; "
+                f"refusing to start {cfg['instance']}", 5)
+
+        timeout = args.timeout or cfg["start_timeout"]
+        lease["state"] = STARTING
+        lease["owner"] = None
+        lease["acquired_at"] = None
+        lease["last_activity"] = now()
+        lease["idle_since"] = None
+        lease["generation"] = int(lease.get("generation") or 0) + 1
+        lease["start_deadline"] = now() + timeout
+        lease["notes"] = []
+        write_lease(cfg, lease)
+        log(cfg, "start.begin", generation=lease["generation"])
+
+        t_kick = now()
+        rc, msg = _kickstart(cfg)
+        if rc != 0:
+            lease["state"] = STOPPED
+            write_lease(cfg, lease)
+            die(f"launchctl kickstart failed (rc={rc}): {msg}", 1)
+
+        ok, t_spawn, t_ready = wait_ready(cfg, deadline=t_kick + timeout)
+        if not ok:
+            log(cfg, "start.timeout", timeout_s=timeout)
+            _do_stop(cfg)
+            lease["state"] = STOPPED
+            lease["pid"] = None
+            lease["start_deadline"] = None
+            lease["notes"] = [f"start timed out after {timeout}s at "
+                              f"{iso(now())}; worker stopped"]
+            write_lease(cfg, lease)
+            die(f"{cfg['instance']} did not become healthy within {timeout}s; "
+                f"worker stopped", 4)
+
+        o2 = observe(cfg)
+        lease["state"] = READY
+        lease["pid"] = o2["pid"]
+        lease["start_deadline"] = None
+        lease["last_activity"] = now()
+        lease["last_start"] = {
+            "kickstart_at": iso(t_kick),
+            "spawn_latency_s": round(t_spawn - t_kick, 2) if t_spawn else None,
+            "load_to_ready_s": round(t_ready - t_kick, 2),
+            "generation": lease["generation"],
+        }
+        write_lease(cfg, lease)
+        log(cfg, "start.ready", pid=lease["pid"], **lease["last_start"])
+        return _start_result(cfg, lease, started=True, t0=t0, args=args,
+                             note="cold start; model loaded")
+
+    die(f"unhandled lifecycle state {state}", 1)
+
+
+def _start_result(cfg, lease, started, t0, args, note):
+    o = observe(cfg)
+    res = {
+        "ok": True,
+        "worker": cfg["instance"],
+        "state": lease["state"],
+        "pid": lease["pid"],
+        "endpoint": lease["endpoint"],
+        "openai_base_url": lease["endpoint"] + "/v1",
+        "model": lease["alias"],
+        "started": started,
+        "wall_s": round(now() - t0, 2),
+        "last_start": lease.get("last_start"),
+        "runtime": o["health"]["props"],
+        "generation": lease["generation"],
+        "note": note,
+    }
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        if started:
+            print(f"STARTED {cfg['instance']}  state={res['state']} "
+                  f"pid={res['pid']}  wall={res['wall_s']}s")
+        else:
+            print(f"start: {cfg['instance']} {res['state']} pid={res['pid']} "
+                  f"— {note}")
+        print(f"  endpoint  {res['openai_base_url']}  (model={res['model']})")
+        if res["last_start"] and started:
+            ls = res["last_start"]
+            print(f"  start     spawn={ls['spawn_latency_s']}s  "
+                  f"ready={ls['load_to_ready_s']}s  gen={ls['generation']}")
+    return 0
+
+
+def cmd_start(cfg, args):
+    t0 = now()
+    with Lock(cfg, timeout=args.lock_timeout):
+        return _start_locked(cfg, args, t0)
+
+
+def cmd_restart(cfg, args):
+    """Stop, CONFIRM termination, then start — under one controller lock, so
+    no interleaved operation can ever produce two overlapping instances."""
+    t0 = now()
+    with Lock(cfg, timeout=args.lock_timeout):
+        lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
+        if o["observed_state"] != OBS_DOWN or lease["state"] != STOPPED:
+            lease["state"] = STOPPING
+            lease["stop_deadline"] = now() + 60
+            write_lease(cfg, lease)
+            log(cfg, "restart.stop", pid=o["pid"])
+            if not _do_stop(cfg, o):
+                write_lease(cfg, lease)
+                die(f"restart: could not stop the running {cfg['instance']}; "
+                    f"refusing to start a second instance", 1)
+            lease["state"] = STOPPED
+            lease["owner"] = None
+            lease["pid"] = None
+            lease["idle_since"] = None
+            lease["stop_deadline"] = None
+            lease["acquired_at"] = None
+            write_lease(cfg, lease)
+            log(cfg, "restart.stopped")
+        return _start_locked(cfg, args, t0)
+
+
 # ------------------------------------------------------------------ commands
 def cmd_status(cfg, args):
     lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy)
@@ -505,11 +755,12 @@ def cmd_status(cfg, args):
         idle_remaining = round(lease["idle_ttl_seconds"]
                                - (now() - lease["idle_since"]), 1)
     out = {
-        "worker": "qwen-b",
+        "worker": cfg["instance"],
         "state": lease["state"],
         "owner": lease["owner"],
         "pid": lease["pid"],
         "rss_gib": o["rss_gib"],
+        "peer_processes": o["peer_processes"],
         "endpoint": lease["endpoint"],
         "domain": lease["domain"],
         "label": lease["label"],
@@ -531,7 +782,7 @@ def cmd_status(cfg, args):
     if args.json:
         print(json.dumps(out, indent=2))
     else:
-        print(f"qwen-b  state={out['state']}"
+        print(f"{cfg['instance']}  state={out['state']}"
               + (f"  owner={out['owner']}" if out["owner"] else "")
               + (f"  pid={out['pid']}" if out["pid"] else ""))
         print(f"  endpoint   {out['endpoint']}   ({out['domain']}/{out['label']})")
@@ -551,6 +802,9 @@ def cmd_status(cfg, args):
         if idle_remaining is not None:
             print(f"  idle       {idle_remaining}s left of "
                   f"{out['idle_ttl_seconds']}s TTL")
+        if o["peer_processes"]:
+            print(f"  PEER       another Qwen instance is active: "
+                  f"{_fmt_peers(o['peer_processes'])}")
         for c in corr:
             print(f"  RECONCILED {json.dumps(c)}")
         for n in out["notes"]:
@@ -579,10 +833,21 @@ def cmd_acquire(cfg, args):
     with Lock(cfg, timeout=args.lock_timeout):
         lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy)
 
+        # acquire keeps its historical dual-instance capability (the capacity
+        # benchmarks lease B while A serves), but is no longer silent about it.
+        peers = o.get("peer_processes") or []
+        if peers:
+            log(cfg, "acquire.peer_present", peers=peers)
+            sys.stderr.write(
+                f"qwenctl: WARNING — another Qwen instance is active "
+                f"({_fmt_peers(peers)}). Two concurrent instances roughly "
+                f"halve per-instance throughput; the production control path "
+                f"(start/Newton AI Control) refuses this state.\n")
+
         if o["duplicate_processes"] and args.orphan_policy != "terminate":
-            die("refusing to acquire: multiple Qwen-B processes exist "
-                f"({[p['pid'] for p in o['processes']]}). Run: "
-                "qwen-b reconcile --orphan-policy terminate", 5)
+            die(f"refusing to acquire: multiple {cfg['instance']} processes "
+                f"exist ({[p['pid'] for p in o['processes']]}). Run: "
+                "reconcile --orphan-policy terminate", 5)
 
         state = lease["state"]
 
@@ -668,7 +933,7 @@ def cmd_acquire(cfg, args):
                     f"gui/{cfg['uid']}. Run scripts/install-launchagent-b.sh", 1)
             if obs_socket(cfg)["listening"]:
                 die(f"port {cfg['port']} is occupied by a foreign process; "
-                    "refusing to start Qwen-B", 5)
+                    f"refusing to start {cfg['instance']}", 5)
 
             timeout = args.timeout or cfg["start_timeout"]
             lease["state"] = STARTING
@@ -702,8 +967,8 @@ def cmd_acquire(cfg, args):
                 lease["notes"] = [f"start timed out after {timeout}s at "
                                   f"{iso(now())}; worker stopped and lease cleared"]
                 write_lease(cfg, lease)
-                die(f"qwen-b did not become healthy within {timeout}s; "
-                    "worker stopped, lease cleared", 4)
+                die(f"{cfg['instance']} did not become healthy within "
+                    f"{timeout}s; worker stopped, lease cleared", 4)
 
             o2 = observe(cfg)
             lease["state"] = BUSY
@@ -730,7 +995,7 @@ def _acquire_result(cfg, lease, reused, reloaded, t0, args, note):
     o = observe(cfg)
     res = {
         "ok": True,
-        "worker": "qwen-b",
+        "worker": cfg["instance"],
         "state": lease["state"],
         "owner": lease["owner"],
         "pid": lease["pid"],
@@ -751,8 +1016,8 @@ def _acquire_result(cfg, lease, reused, reloaded, t0, args, note):
     if args.json:
         print(json.dumps(res, indent=2))
     else:
-        print(f"ACQUIRED qwen-b  state={res['state']} owner={res['owner']} "
-              f"pid={res['pid']}")
+        print(f"ACQUIRED {cfg['instance']}  state={res['state']} "
+              f"owner={res['owner']} pid={res['pid']}")
         print(f"  endpoint  {res['openai_base_url']}  (model={res['model']})")
         print(f"  reused_loaded_worker={reused}  model_reloaded={reloaded}  "
               f"wall={res['acquire_wall_s']}s")
@@ -772,8 +1037,8 @@ def cmd_release(cfg, args):
     with Lock(cfg, timeout=args.lock_timeout):
         lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
         if lease["state"] != BUSY:
-            print(f"release: qwen-b is {lease['state']}, not BUSY — nothing to "
-                  f"release (idempotent)")
+            print(f"release: {cfg['instance']} is {lease['state']}, not BUSY — "
+                  f"nothing to release (idempotent)")
             return 0
         if lease["owner"] != args.owner and not args.force:
             sys.stderr.write(
@@ -791,7 +1056,7 @@ def cmd_release(cfg, args):
         write_lease(cfg, lease)
         log(cfg, "release", previous_owner=prev_owner, pid=lease["pid"],
             idle_ttl_s=lease["idle_ttl_seconds"])
-        print(f"RELEASED qwen-b  state=IDLE  pid={lease['pid']}  "
+        print(f"RELEASED {cfg['instance']}  state=IDLE  pid={lease['pid']}  "
               f"(was owned by {prev_owner})")
         print(f"  worker stays loaded for {lease['idle_ttl_seconds']}s; "
               f"re-acquire inside that window avoids a model reload")
@@ -804,11 +1069,11 @@ def cmd_terminate(cfg, args):
         lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
         if lease["state"] == BUSY and not args.force:
             sys.stderr.write(
-                f"qwenctl: refusing to terminate — qwen-b is BUSY (owner "
-                f"'{lease['owner']}'). Use --force to override.\n")
+                f"qwenctl: refusing to terminate — {cfg['instance']} is BUSY "
+                f"(owner '{lease['owner']}'). Use --force to override.\n")
             sys.exit(3)
         if lease["state"] == STOPPED and o["observed_state"] == OBS_DOWN:
-            print("terminate: qwen-b already STOPPED (idempotent)")
+            print(f"terminate: {cfg['instance']} already STOPPED (idempotent)")
             return 0
 
         before = {"pid": o["pid"], "rss_gib": o["rss_gib"],
@@ -844,8 +1109,9 @@ def cmd_terminate(cfg, args):
         if args.json:
             print(json.dumps(res, indent=2))
         else:
-            print(f"{'TERMINATED' if ok else 'TERMINATE INCOMPLETE'} qwen-b  "
-                  f"state={lease['state']}  stop={res['stop_seconds']}s")
+            print(f"{'TERMINATED' if ok else 'TERMINATE INCOMPLETE'} "
+                  f"{cfg['instance']}  state={lease['state']}  "
+                  f"stop={res['stop_seconds']}s")
             print(f"  before  pid={before['pid']} listening={before['socket_listening']}")
             print(f"  after   pid={after['pid']} "
                   f"listening={after['socket']['listening']} "
@@ -855,6 +1121,14 @@ def cmd_terminate(cfg, args):
 
 def cmd_reap(cfg, args):
     """Enforce the idle TTL. Safe to run on a timer; a no-op unless expired."""
+    if cfg["idle_ttl"] <= 0:
+        # The idle TTL is disabled for this instance (production semantics:
+        # it runs until explicitly stopped). Reap must not even reconcile —
+        # it is a pure no-op so a misconfigured timer can never kill it.
+        if args.verbose:
+            print(f"reap: idle TTL disabled for {cfg['instance']} — nothing "
+                  f"to do")
+        return 0
     with Lock(cfg, timeout=args.lock_timeout):
         lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy)
         if lease["state"] != IDLE:
@@ -871,8 +1145,8 @@ def cmd_reap(cfg, args):
         log(cfg, "reap.expired", pid=lease["pid"], idle_s=round(elapsed, 1),
             ttl_s=lease["idle_ttl_seconds"])
         print(f"reap: idle TTL expired ({elapsed:.0f}s >= "
-              f"{lease['idle_ttl_seconds']}s) — terminating qwen-b pid "
-              f"{lease['pid']}")
+              f"{lease['idle_ttl_seconds']}s) — terminating {cfg['instance']} "
+              f"pid {lease['pid']}")
         lease["state"] = STOPPING
         write_lease(cfg, lease)
         ok = _do_stop(cfg, o)
@@ -955,8 +1229,10 @@ def cmd_logs(cfg, args):
 # ---------------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser(
-        prog="qwenctl", description="Deterministic elastic-worker controller "
-                                    "for Qwen-B (127.0.0.1:8081).")
+        prog="qwenctl",
+        description="Deterministic lifecycle controller for the local Qwen "
+                    "instances (default config: Qwen-B; pass --config "
+                    "config/qwen-a-controller.env for the production Qwen-A).")
     ap.add_argument("--config", default=CONFIG)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -974,6 +1250,19 @@ def main():
 
     common(sub.add_parser("status", help="reconciled lifecycle state"))
     common(sub.add_parser("health", help="probe worker health/identity"))
+    st = common(sub.add_parser(
+        "start", help="ensure the instance is running, ownerless (production "
+                      "verb; refuses while a peer instance is active)"))
+    st.add_argument("--timeout", type=int, default=None,
+                    help="seconds to wait for readiness (default from config)")
+    st.add_argument("--allow-peer", action="store_true",
+                    help="deliberately start alongside another Qwen instance "
+                         "(dual-instance experiments only)")
+    rs = common(sub.add_parser(
+        "restart", help="stop, confirm termination, then start — one lock, "
+                        "never two overlapping instances"))
+    rs.add_argument("--timeout", type=int, default=None)
+    rs.add_argument("--allow-peer", action="store_true")
     a = common(sub.add_parser("acquire", help="ensure READY worker, take lease"),
                owner=True)
     a.add_argument("--timeout", type=int, default=None,
@@ -995,7 +1284,8 @@ def main():
 
     args = ap.parse_args()
     cfg = load_config(args.config)
-    fn = {"status": cmd_status, "health": cmd_health, "acquire": cmd_acquire,
+    fn = {"status": cmd_status, "health": cmd_health, "start": cmd_start,
+          "restart": cmd_restart, "acquire": cmd_acquire,
           "release": cmd_release, "terminate": cmd_terminate, "reap": cmd_reap,
           "heartbeat": cmd_heartbeat, "reconcile": cmd_reconcile,
           "logs": cmd_logs}[args.cmd]

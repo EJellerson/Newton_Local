@@ -1,0 +1,15 @@
+#!/bin/bash
+# Newton_Local — operator entry point for the CANONICAL production Qwen (A).
+# Thin wrapper over scripts/qwenctl.py with the Qwen-A controller config, so
+# operators never need to remember launchd domains, labels, or config paths.
+#
+#   qwen-a status
+#   qwen-a start                 (refuses while Qwen-B / any peer is active)
+#   qwen-a terminate             (stop; idempotent when already stopped)
+#   qwen-a restart
+#   qwen-a health
+#   qwen-a reconcile
+#   qwen-a logs
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec /usr/bin/env python3 "$ROOT/scripts/qwenctl.py" \
+    --config "$ROOT/config/qwen-a-controller.env" "$@"
