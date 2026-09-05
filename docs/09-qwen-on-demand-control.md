@@ -1,6 +1,6 @@
 # 09 — Qwen on demand: Newton AI Control (Commission #4)
 
-**Date:** 2026-09-04 · **Machine:** Mac Pro (M2 Ultra, 128 GB) · **Status:** implemented; live model tests deferred (see §8)
+**Date:** 2026-09-04 · **Machine:** Mac Pro (M2 Ultra, 128 GB) · **Status:** implemented; live model tests executed same evening under operator authorisation (see §8) — only the reboot test remains deferred
 
 Commission #4 reverses the Commission-#1 availability policy. This Mac now
 behaves like a normal workstation: the Hermes/chat harness is always ready,
@@ -140,24 +140,53 @@ Newton tile). There is deliberately **no separate chat app** — the panel's
   lease writers shared one tmp filename (`write_lease` now uses per-process
   tmp names; atomic last-writer-wins).
 
-## 8. Deferred — requires operator authorisation (training workload active)
+## 8. Live acceptance tests — EXECUTED 2026-09-04 (evening, operator-authorised)
 
-Commission #4 deliberately **never started Qwen**. Still unproven and left
-open, with the minimal follow-up procedure:
+The commission itself never started Qwen. The same evening the operator
+authorised the live tests (reboot explicitly excluded — critical training
+still running). All were run with **at most one model loaded at any moment**,
+memory pressure stayed `normal` and swap flat (453 MiB) throughout, and the
+concurrent training workload (experiment E027 coordinator + its recycling
+6-worker pool) ran undisturbed at ~100 % CPU per worker.
 
-1. `scripts/qwen-a start` (or panel **Start**) → expect READY/Running,
-   `/health` 200 on 8080, panel shows pid+RSS. *(actual start)*
-2. Chat once in Open WebUI → real local inference end-to-end.
-3. `scripts/qwen-b acquire --owner smoke` while A runs → observe the loud
-   peer warning; then `scripts/qwen-a start` from another shell → **must
-   refuse, exit 5** *(live singleton proof)*; `qwen-b release --owner smoke`.
-4. `kill -9 <qwen-a pid>` → panel shows Recovering, model returns within
-   ~watchdog period + load time *(crash recovery)*.
-5. Panel **Stop** → process gone, port closed, RSS reclaimed (compare
-   `scripts/qwen-status.sh` memory before/after); watchdog stays silent.
-6. Panel **Restart** → exactly one replacement instance, no overlap.
-7. Reboot with the model running → after login: Hermes/WebUI/panel up,
-   **Qwen OFF** *(the boot-policy invariant, end-to-end)*.
+1. **Actual Start (panel path)** — POST start → `Starting` → `Running` in
+   **53 s** cold (weights faulted from disk under training I/O); warm
+   restarts later took 8–9 s. GPU allocation 1.9 → **48.1 GiB**.
+2. **Health after start** — `/health` ok; `/props` alias `qwen-a`,
+   n_ctx 262144, vision+video; launchd `gui/501` owns the pid (runs=1);
+   controller `READY`, panel `Running` with pid+RSS.
+3. **End-to-end inference** — direct :8080: `17*23 → 391` in 2.0 s
+   (thinking disabled via `chat_template_kwargs`); full stack
+   Open-WebUI-path (Hermes :8642 agent → Qwen-A): exact reply `pong`, 63 s.
+4. **Live singleton, both directions** —
+   `qwen-b start` while A ran: **refused, exit 5**, peer named
+   (pid/alias/port); later `qwen-a start` while B was leased BUSY
+   (A stopped first, so never two models): **refused, exit 5**. Panel Start
+   while B leased: operation failed with the peer message and **desired
+   reset to STOPPED** (watchdog does not retry against a peer). A
+   4 Hz path-anchored sampler across a full Restart saw process counts
+   ∈ {0, 1} only — **never two llama-servers**.
+5. **Idempotence** — `qwen-a start`, panel Start while Running: no-op,
+   same pid; double panel Stop while stopped (from the prover): no-op.
+6. **Crash recovery (real kill)** — `kill -9` the serving pid: panel showed
+   `Recovering` immediately, watchdog attempt at t≈14 s, `Running` again at
+   **t≈21 s** with a fresh pid (19337 → 20421); recovery counter reset.
+7. **Restart (panel)** — stop-confirm-start, new pid each time
+   (20421 → 20648 → 21014), healthy in 8–9 s, overlap sampler MAX=1.
+8. **Memory reclamation on Stop** — stop completed in **2 s**; GPU
+   allocation **48.16 → 2.02 GiB** (≈46 GiB released), port closed, process
+   gone; watchdog verified **silent** for 35 s+ after (zero watchdog events,
+   desired STOPPED honoured).
+9. After everything: model `Stopped`, B `STOPPED`, prover re-run
+   **37 ok / 0 failures**, available memory back above baseline.
+
+### Still deferred (operator will authorise when safe)
+
+* **Reboot test**: reboot with the model running → after login Hermes,
+  Open WebUI and the panel are up and **Qwen is OFF** (the boot-policy
+  invariant end-to-end; statically guaranteed today by RunAtLoad=false +
+  KeepAlive=false + the boot-time-scoped desired-state record, and by the
+  legacy daemon's removal — but not yet observed through a physical reboot).
 
 ## 9. Operator quick reference
 
