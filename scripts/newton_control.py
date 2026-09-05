@@ -73,7 +73,7 @@ RECOVERY_BACKOFF_S = [0, 60, 180]      # delay before recovery attempt N
 RECOVERY_MAX_ATTEMPTS = 3
 WATCHDOG_PERIOD_S = 15
 
-START_TIMEOUT_S = 330                  # ceiling on a qwenctl start/restart call
+START_TIMEOUT_S = 700                  # ceiling on a qwenctl start/restart call (Flash-Next cold load: registry 600 s)
 STOP_TIMEOUT_S = 150
 
 

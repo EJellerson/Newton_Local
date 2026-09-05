@@ -41,9 +41,9 @@ and runtime — Qwen 3.8 27B on llama.cpp, Qwen 3.8 Flash-Next on
 `ddalcu/mlx-serve`. The selection can only change while both slots are
 stopped, only to a model whose weights and runtime verify, and changing it
 never starts anything. Panel selector + `scripts/newton-model
-list|status|select|verify|plan`. Flash-Next's weights are provisioned and
-hash-verified, but its engine needs macOS 26.2+ (this Mac runs 14.8.5), so
-the registry reports it **unavailable** until the OS is upgraded. Runbook:
+list|status|select|verify|plan`. Both models are provisioned,
+hash-verified and live-proven (the Flash-Next engine needs macOS 26.2+; this
+Mac runs 26.6.2). Runbook:
 [docs/10-dual-model-selection.md](docs/10-dual-model-selection.md).
 
 ## Newton AI Control

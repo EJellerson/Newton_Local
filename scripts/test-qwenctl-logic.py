@@ -80,6 +80,10 @@ def t_classify():
     ours, peers = qwenctl.classify_model_processes(CFG_A, [], SIGS)
     check("empty machine: nothing anywhere", ours == [] and peers == [])
 
+    probes = [ps_line(500, f"{LB} --version"), ps_line(501, f"{LB} --help")]
+    ours, peers = qwenctl.classify_model_processes(CFG_A, probes, SIGS)
+    check("--version/--help probes are not model servers", ours == [] and peers == [])
+
 
 def t_load_config():
     print("load_config (generic CTL_* + legacy QWEN_B_*)")

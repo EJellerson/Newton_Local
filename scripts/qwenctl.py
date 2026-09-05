@@ -300,6 +300,8 @@ def classify_model_processes(cfg, ps_lines, signatures):
         sig = next((s for s in signatures if cmd == s or cmd.startswith(s + " ")), None)
         if sig is None:
             continue
+        if re.search(r'\s--(version|help)(\s|$)', cmd):
+            continue          # a --version/--help probe is not a model server
         m_port = re.search(r'--port\s+(\d+)', cmd)
         m_alias = re.search(r'--alias\s+(\S+)', cmd)
         rec = {"pid": int(pid), "rss_gib": round(int(rss_kb) / 2**20, 2),

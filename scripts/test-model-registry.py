@@ -307,6 +307,10 @@ def main():
     ours, peers = qwenctl.classify_model_processes(cfg_a, [lines[1]], sigs)
     check("A with only an mlx-serve peer running: no OURS, one PEER -> start must refuse",
           ours == [] and len(peers) == 1)
+    probes = [f" 55 500 {mlx_real} --version", f" 66 600 {llama} --help"]
+    ours, peers = qwenctl.classify_model_processes(cfg_a, probes, sigs)
+    check("availability --version probes are never counted as occupancy",
+          ours == [] and peers == [])
 
     print("17. UI and CLI manipulate the same state")
     nm.select_model(reg, "flash-next", by="panel", occupancy_fn=free_occ, lock_fn=no_locks)

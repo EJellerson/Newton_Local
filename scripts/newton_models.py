@@ -198,15 +198,20 @@ def check_runtime(reg, runtime_id, probe=True):
         return res
     if probe:
         key = (exe, os.path.getmtime(exe))
-        if key not in _probe_cache:
+        cached = _probe_cache.get(key)
+        # A successful probe is cached for the process lifetime; a failure is
+        # retried after 30 s so a transient hiccup cannot pin a model as
+        # unavailable in a long-lived service.
+        if cached is None or (not cached[0] and now() - cached[2] > 30):
             try:
                 p = subprocess.run([exe] + list(r.get("version_args", ["--version"])),
                                    capture_output=True, text=True, timeout=15)
                 out = (p.stdout + p.stderr).strip()
-                _probe_cache[key] = (p.returncode == 0, out.splitlines()[0][:160] if out else "")
+                _probe_cache[key] = (p.returncode == 0,
+                                     out.splitlines()[0][:160] if out else "", now())
             except (OSError, subprocess.TimeoutExpired) as e:
-                _probe_cache[key] = (False, f"{e.__class__.__name__}: {e}")
-        ok, ver = _probe_cache[key]
+                _probe_cache[key] = (False, f"{e.__class__.__name__}: {e}", now())
+        ok, ver = _probe_cache[key][:2]
         res["version"] = ver
         if not ok:
             res["reasons"].append(f"`--version` probe failed: {ver}")

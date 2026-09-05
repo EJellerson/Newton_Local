@@ -1,6 +1,6 @@
 # 10 — Dual-model selection: registry, global selection, execution slots (Commission #5)
 
-**Date:** 2026-09-04 · **Machine:** Mac Pro (M2 Ultra, 128 GB, macOS 14.8.5) · **Status:** implemented and proven without loading any model; Flash-Next weights provisioned and verified; **Flash-Next runtime not executable on this macOS** (see §4) — live proving deferred (§10).
+**Date:** 2026-09-04 (implementation) · 2026-09-05 (live proving) · **Machine:** Mac Pro (M2 Ultra, 128 GB), macOS 14.8.5 → **26.6.2** · **Status:** implemented, no-load proven, and **live-proven for both models** (§10); Flash-Next required the macOS upgrade (§4).
 
 ```
                      GLOBAL MODEL SELECTION  (state/model-selection.json)
@@ -79,16 +79,15 @@ OFF) is untouched.
 | vision | F16 mmproj | bf16 vision tower inside the pack |
 | memory | ~47 GiB GPU alloc (measured) | ~68 GB resident (card), 96 GB unified minimum; n-gram table mmapped from SSD |
 
-**Flash-Next runtime status on this host:** every Flash-capable mlx-serve
-release links against macOS 26.2 (`LC_BUILD_VERSION minos 26.2`; README
-"Needs macOS 26.2+") and fails under dyld on macOS 14.8.5
-(`_OBJC_CLASS_$_MTLResidencySetDescriptor` missing). Building from source
-needs Xcode 26.2 + Metal Toolchain, equally unavailable on macOS 14. The
-pinned tarball is installed and hash-verified (`scripts/install-mlx-serve.sh`
-reports the incompatibility explicitly, exit 3). The registry therefore
-reports **`flash-next: UNAVAILABLE — runtime requires macOS 26.2+ but host is
-14.8.5`**: not selectable, not startable, no ambiguous state. After a macOS
-upgrade, re-run `install-mlx-serve.sh`; the weights need no re-download.
+**Flash-Next runtime status:** every Flash-capable mlx-serve release links
+against macOS 26.2 (`LC_BUILD_VERSION minos 26.2`; README "Needs macOS
+26.2+"). On the commission day (macOS 14.8.5) the binary failed under dyld
+(`_OBJC_CLASS_$_MTLResidencySetDescriptor` missing) and the registry
+correctly reported **`flash-next: UNAVAILABLE — runtime requires macOS 26.2+
+but host is 14.8.5`** (not selectable, not startable). The host was upgraded
+to **macOS 26.6.2 on 2026-09-05**; `install-mlx-serve.sh` then validated
+(`mlx-serve 26.9.1`), `newton-model verify` reported both models AVAILABLE
+without any re-download, and the live proving in §10 was executed.
 
 The PyPI package named `mlx-serve` (raspoli, 0.1.0) is an unrelated Python
 project — do not install it for this model.
@@ -154,30 +153,53 @@ mlx via symlink on a foreign port, unrelated python on a slot port).
 4. Extend `scripts/test-model-registry.py` fixtures; run the suite.
 No lifecycle code changes are needed.
 
-## 10. Deferred live proving (after the training workload finishes)
+## 10. Live proving — EXECUTED 2026-09-05 (macOS 26.6.2, training finished)
 
-None of the following was executed in Commission #5.
+All measured on this Mac through the production path (panel / `qwen-a` /
+`qwen-b`); at most one model resident at any moment.
 
-**Physical reboot** — reboot → Hermes, Open WebUI, control panel return;
-no model starts; `state/model-selection.json` survives.
+**Physical reboot (the OS upgrade)** — after login: Hermes, Open WebUI and
+the control panel running (runs=1 each), both slots registered and not
+running (runs=0), 8080/8081 closed, no runtime process, and
+`state/model-selection.json` intact from the previous day. Control-plane
+prover 48/48.
 
-**Qwen 27B** — `newton-model select qwen27b` → A start → health →
-inference → vision + tool behaviour → restart → stop → memory reclamation →
-B lease → inference → release.
+**Engine on 26.6.2** — `install-mlx-serve.sh`: `mlx-serve 26.9.1` answers
+`--version`; `newton-model verify`: both models AVAILABLE (no re-download).
 
-**Flash-Next** (requires macOS ≥ 26.2 first) — `install-mlx-serve.sh` passes
-→ `newton-model verify flash-next` AVAILABLE → select → A start (watch the
-engine's admission guard and the real context it pins; ~68 GB resident) →
-health (`/health` + `/v1/models`) → basic inference → reasoning/coding →
-tool calling → vision/multimodal → long-context characterisation → Hermes
-end-to-end (Open WebUI → :8642 → :8080) → restart → stop → memory
-reclamation → B lease → release. Decide `--mtp` and `--reasoning-budget`
-from measurements.
+| | Qwen 3.8 27B (llama.cpp, slot shim) | Qwen 3.8 Flash-Next (mlx-serve) |
+|---|---|---|
+| panel Start → Running | **20 s** (launchd pid *is* llama-server; lease `qwen27b/llama.cpp`) | **28 s** (`load_to_ready 23.8 s`; lease `flash-next/mlx-serve`) |
+| health / identity | `/health` ok; alias `qwen-a`, ctx 262144, vision | `/health` ok; `/v1/models` id `qwen38-flash-next-mlx-4bit`, ctx **262144** advertised, caps chat/tool_use/streaming/vision/reasoning/json_schema |
+| memory while running | GPU alloc 47.9 GiB | GPU alloc **71.3 GiB** (+69.4), 36.6 GiB still available, pressure normal, swap 0; 77.9 GiB after a 100k-token prompt |
+| basic inference | `17*23 → 391`, 0.64 s | `391`, 2.8 s (low reasoning effort, 62 tokens) |
+| reasoning / coding | — | correct efficient `is_prime`, 527 tokens in 12.3 s (~43 tok/s) |
+| tool calling | `get_weather {"city":"Boston"}`, finish `tool_calls` | same, finish `tool_calls` |
+| vision | correct description of `assets/vision-test.png`, 3.6 s | correct, 4.4 s |
+| long context | (proven in Commissions #1–2) | needle recovered exactly at **32k** (48.9 s) and **100k** tokens (134.8 s, ~743 tok/s prefill) |
+| Hermes end-to-end (Open WebUI path) | `pong`, 57 s | `pong`, 27.8 s — mlx-serve accepts Hermes' `model: qwen-a` id, so Hermes needs no change |
+| crash recovery (`kill -9`) | proven 2026-09-04 (21 s) | Recovering at t=1 s, watchdog attempt ~12 s, **Running at 35 s**, new pid |
+| panel Restart | 8 s, new pid, overlap sampler MAX=1 (30 samples) | 27 s, new pid, MAX=1 (86 samples), lease model unchanged |
+| panel Stop / reclamation | 2 s; GPU alloc 47.9 → 1.8 | 5 s; GPU alloc **71.0 → 1.7**; port closed; watchdog silent |
+| Qwen-B lease on :8081 | 4.7 s, answer 144, release + terminate 0.75 s | 20.7 s, `/v1/models` lists the model, answer 144, release + terminate 1.9 s |
+| singleton, other direction | A running → `qwen-b start` exit 5; B leased → `qwen-a start` exit 5 | A running → `qwen-b start` exit 5 (peer `exe=mlx-serve`); B leased → `qwen-a start` exit 5 |
+| selection lock while occupied | CLI exit 3, panel 409 (A running and B leased) | CLI exit 3, panel 409 (A running and B leased) |
+| idempotent start | `already running (was READY)` | same |
 
-**Swaps** — both stopped: 27B → Flash → 27B; attempted switching while A or
-B is occupied is refused (409/exit 3).
+**Swaps (both slots stopped):** `qwen27b → flash-next → qwen27b` via the CLI
+and `flash-next → qwen27b` via the panel, each accepted (200 / exit 0), the
+slot-A plan flipping between `llama-server` and `mlx-serve`; no process ever
+started; final selection `qwen27b` (recorded). Switching while A or B is
+occupied was refused every time (see the table).
 
-**Singleton** — both directions under both selections (llama-vs-mlx peers).
+**Robustness fix found during proving:** `--version` probes spawned by the
+availability check are processes whose argv starts with a runtime executable;
+they briefly counted as runtime occupancy and, with a failed probe cached
+for the panel's lifetime, could pin a model unavailable. Both fixed
+(`classify_model_processes` ignores `--version`/`--help`; failed probes are
+retried after 30 s), with tests. The panel's start ceiling was raised to
+700 s to cover the registry's 600 s Flash-Next start timeout.
 
-Also still deferred from docs/09: crash recovery, restart and stop/memory
-reclamation under Flash-Next.
+**Open / tuning (not blockers):** `--mtp` and `--reasoning-budget` were left
+at engine defaults; Flash-Next was measured with `reasoning_effort: low`
+for short answers. Both remain operator choices.

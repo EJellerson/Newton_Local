@@ -55,7 +55,7 @@ byte length equal to the HF tree, and content hash equal to the upstream
 value (SHA-256 = LFS oid for the 103 LFS files; git blob SHA-1 for the 10
 non-LFS files). 107,326,642,700 / 107,326,642,700 bytes. Wall time 77 s.
 
-## Runtime requirement — and why the model is UNAVAILABLE on this host today
+## Runtime requirement — host status (unavailable on macOS 14.8.5; runs on 26.6.2)
 
 | | |
 |---|---|
@@ -64,11 +64,11 @@ non-LFS files). 107,326,642,700 / 107,326,642,700 bytes. Wall time 77 s.
 | **Pinned here** | **`v26.9.1`** (stable, 2026-09-03, "faster Flash Next"); asset `mlx-serve-bin-macos-arm64.tar.gz`, 70,796,955 bytes, SHA-256 `b9bb5178ac2dcfbfa232ffa1e6ce77e87a6408a540cbdaabb66d101d667590b0`; installed at `tools/mlx-serve/v26.9.1/` (`tools/mlx-serve/current`) by `scripts/install-mlx-serve.sh` |
 | Bundle | `mlx-serve` (12.9 MB), `lib/libmlx.dylib`, `lib/mlx.metallib` (182 MB precompiled), `libmlxc`, `libjaccl`, `libllama`, `libwebp`, `libsharpyuv`; MIT + Apache-2.0 NOTICE |
 | **Host requirement** | `LC_BUILD_VERSION minos 26.2 / sdk 26.5` on every Flash-capable release (v26.9.1, v26.8.11, v26.8.11-pre-release.1; also v26.8.7); engine README: "Needs macOS 26.2+ on Apple Silicon" |
-| **This Mac** | macOS **14.8.5** → `dyld: Symbol not found: _OBJC_CLASS_$_MTLResidencySetDescriptor … built for macOS 26.2 which is newer than running OS`. Building from source needs Xcode 26.2 + Metal Toolchain, also unavailable on macOS 14. |
+| **This Mac** | On macOS **14.8.5** (2026-09-04): `dyld: Symbol not found: _OBJC_CLASS_$_MTLResidencySetDescriptor … built for macOS 26.2 which is newer than running OS`. Upgraded to **macOS 26.6.2** on 2026-09-05: `mlx-serve --version` → `mlx-serve 26.9.1`; live-proven (docs/10 §10). |
 | Memory (card) | ~68 GB resident (n-gram table mmapped); **96 GB unified minimum**, 128 GB recommended; KV ≈ 24 KB/token (~2.4 GB at 100k) |
 | Serving syntax (card + docs/cli.md) | `mlx-serve --model <dir> --serve --host 127.0.0.1 --port N [--ctx-size N] [--mtp] [--reasoning-budget N]`; OpenAI `/v1/chat/completions`, `GET /health`, `GET /v1/models` (advertises real context) |
 
-Consequently the registry reports `flash-next` as **UNAVAILABLE — runtime
-requires macOS 26.2+ but host is 14.8.5**, it cannot be selected or started,
-and `Qwen 3.8 27B` remains the default. Re-run `scripts/install-mlx-serve.sh`
-after a macOS upgrade; the weights need no re-download.
+While the host ran macOS 14.8.5 the registry reported `flash-next` as
+**UNAVAILABLE — runtime requires macOS 26.2+ but host is 14.8.5** (not
+selectable, not startable). After the upgrade to 26.6.2 it reports AVAILABLE;
+`Qwen 3.8 27B` remains the default selection.
