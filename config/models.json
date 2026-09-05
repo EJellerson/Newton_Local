@@ -1,0 +1,121 @@
+{
+  "_comment": [
+    "Newton_Local supported-model REGISTRY (Commission #5) — the single source of",
+    "truth for every local model the execution slots may run. Consumed by",
+    "scripts/newton_models.py; nothing else hard-codes model/runtime parameters.",
+    "Paths are relative to the repository root. Placeholders in args:",
+    "{path} {host} {port} {alias} {context_length} {logdir} {executable}.",
+    "A/B are EXECUTION SLOTS (legacy names kept); the globally selected model",
+    "governs both. Mutable state (the selection) lives in state/, never here."
+  ],
+  "schema": 1,
+  "default": "qwen27b",
+
+  "slots": {
+    "A": {
+      "label": "com.newton.qwen38server.a",
+      "host": "127.0.0.1",
+      "port": 8080,
+      "alias": "qwen-a",
+      "logdir": "logs/qwen-a",
+      "role": "production (Hermes target)"
+    },
+    "B": {
+      "label": "com.newton.qwen38server.b",
+      "host": "127.0.0.1",
+      "port": 8081,
+      "alias": "qwen-b",
+      "logdir": "logs/qwen-b",
+      "role": "elastic lease-controlled worker"
+    }
+  },
+
+  "runtimes": {
+    "llama.cpp": {
+      "display_name": "llama.cpp llama-server",
+      "executable": "tools/llama.cpp/build/bin/llama-server",
+      "version_args": ["--version"],
+      "health": {
+        "path": "/health",
+        "ready": "json_status_ok",
+        "identity_path": "/props"
+      }
+    },
+    "mlx-serve": {
+      "display_name": "mlx-serve (ddalcu, native Zig/Metal engine)",
+      "executable": "tools/mlx-serve/current/mlx-serve",
+      "version_args": ["--version"],
+      "pinned_version": "v26.9.1",
+      "requires_macos": "26.2",
+      "health": {
+        "path": "/health",
+        "ready": "http_200_and_models_listed",
+        "identity_path": "/v1/models"
+      }
+    }
+  },
+
+  "models": {
+    "qwen27b": {
+      "display_name": "Qwen 3.8 27B",
+      "long_name": "Qwen3.8-27B Q8_0 + F16 vision projector",
+      "runtime": "llama.cpp",
+      "path": "models/qwen38-27b",
+      "manifest": "models/qwen38-27b/MANIFEST.json",
+      "context_length": 262144,
+      "vision": {"enabled": true, "mmproj": "mmproj-Qwen3.8-27B-f16.gguf"},
+      "start_timeout_s": 300,
+      "memory": {"resident_gib_expected": 47, "min_unified_gib": 64},
+      "args": [
+        "--model", "{path}/Qwen3.8-27B-Q8_0.gguf",
+        "--mmproj", "{path}/mmproj-Qwen3.8-27B-f16.gguf",
+        "--alias", "{alias}",
+        "--host", "{host}",
+        "--port", "{port}",
+        "--ctx-size", "{context_length}",
+        "--n-gpu-layers", "999",
+        "--flash-attn", "on",
+        "--jinja",
+        "--parallel", "1",
+        "--cont-batching",
+        "--metrics"
+      ],
+      "provenance": {
+        "source": "config/model-sources.local.json",
+        "record": "models/qwen38-27b/MANIFEST.md"
+      }
+    },
+
+    "flash-next": {
+      "display_name": "Qwen 3.8 Flash-Next",
+      "long_name": "Qwen3.8-Flash-Next (125B-A6B MoE) MLX-Serve 4-bit pack",
+      "runtime": "mlx-serve",
+      "path": "models/qwen38-flash-next-mlx-4bit",
+      "manifest": "models/qwen38-flash-next-mlx-4bit/MANIFEST.json",
+      "context_length": 262144,
+      "vision": {"enabled": true, "tower": "model-vision.safetensors"},
+      "start_timeout_s": 600,
+      "memory": {"resident_gib_expected": 68, "min_unified_gib": 96},
+      "args": [
+        "--model", "{path}",
+        "--serve",
+        "--host", "{host}",
+        "--port", "{port}",
+        "--ctx-size", "{context_length}",
+        "--max-concurrent", "1",
+        "--log-level", "info",
+        "--log-file", "{logdir}/mlx-serve.log"
+      ],
+      "notes": [
+        "--host must be explicit: mlx-serve defaults to 0.0.0.0.",
+        "MTP speculative head is left at the engine default (off for MoE trunks); enable with --mtp only after live proving.",
+        "The 32 GB ngram_table.bin is memory-mapped from the internal SSD on the hot path; never place this pack on external storage.",
+        "Engine v26.9.1 requires macOS 26.2+; on older hosts the registry reports the runtime unavailable."
+      ],
+      "provenance": {
+        "source": "config/model-sources.local.json",
+        "record": "models/qwen38-flash-next-mlx-4bit/MANIFEST.md"
+      }
+    }
+  }
+}

@@ -80,3 +80,12 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# --- Commission #5: Flash-Next pack + pinned mlx-serve engine --------------
+# The 100 GiB MLX-Serve pack: everything but its provenance manifests stays out.
+models/qwen38-flash-next-mlx-4bit/*
+!models/qwen38-flash-next-mlx-4bit/MANIFEST.md
+!models/qwen38-flash-next-mlx-4bit/MANIFEST.json
+# Machine-readable manifest for the 27B pack is tracked (small JSON).
+# The engine binary release (pinned + hash-verified by install-mlx-serve.sh).
+tools/mlx-serve/

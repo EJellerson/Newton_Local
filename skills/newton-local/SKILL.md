@@ -31,7 +31,13 @@ Skill provenance marker: TERNARY-3055
 
 Since Commission #4 the operator controls Qwen-A from the **Newton AI
 Control** app in the Dock (`http://127.0.0.1:8765/`): Start Chat, and
-Start/Stop/Restart for the model. When you are answering anyone, Qwen-A is
+Start/Stop/Restart for the model. Since Commission #5, Qwen-A and Qwen-B are
+*execution slots*: a single global selection (`newton-model status`) decides
+which registered model both launch — Qwen 3.8 27B (llama.cpp, the default)
+or Qwen 3.8 Flash-Next (mlx-serve, currently unavailable on this macOS).
+The endpoints never change. **Never change the model selection yourself**;
+that is the operator's decision, and it is only possible while both slots
+are stopped. When you are answering anyone, Qwen-A is
 the brain you are thinking with right now. **Never stop or restart Qwen-A to
 "fix" something** — you would be sawing off the branch you are sitting on.
 Starting or stopping the model is the operator's decision, made in Newton AI

@@ -32,6 +32,20 @@ Web tools do reach the internet when the model calls them, so **this assistant
 is not air-gapped** — the split is *internet as a tool*, never *intelligence
 from a cloud model*. Runbook: [docs/06-hermes-localchat.md](docs/06-hermes-localchat.md).
 
+## Model selection (Commission #5)
+
+Qwen-A and Qwen-B are **execution slots**; one global selection
+(`state/model-selection.json`, default **Qwen 3.8 27B**) decides what both
+launch. The registry `config/models.json` describes every supported model
+and runtime — Qwen 3.8 27B on llama.cpp, Qwen 3.8 Flash-Next on
+`ddalcu/mlx-serve`. The selection can only change while both slots are
+stopped, only to a model whose weights and runtime verify, and changing it
+never starts anything. Panel selector + `scripts/newton-model
+list|status|select|verify|plan`. Flash-Next's weights are provisioned and
+hash-verified, but its engine needs macOS 26.2+ (this Mac runs 14.8.5), so
+the registry reports it **unavailable** until the OS is upgraded. Runbook:
+[docs/10-dual-model-selection.md](docs/10-dual-model-selection.md).
+
 ## Newton AI Control
 
 One Dock application operates the whole stack (Commission #4):
@@ -147,6 +161,8 @@ tail -f logs/qwen-a/stderr.log
 | [docs/07-commission-3-completion-record.md](docs/07-commission-3-completion-record.md) | Commission #3 record: Hermes identity, proving results, security posture, deviations |
 | [docs/08-foreman-relevant-hermes-findings.md](docs/08-foreman-relevant-hermes-findings.md) | Research note: which Hermes primitives a future Foreman can reuse, and what it must still build |
 | [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md) | **Newton AI Control runbook** — on-demand Qwen-A, boot policy, singleton enforcement, watchdog semantics, the control panel and app, deferred live tests |
+| [docs/10-dual-model-selection.md](docs/10-dual-model-selection.md) | **Dual-model runbook** — model registry, global selection contract, execution slots + launch shim, runtimes, Flash-Next provenance and host requirement, UI/CLI, heterogeneous singleton, deferred live proving |
+| [models/qwen38-flash-next-mlx-4bit/MANIFEST.md](models/qwen38-flash-next-mlx-4bit/MANIFEST.md) | Flash-Next record: architecture, file inventory, hash verification, engine requirement |
 
 ## What is not in this repository
 

@@ -52,29 +52,32 @@ PS_OTHER = ps_line(300, "/usr/bin/python3 some-unrelated-thing --port 8080")
 PS_MANUAL = ps_line(400, f"{LB} --model m.gguf --alias qwen-a --host 127.0.0.1 --port 9090")
 
 
-def t_classify():
-    print("classify_llama_processes (singleton/peer detection)")
-    ours, peers = qwenctl.classify_llama_processes(CFG_A, [PS_A, PS_OTHER])
-    check("A sees itself as OURS", [p["pid"] for p in ours] == [100])
-    check("unrelated non-llama process ignored", peers == [])
+SIGS = [LB]   # runtime signatures (the registry supplies these in production)
 
-    ours, peers = qwenctl.classify_llama_processes(CFG_A, [PS_A, PS_B])
+
+def t_classify():
+    print("classify_model_processes (singleton/peer detection)")
+    ours, peers = qwenctl.classify_model_processes(CFG_A, [PS_A, PS_OTHER], SIGS)
+    check("A sees itself as OURS", [p["pid"] for p in ours] == [100])
+    check("unrelated non-runtime process ignored", peers == [])
+
+    ours, peers = qwenctl.classify_model_processes(CFG_A, [PS_A, PS_B], SIGS)
     check("A sees B as PEER", [p["pid"] for p in peers] == [200])
     check("peer carries identity", peers[0]["alias"] == "qwen-b"
           and peers[0]["port"] == 8081)
 
-    ours, peers = qwenctl.classify_llama_processes(CFG_B, [PS_A, PS_B])
+    ours, peers = qwenctl.classify_model_processes(CFG_B, [PS_A, PS_B], SIGS)
     check("B sees A as PEER (symmetry)", [p["pid"] for p in peers] == [100])
 
-    ours, peers = qwenctl.classify_llama_processes(CFG_A, [PS_B])
+    ours, peers = qwenctl.classify_model_processes(CFG_A, [PS_B], SIGS)
     check("start-blocking case: no OURS, one PEER",
           ours == [] and len(peers) == 1)
 
-    ours, peers = qwenctl.classify_llama_processes(CFG_A, [PS_MANUAL])
+    ours, peers = qwenctl.classify_model_processes(CFG_A, [PS_MANUAL], SIGS)
     check("manually mis-launched qwen-a (wrong port) counts as PEER",
           [p["pid"] for p in peers] == [400])
 
-    ours, peers = qwenctl.classify_llama_processes(CFG_A, [])
+    ours, peers = qwenctl.classify_model_processes(CFG_A, [], SIGS)
     check("empty machine: nothing anywhere", ours == [] and peers == [])
 
 

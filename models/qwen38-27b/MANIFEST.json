@@ -1,0 +1,22 @@
+{
+ "schema": 1,
+ "model_id": "qwen27b",
+ "hf_last_modified": "2026-08-20T13:18:03.000Z",
+ "generated_at": "2026-09-04T23:00:06-0400",
+ "file_count": 2,
+ "total_bytes": 29978230400,
+ "files": [
+  {
+   "name": "Qwen3.8-27B-Q8_0.gguf",
+   "size": 29047084416,
+   "sha256": "31756fca94beca71ea4b8706d6fdc896dab2a3c6376ab0c1863b98512a24f8d6",
+   "git_blob_sha1": "a7be4621d14f82bc472ba7ee7b97987dce3bf5d1"
+  },
+  {
+   "name": "mmproj-Qwen3.8-27B-f16.gguf",
+   "size": 931145984,
+   "sha256": "add205b7bfdb3f71f6da36b0a82aa20928dd829a920878c602628cdfbebc5288",
+   "git_blob_sha1": "62f903997b24f11a08d8acbe19e17131fbc3fee4"
+  }
+ ]
+}

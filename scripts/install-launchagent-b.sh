@@ -43,16 +43,27 @@ else
     echo "   warn: could not read Qwen-A's launchd argv; skipping live comparison"
 fi
 
-echo "== drift check: plist ProgramArguments vs scripts/qwen-b-argv.sh"
-EXPECTED=$(/Users/ericjellerson/Newton_Local/scripts/qwen-b-argv.sh)
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+echo "== drift check 1: plist ProgramArguments is exactly the slot shim"
 ACTUAL=$(plutil -extract ProgramArguments json -o - "$SRC" \
          | python3 -c 'import sys,json;[print(x) for x in json.load(sys.stdin)]')
-if [ "$EXPECTED" != "$ACTUAL" ]; then
-    echo "FATAL: plist argv does not match the canonical argv generator." >&2
-    diff <(echo "$EXPECTED") <(echo "$ACTUAL") >&2 || true
+SHIM=$(python3 "$REPO/scripts/newton_models.py" shim-argv B)
+if [ "$SHIM" != "$ACTUAL" ]; then
+    echo "FATAL: plist argv is not the slot shim." >&2
+    diff <(echo "$SHIM") <(echo "$ACTUAL") >&2 || true
     exit 1
 fi
-echo "   ok  argv identical ($(echo "$EXPECTED" | wc -l | tr -d ' ') tokens)"
+echo "   ok  ProgramArguments == newton-model shim-argv B"
+
+echo "== drift check 2: registry Qwen-27B plan for slot B == scripts/qwen-b-argv.sh"
+EXPECTED=$("$REPO/scripts/qwen-b-argv.sh")
+PLAN=$(python3 "$REPO/scripts/newton_models.py" plan B --model qwen27b --argv)
+if [ "$EXPECTED" != "$PLAN" ]; then
+    echo "FATAL: registry plan for qwen27b on slot B drifted from qwen-b-argv.sh" >&2
+    diff <(echo "$EXPECTED") <(echo "$PLAN") >&2 || true
+    exit 1
+fi
+echo "   ok  qwen27b launch plan identical to the frozen argv ($(echo "$EXPECTED" | wc -l | tr -d ' ') tokens)"
 
 echo "== asserting on-demand semantics"
 for K in RunAtLoad KeepAlive; do

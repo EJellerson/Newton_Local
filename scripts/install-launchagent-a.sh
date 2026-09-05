@@ -45,16 +45,32 @@ for P in "$LLAMA_BIN" "$MODEL" "$MMPROJ" "$CTL_LOGDIR"; do
     echo "   ok  $P"
 done
 
-echo "== drift check: agent argv vs the frozen Commission-#1 daemon argv"
-AGENT_ARGV=$(plutil -extract ProgramArguments json -o - "$TMP")
-DAEMON_ARGV=$(plutil -extract ProgramArguments json -o - "$DAEMON_SRC")
-if [ "$AGENT_ARGV" != "$DAEMON_ARGV" ]; then
-    echo "FATAL: agent ProgramArguments differ from $DAEMON_SRC" >&2
-    diff <(echo "$AGENT_ARGV" | python3 -m json.tool) \
-         <(echo "$DAEMON_ARGV" | python3 -m json.tool) >&2 || true
+echo "== drift check 1: agent argv is exactly the slot shim"
+AGENT_ARGV=$(plutil -extract ProgramArguments json -o - "$TMP" \
+             | python3 -c 'import sys,json;[print(x) for x in json.load(sys.stdin)]')
+SHIM_ARGV=$(python3 "$REPO/scripts/newton_models.py" shim-argv A)
+if [ "$AGENT_ARGV" != "$SHIM_ARGV" ]; then
+    echo "FATAL: agent ProgramArguments are not the slot shim:" >&2
+    diff <(echo "$SHIM_ARGV") <(echo "$AGENT_ARGV") >&2 || true
     exit 1
 fi
-echo "   ok  argv identical to the canonical Qwen-A definition"
+echo "   ok  ProgramArguments == newton-model shim-argv A"
+
+echo "== drift check 2: registry Qwen-27B plan for slot A == frozen Commission-#1 daemon argv"
+PLAN_ARGV=$(python3 "$REPO/scripts/newton_models.py" plan A --model qwen27b --argv)
+DAEMON_ARGV=$(plutil -extract ProgramArguments json -o - "$DAEMON_SRC" \
+              | python3 -c 'import sys,json;[print(x) for x in json.load(sys.stdin)]')
+if [ "$PLAN_ARGV" != "$DAEMON_ARGV" ]; then
+    echo "FATAL: registry plan for qwen27b on slot A drifted from $DAEMON_SRC" >&2
+    diff <(echo "$DAEMON_ARGV") <(echo "$PLAN_ARGV") >&2 || true
+    exit 1
+fi
+echo "   ok  qwen27b launch plan identical to the canonical Qwen-A definition ($(echo "$PLAN_ARGV" | wc -l | tr -d ' ') tokens)"
+
+echo "== shim dry-run (resolves selection, never launches)"
+python3 "$REPO/scripts/newton_models.py" exec-slot A --dry-run >/dev/null \
+    && echo "   ok  exec-slot A resolves" \
+    || echo "   note: exec-slot A currently refuses (selected model unavailable) — the agent will refuse to launch, which is the intended fail-safe"
 
 echo "== asserting on-demand semantics"
 for K in RunAtLoad KeepAlive; do

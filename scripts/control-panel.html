@@ -68,6 +68,19 @@
                  word-break: break-all; }
   .lastop { font-size: 13px; color: var(--muted); margin-top: 10px; }
   .lastop.err { color: var(--red); }
+  fieldset.selector { border: 1px solid var(--line); border-radius: 10px;
+                      padding: 10px 14px 12px; margin: 14px 0 4px; }
+  fieldset.selector legend { font-size: 12px; color: var(--muted); padding: 0 6px;
+                             text-transform: uppercase; letter-spacing: .6px; }
+  fieldset.selector:disabled { opacity: .7; }
+  .opt { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 14px; }
+  .opt input { margin: 0; }
+  .opt .rt { color: var(--muted); font-size: 12px; }
+  .opt.unavail { color: var(--muted); }
+  .opt.unavail .why { color: var(--amber); font-size: 12px; }
+  .selected-line { font-size: 13px; margin-top: 6px; }
+  .lock-note { font-size: 12px; color: var(--amber); margin-top: 4px; min-height: 0; }
+  .sel-error { font-size: 12px; color: var(--red); margin-top: 4px; }
   footer { color: var(--muted); font-size: 12px; margin-top: 22px;
            text-align: center; }
 </style>
@@ -88,6 +101,14 @@
       <div class="model-title">AI model &nbsp;<span class="sub" id="model-name"></span></div>
       <span class="pill"><span class="dot" id="model-dot"></span><span id="model-state">…</span></span>
     </div>
+    <fieldset class="selector" id="model-selector">
+      <legend>Model</legend>
+      <div id="model-options"></div>
+      <div class="selected-line">Selected model: <b id="selected-name">…</b>
+        <span class="sub" id="selected-runtime"></span></div>
+      <div class="lock-note" id="lock-note"></div>
+      <div class="sel-error" id="sel-error"></div>
+    </fieldset>
     <div class="detail" id="model-detail">Checking…</div>
     <div class="btnrow">
       <button id="btn-start"   class="primary" onclick="op('start')">Start the AI Model</button>
@@ -136,6 +157,52 @@ async function op(name) {
   refresh();
 }
 
+let selectBusy = false;
+async function selectModel(id) {
+  if (selectBusy) return;
+  selectBusy = true;
+  $("sel-error").textContent = "";
+  try {
+    const r = await fetch("/api/model/select", {
+      method: "POST",
+      headers: { "X-Newton-Control": "1", "Content-Type": "application/json" },
+      body: JSON.stringify({ model: id })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) $("sel-error").textContent = "Not changed: " + (j.error || ("HTTP " + r.status));
+  } catch (e) {
+    $("sel-error").textContent = "Not changed: control service unreachable";
+  }
+  selectBusy = false;
+  refresh();
+}
+
+function renderModels(s) {
+  const box = $("model-options");
+  const sel = s.selection || {};
+  const locked = !!s.selection_locked;
+  const opts = Object.values(s.models || {});
+  const html = opts.map(m => {
+    const dis = locked || !m.available;
+    const why = m.available ? "" :
+      ' <span class="why">— unavailable: ' + (m.reasons || []).join("; ") + "</span>";
+    return '<label class="opt' + (m.available ? "" : " unavail") + '">' +
+      '<input type="radio" name="model" value="' + m.id + '"' +
+      (m.selected ? " checked" : "") + (dis ? " disabled" : "") +
+      ' onchange="selectModel(\'' + m.id + '\')">' +
+      '<span>' + m.display_name + (m.default ? ' <span class="rt">(default)</span>' : "") +
+      ' <span class="rt">· ' + m.runtime + '</span>' + why + '</span></label>';
+  }).join("");
+  if (box.innerHTML !== html) box.innerHTML = html;
+  $("selected-name").textContent = sel.display_name || "—";
+  $("selected-runtime").textContent = sel.runtime ? "· " + sel.runtime : "";
+  $("lock-note").textContent = locked
+    ? "The model can only be changed while everything is stopped (" +
+      (s.selection_lock_reasons || []).join("; ") + ")."
+    : "Changing the selection only records it — nothing starts until you click Start.";
+  if (s.registry_error) $("sel-error").textContent = "Registry problem: " + s.registry_error;
+}
+
 function dotClass(state) {
   return { Running: "on", Stopped: "off", Starting: "busy",
            Stopping: "busy", Recovering: "busy", Unhealthy: "err" }[state] || "warn";
@@ -145,7 +212,11 @@ function render(s) {
   const m = s.model, opn = s.operation;
   $("model-state").textContent = m.state;
   $("model-dot").className = "dot " + dotClass(m.state);
-  $("model-name").textContent = m.alias ? "(" + m.alias + ", local)" : "";
+  const runningName = m.running_model && s.models && s.models[m.running_model]
+    ? s.models[m.running_model].display_name : null;
+  $("model-name").textContent = runningName && m.state !== "Stopped"
+    ? "(" + runningName + ", local)" : "(local)";
+  renderModels(s);
 
   let detail = "";
   if (m.state === "Running") {

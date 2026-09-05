@@ -16,10 +16,14 @@
     Start:  launchctl kickstart  gui/<uid>/com.newton.qwen38server.b
     Stop:   launchctl kill TERM  gui/<uid>/com.newton.qwen38server.b
 
-  ARGUMENT VECTOR
-    Must match scripts/qwen-b-argv.sh token-for-token. That equality is
-    enforced as a drift check by scripts/install-launchagent-b.sh; do not edit
-    one side without the other.
+  ARGUMENT VECTOR (Commission #5: execution slot, not a fixed model)
+    The job runs the slot shim `newton_models.py exec-slot B`, which resolves
+    the GLOBAL model selection at spawn time, refuses if that model is not
+    installed/intact/runnable, and execv()s the registry's runtime + argv on
+    this slot's port (8081). scripts/qwen-b-argv.sh remains the frozen
+    llama.cpp argv for Qwen 27B on this slot; install-launchagent-b.sh checks
+    that the registry's Qwen-27B plan for slot B still equals it token for
+    token, and that this plist runs exactly `newton-model shim-argv B`.
 -->
 <plist version="1.0">
 <dict>
@@ -28,28 +32,10 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/ericjellerson/Newton_Local/tools/llama.cpp/build/bin/llama-server</string>
-        <string>--model</string>
-        <string>/Users/ericjellerson/Newton_Local/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf</string>
-        <string>--mmproj</string>
-        <string>/Users/ericjellerson/Newton_Local/models/qwen38-27b/mmproj-Qwen3.8-27B-f16.gguf</string>
-        <string>--alias</string>
-        <string>qwen-b</string>
-        <string>--host</string>
-        <string>127.0.0.1</string>
-        <string>--port</string>
-        <string>8081</string>
-        <string>--ctx-size</string>
-        <string>262144</string>
-        <string>--n-gpu-layers</string>
-        <string>999</string>
-        <string>--flash-attn</string>
-        <string>on</string>
-        <string>--jinja</string>
-        <string>--parallel</string>
-        <string>1</string>
-        <string>--cont-batching</string>
-        <string>--metrics</string>
+        <string>/usr/bin/python3</string>
+        <string>/Users/ericjellerson/Newton_Local/scripts/newton_models.py</string>
+        <string>exec-slot</string>
+        <string>B</string>
     </array>
 
     <key>RunAtLoad</key>

@@ -48,7 +48,17 @@ COMMANDS
     logs        tail the worker + controller logs
 
 EXIT CODES
-    0 ok   1 error   3 lease conflict   4 timeout   5 inconsistent (duplicates)
+    0 ok   1 error   3 lease conflict   4 timeout   5 inconsistent (duplicates
+    or peer instance)   6 selected model unavailable   7 restart would switch
+    the model
+
+MODEL / RUNTIME (Commission #5)
+    A and B are EXECUTION SLOTS. Which model (and therefore which runtime —
+    llama.cpp or mlx-serve) a slot runs is resolved at start time from the
+    global selection via scripts/newton_models.py; the LaunchAgents exec
+    `newton_models.py exec-slot <slot>`. Process detection, health probing and
+    peer (singleton) detection are runtime-agnostic: any registered runtime
+    executable occupies the one large-model resource.
 """
 import argparse
 import errno
@@ -66,6 +76,18 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.environ.get(
     "QWENCTL_CONFIG",
     os.path.normpath(os.path.join(SCRIPT_DIR, "..", "config", "qwen-b.env")))
+
+sys.path.insert(0, SCRIPT_DIR)
+import newton_models as nm  # noqa: E402  (registry, selection, plans, health)
+
+_REGISTRY = None
+
+
+def registry():
+    global _REGISTRY
+    if _REGISTRY is None:
+        _REGISTRY = nm.load_registry()
+    return _REGISTRY
 
 STOPPED, STARTING, READY, BUSY, IDLE, STOPPING = (
     "STOPPED", "STARTING", "READY", "BUSY", "IDLE", "STOPPING")
@@ -97,17 +119,22 @@ def load_config(path=CONFIG):
                 return env[k]
         return default
 
-    need_runtime = ["LLAMA_BIN", "MODEL", "MMPROJ", "ALIAS", "HOST", "PORT", "CTX"]
+    # Slot identity only. Model/runtime come from the registry + selection.
+    need_runtime = ["ALIAS", "HOST", "PORT", "CTX"]
     missing = [k for k in need_runtime if k not in env]
     need_ctl = ["LABEL", "LOGDIR", "LEASE", "LOCK",
                 "IDLE_TTL", "START_TIMEOUT", "LEASE_MAX_AGE"]
     missing += [f"CTL_{k} (or QWEN_B_{k})" for k in need_ctl if ctl(k) is None]
     if missing:
         die(f"{path} is missing required keys: {missing}")
+    slot = ctl("SLOT") or ("A" if ctl("LABEL", "").endswith(".a") else "B")
     return {
-        "llama_bin": env["LLAMA_BIN"], "model": env["MODEL"],
-        "mmproj": env["MMPROJ"], "alias": env["ALIAS"], "host": env["HOST"],
+        # legacy llama.cpp fields, kept for the manual runners; NOT used to
+        # decide what a slot launches any more
+        "llama_bin": env.get("LLAMA_BIN"), "model": env.get("MODEL"),
+        "mmproj": env.get("MMPROJ"), "alias": env["ALIAS"], "host": env["HOST"],
         "port": int(env["PORT"]), "ctx": int(env["CTX"]),
+        "slot": slot,
         "instance": ctl("INSTANCE", env["ALIAS"]),
         "label": ctl("LABEL"), "logdir": ctl("LOGDIR"),
         "lease": ctl("LEASE"), "lock": ctl("LOCK"),
@@ -164,6 +191,8 @@ def default_lease(cfg):
         "generation": 0,
         "updated_at": now(),
         "last_start": None,
+        "model": None,          # registry id the running process was launched as
+        "runtime": None,
         "notes": [],
     }
 
@@ -252,14 +281,15 @@ def obs_launchd(cfg):
             "last_exit": g(r'^\s*last exit code\s*=\s*(.+)$')}
 
 
-def classify_llama_processes(cfg, ps_lines):
-    """Split every llama-server process into THIS instance vs peer instances.
+def classify_model_processes(cfg, ps_lines, signatures):
+    """Split every model-runtime process into THIS slot vs peers.
 
-    Pure decision logic (unit-testable with injected ps output): a process is
-    OURS when its argv starts with this instance's binary and carries this
-    instance's --port and --alias; any other llama-server launched from the
-    same binary is a PEER — a second Qwen instance that the production
-    control path must refuse to run concurrently.
+    Pure decision logic (unit-testable with injected ps output). A process is
+    a MODEL PROCESS when its argv starts with ANY registered runtime
+    executable (llama-server, mlx-serve, ... — the registry's signatures), so
+    the singleton guard is runtime-agnostic. It is OURS when it carries this
+    slot's --port; every other model process is a PEER occupying the one
+    large-model resource, which the production control path refuses to share.
     """
     ours, peers = [], []
     for line in ps_lines:
@@ -267,36 +297,44 @@ def classify_llama_processes(cfg, ps_lines):
         if len(parts) < 3:
             continue
         pid, rss_kb, cmd = parts
-        if not cmd.startswith(cfg["llama_bin"]):
+        sig = next((s for s in signatures if cmd == s or cmd.startswith(s + " ")), None)
+        if sig is None:
             continue
         m_port = re.search(r'--port\s+(\d+)', cmd)
         m_alias = re.search(r'--alias\s+(\S+)', cmd)
         rec = {"pid": int(pid), "rss_gib": round(int(rss_kb) / 2**20, 2),
                "port": int(m_port.group(1)) if m_port else None,
-               "alias": m_alias.group(1) if m_alias else None}
-        if rec["port"] == cfg["port"] and rec["alias"] == cfg["alias"]:
+               "alias": m_alias.group(1) if m_alias else None,
+               "executable": sig}
+        if rec["port"] == cfg["port"]:
             ours.append(rec)
         else:
             peers.append(rec)
     return ours, peers
 
 
+def signatures():
+    """Absolute executable paths of every registered runtime (+ symlink targets)."""
+    return nm.runtime_signatures(registry())
+
+
 def obs_processes(cfg):
-    """Every process that IS this instance's llama-server, matched on argv."""
+    """Every process that IS this slot's model server, matched on argv."""
     rc, out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
-    ours, _ = classify_llama_processes(cfg, out.splitlines())
+    ours, _ = classify_model_processes(cfg, out.splitlines(), signatures())
     return ours
 
 
 def obs_peers(cfg):
-    """Every llama-server process that is NOT this instance."""
+    """Every model-runtime process that is NOT this slot."""
     rc, out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
-    _, peers = classify_llama_processes(cfg, out.splitlines())
+    _, peers = classify_model_processes(cfg, out.splitlines(), signatures())
     return peers
 
 
 def _fmt_peers(peers):
-    return ", ".join(f"pid={p['pid']} alias={p.get('alias')} port={p.get('port')}"
+    return ", ".join(f"pid={p['pid']} alias={p.get('alias')} port={p.get('port')} "
+                     f"exe={os.path.basename(p.get('executable') or '?')}"
                      for p in peers)
 
 
@@ -322,28 +360,30 @@ def http_json(url, timeout=5):
 
 
 def obs_health(cfg, timeout=5):
-    h, st = http_json(f"http://{cfg['host']}:{cfg['port']}/health", timeout)
-    ok = bool(h and h.get("status") == "ok")
-    props = None
-    if ok:
-        p, _ = http_json(f"http://{cfg['host']}:{cfg['port']}/props", timeout)
-        if p:
-            props = {
-                "alias": p.get("model_alias"),
-                "ftype": p.get("model_ftype"),
-                "n_ctx": p.get("default_generation_settings", {}).get("n_ctx"),
-                "model_path": p.get("model_path"),
-                "modalities": p.get("modalities"),
-                "total_slots": p.get("total_slots"),
-                "build_info": p.get("build_info"),
-            }
-    return {"ok": ok, "status": (h or {}).get("status"), "props": props}
+    """Runtime-agnostic readiness: probe with the selected model's runtime
+    semantics first, then every other registered runtime (an orphan of a
+    different runtime still counts as UP)."""
+    reg = registry()
+    base = f"http://{cfg['host']}:{cfg['port']}"
+    sel, _ = nm.read_selection(reg)
+    order = [reg["models"][sel]["runtime"]]
+    order += [r for r in reg["runtimes"] if r not in order]
+    last = {"ok": False, "status": None, "props": None}
+    for rid in order:
+        res = nm.probe_health(reg, rid, base, timeout=timeout)
+        if res["ok"]:
+            res["runtime"] = rid
+            return res
+        last = res
+        if res["status"] is None:        # connection refused: nothing listening
+            break
+    return last
 
 
 def observe(cfg, health_timeout=5):
     ld = obs_launchd(cfg)
     rc, ps_out, _ = sh(["ps", "-Ao", "pid=,rss=,command="])
-    procs, peers = classify_llama_processes(cfg, ps_out.splitlines())
+    procs, peers = classify_model_processes(cfg, ps_out.splitlines(), signatures())
     sock = obs_socket(cfg)
     hp = obs_health(cfg, health_timeout)
 
@@ -563,6 +603,22 @@ def wait_ready(cfg, deadline, poll=0.5):
 
 
 # ----------------------------------------------- production start / restart
+def _resolve_launch(cfg):
+    """The globally selected model as THIS slot will launch it. Refused
+    (exit 6) unless the registry says it is installed, intact and runnable —
+    a name in a config file is never enough to start anything."""
+    reg = registry()
+    plan = nm.launch_plan(reg, cfg["slot"])
+    check = nm.check_model(reg, plan["model"])
+    if not check["available"]:
+        log(cfg, "start.refused_model_unavailable", model=plan["model"],
+            reasons=check["reasons"])
+        die(f"refusing to start {cfg['instance']}: selected model "
+            f"{plan['display_name']} ({plan['model']}) is not available — "
+            + "; ".join(check["reasons"]), 6)
+    return plan, check
+
+
 def _start_locked(cfg, args, t0):
     """Bring THIS instance to a healthy running state with no lease owner.
 
@@ -630,7 +686,8 @@ def _start_locked(cfg, args, t0):
             die(f"port {cfg['port']} is occupied by a foreign process; "
                 f"refusing to start {cfg['instance']}", 5)
 
-        timeout = args.timeout or cfg["start_timeout"]
+        plan, _ = _resolve_launch(cfg)
+        timeout = args.timeout or max(cfg["start_timeout"], plan["start_timeout_s"])
         lease["state"] = STARTING
         lease["owner"] = None
         lease["acquired_at"] = None
@@ -638,9 +695,12 @@ def _start_locked(cfg, args, t0):
         lease["idle_since"] = None
         lease["generation"] = int(lease.get("generation") or 0) + 1
         lease["start_deadline"] = now() + timeout
+        lease["model"] = plan["model"]
+        lease["runtime"] = plan["runtime"]
         lease["notes"] = []
         write_lease(cfg, lease)
-        log(cfg, "start.begin", generation=lease["generation"])
+        log(cfg, "start.begin", generation=lease["generation"],
+            model=plan["model"], runtime=plan["runtime"])
 
         t_kick = now()
         rc, msg = _kickstart(cfg)
@@ -691,6 +751,8 @@ def _start_result(cfg, lease, started, t0, args, note):
         "endpoint": lease["endpoint"],
         "openai_base_url": lease["endpoint"] + "/v1",
         "model": lease["alias"],
+        "model_id": lease.get("model"),
+        "model_runtime": lease.get("runtime"),
         "started": started,
         "wall_s": round(now() - t0, 2),
         "last_start": lease.get("last_start"),
@@ -727,6 +789,15 @@ def cmd_restart(cfg, args):
     t0 = now()
     with Lock(cfg, timeout=args.lock_timeout):
         lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
+        # A restart replaces the running model with ITSELF. The selection is
+        # locked while a slot is occupied, so this can only trip on
+        # inconsistent state — and then it must refuse rather than switch.
+        sel, _ = nm.read_selection(registry())
+        if (lease.get("model") and lease["model"] != sel
+                and o["observed_state"] != OBS_DOWN):
+            die(f"restart refused: {cfg['instance']} is running "
+                f"{lease['model']} but the global selection is {sel}; restart "
+                f"never switches models — stop, then start explicitly", 7)
         if o["observed_state"] != OBS_DOWN or lease["state"] != STOPPED:
             lease["state"] = STOPPING
             lease["stop_deadline"] = now() + 60
@@ -754,12 +825,18 @@ def cmd_status(cfg, args):
     if lease["state"] == IDLE and lease.get("idle_since"):
         idle_remaining = round(lease["idle_ttl_seconds"]
                                - (now() - lease["idle_since"]), 1)
+    sel, sel_source = nm.read_selection(registry())
     out = {
         "worker": cfg["instance"],
+        "slot": cfg["slot"],
         "state": lease["state"],
         "owner": lease["owner"],
         "pid": lease["pid"],
         "rss_gib": o["rss_gib"],
+        "model": lease.get("model"),
+        "model_runtime": lease.get("runtime"),
+        "selected_model": sel,
+        "selection_source": sel_source,
         "peer_processes": o["peer_processes"],
         "endpoint": lease["endpoint"],
         "domain": lease["domain"],
@@ -786,6 +863,10 @@ def cmd_status(cfg, args):
               + (f"  owner={out['owner']}" if out["owner"] else "")
               + (f"  pid={out['pid']}" if out["pid"] else ""))
         print(f"  endpoint   {out['endpoint']}   ({out['domain']}/{out['label']})")
+        print(f"  model      selected={sel}"
+              + (f"  running={out['model']} via {out['model_runtime']}"
+                 if out["model"] else "")
+              + f"   [{sel_source}]")
         print(f"  launchd    state={o['launchd']['state']} "
               f"bootstrapped={o['launchd']['bootstrapped']} "
               f"runs={o['launchd']['runs']} last_exit={o['launchd']['last_exit']}")
@@ -794,9 +875,10 @@ def cmd_status(cfg, args):
         print(f"  health     ok={o['health']['ok']}   observed={o['observed_state']}")
         if out["runtime"]:
             r = out["runtime"]
-            print(f"  runtime    alias={r['alias']} ftype={r['ftype']} "
-                  f"n_ctx={r['n_ctx']} vision={(r['modalities'] or {}).get('vision')} "
-                  f"slots={r['total_slots']}")
+            print(f"  runtime    alias={r.get('alias')} ftype={r.get('ftype')} "
+                  f"n_ctx={r.get('n_ctx')} "
+                  f"vision={(r.get('modalities') or {}).get('vision')} "
+                  f"slots={r.get('total_slots')}")
         if out["rss_gib"] is not None:
             print(f"  rss        {out['rss_gib']} GiB")
         if idle_remaining is not None:
@@ -935,7 +1017,8 @@ def cmd_acquire(cfg, args):
                 die(f"port {cfg['port']} is occupied by a foreign process; "
                     f"refusing to start {cfg['instance']}", 5)
 
-            timeout = args.timeout or cfg["start_timeout"]
+            plan, _ = _resolve_launch(cfg)
+            timeout = args.timeout or max(cfg["start_timeout"], plan["start_timeout_s"])
             lease["state"] = STARTING
             lease["owner"] = args.owner
             lease["acquired_at"] = now()
@@ -943,10 +1026,13 @@ def cmd_acquire(cfg, args):
             lease["idle_since"] = None
             lease["generation"] = int(lease.get("generation") or 0) + 1
             lease["start_deadline"] = now() + timeout
+            lease["model"] = plan["model"]
+            lease["runtime"] = plan["runtime"]
             lease["notes"] = []
             write_lease(cfg, lease)
             log(cfg, "acquire.start", owner=args.owner,
-                generation=lease["generation"])
+                generation=lease["generation"], model=plan["model"],
+                runtime=plan["runtime"])
 
             t_kick = now()
             rc, msg = _kickstart(cfg)
@@ -1027,8 +1113,9 @@ def _acquire_result(cfg, lease, reused, reloaded, t0, args, note):
                   f"ready={ls['load_to_ready_s']}s  gen={ls['generation']}")
         if res["runtime"]:
             r = res["runtime"]
-            print(f"  runtime   alias={r['alias']} ftype={r['ftype']} "
-                  f"n_ctx={r['n_ctx']} vision={(r['modalities'] or {}).get('vision')}")
+            print(f"  runtime   alias={r.get('alias')} ftype={r.get('ftype')} "
+                  f"n_ctx={r.get('n_ctx')} "
+                  f"vision={(r.get('modalities') or {}).get('vision')}")
         print(f"  {note}")
     return 0
 

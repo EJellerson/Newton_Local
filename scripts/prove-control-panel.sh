@@ -28,7 +28,9 @@ bad()  { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; }
 note() { WARN=$((WARN+1)); printf '  warn  %s\n' "$1"; }
 hdr()  { printf '\n%s\n' "$1"; }
 
-no_qwen() { ! pgrep -f "llama.cpp/build/bin/llama-server" >/dev/null 2>&1; }
+no_qwen() {   # no llama-server AND no mlx-serve process (any registered runtime)
+    ! ps -Ao command= | grep -qE "^$REPO/tools/(llama\.cpp/build/bin/llama-server|mlx-serve/)";
+}
 
 jget() {  # jget <json-file> <python-expr over d>
     python3 -c "import json,sys; d=json.load(open('$1')); print($2)" 2>/dev/null
@@ -153,7 +155,43 @@ for L in com.newton.qwen38server.a com.newton.qwen38server.b; do
     [ "$V" = "false" ] && ok "$L RunAtLoad=false" || bad "$L RunAtLoad=$V"
 done
 
-hdr "12. Final: Qwen was never started by this prover"
+hdr "12. Global model selection (Commission #5): shared state, locks, availability"
+M="$(mktemp)"
+curl -sS -m 10 "$CTRL/api/models" -o "$M" && ok "GET /api/models responds" || bad "GET /api/models failed"
+[ "$(jget "$M" "sorted(d['models'].keys())")" = "['flash-next', 'qwen27b']" ] \
+    && ok "registry exposes both models" || bad "models = $(jget "$M" "list(d['models'].keys())")"
+SEL_BEFORE="$(jget "$M" "d['selected']")"
+[ "$(jget "$M" "d['selection_locked']")" = "False" ] \
+    && ok "selector unlocked while both slots are stopped" || bad "selector locked: $(jget "$M" "d['occupancy']['reasons']")"
+FLASH_AVAIL="$(jget "$M" "d['models']['flash-next']['available']")"
+CODE=$(curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST -H 'X-Newton-Control: 1' \
+       -H 'Content-Type: application/json' -d '{"model":"no-such-model"}' "$CTRL/api/model/select")
+[ "$CODE" = "400" ] && ok "unknown model id refused (400)" || bad "unknown id got $CODE"
+CODE=$(curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+       -d '{"model":"qwen27b"}' "$CTRL/api/model/select")
+[ "$CODE" = "403" ] && ok "select without panel header refused (403)" || bad "unguarded select got $CODE"
+if [ "$FLASH_AVAIL" = "True" ]; then
+    CODE=$(curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST -H 'X-Newton-Control: 1' \
+           -H 'Content-Type: application/json' -d '{"model":"flash-next"}' "$CTRL/api/model/select")
+    [ "$CODE" = "200" ] && ok "select flash-next accepted while stopped (200)" || bad "select flash-next got $CODE"
+    [ "$("$REPO/scripts/newton-model" status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["selected"])')" = "flash-next" ] \
+        && ok "CLI sees the panel's selection (shared state)" || bad "CLI disagrees with panel"
+else
+    CODE=$(curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST -H 'X-Newton-Control: 1' \
+           -H 'Content-Type: application/json' -d '{"model":"flash-next"}' "$CTRL/api/model/select")
+    [ "$CODE" = "422" ] && ok "select flash-next refused: unavailable on this host (422)" || bad "unavailable select got $CODE"
+    note "flash-next unavailable here: $(jget "$M" "'; '.join(d['models']['flash-next']['reasons'])")"
+fi
+CODE=$(curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST -H 'X-Newton-Control: 1' \
+       -H 'Content-Type: application/json' -d '{"model":"qwen27b"}' "$CTRL/api/model/select")
+[ "$CODE" = "200" ] && ok "select qwen27b accepted (200) — restored default" || bad "select qwen27b got $CODE"
+[ "$("$REPO/scripts/newton-model" status --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["selected"], d["selection_source"])')" = "qwen27b recorded" ] \
+    && ok "CLI: selected qwen27b (recorded) — same state file as the panel" || bad "CLI state mismatch"
+[ -f "$REPO/state/model-selection.json" ] && ok "selection persisted at state/model-selection.json" || bad "selection file missing"
+no_qwen && ok "selection operations started nothing" || bad "a model process appeared during selection tests"
+rm -f "$M"
+
+hdr "13. Final: Qwen was never started by this prover"
 no_qwen && ok "no llama-server process at exit" || bad "llama-server exists at exit"
 rm -f "$J"
 

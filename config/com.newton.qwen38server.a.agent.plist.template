@@ -31,10 +31,16 @@
     Start:  scripts/qwen-a start        (or the control panel)
     Stop:   scripts/qwen-a terminate    (or the control panel)
 
-  ARGUMENT VECTOR
-    Must match config/com.newton.qwen38server.a.plist (the frozen Commission-#1
-    daemon definition) token for token; install-launchagent-a.sh enforces this
-    as a drift check so both definitions always describe the same Qwen-A.
+  ARGUMENT VECTOR (Commission #5: execution slot, not a fixed model)
+    The job runs the slot shim `newton_models.py exec-slot A`, which resolves
+    the GLOBAL model selection (config/models.json + state/model-selection.json)
+    at spawn time, refuses if that model is not installed/intact/runnable, and
+    execv()s the right runtime (llama.cpp for Qwen 27B, mlx-serve for
+    Flash-Next) with the registry's argv on this slot's port. The pid launchd
+    tracks is therefore the model server itself. install-launchagent-a.sh
+    drift-checks this argv against `newton-model shim-argv A`, and checks that
+    the registry's Qwen-27B plan for slot A still equals the frozen
+    Commission-#1 daemon argv token for token.
 -->
 <plist version="1.0">
 <dict>
@@ -43,28 +49,10 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>__NEWTON_ROOT__/tools/llama.cpp/build/bin/llama-server</string>
-        <string>--model</string>
-        <string>__NEWTON_ROOT__/models/qwen38-27b/Qwen3.8-27B-Q8_0.gguf</string>
-        <string>--mmproj</string>
-        <string>__NEWTON_ROOT__/models/qwen38-27b/mmproj-Qwen3.8-27B-f16.gguf</string>
-        <string>--alias</string>
-        <string>qwen-a</string>
-        <string>--host</string>
-        <string>127.0.0.1</string>
-        <string>--port</string>
-        <string>8080</string>
-        <string>--ctx-size</string>
-        <string>262144</string>
-        <string>--n-gpu-layers</string>
-        <string>999</string>
-        <string>--flash-attn</string>
-        <string>on</string>
-        <string>--jinja</string>
-        <string>--parallel</string>
-        <string>1</string>
-        <string>--cont-batching</string>
-        <string>--metrics</string>
+        <string>/usr/bin/python3</string>
+        <string>__NEWTON_ROOT__/scripts/newton_models.py</string>
+        <string>exec-slot</string>
+        <string>A</string>
     </array>
 
     <key>RunAtLoad</key>

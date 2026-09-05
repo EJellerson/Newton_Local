@@ -1,0 +1,14 @@
+#!/bin/bash
+# Newton_Local — operator entry point for the model registry and the global
+# model selection (Commission #5). Thin wrapper over scripts/newton_models.py.
+#
+#   newton-model list                 supported models, availability, selection
+#   newton-model status [--json]      selection + slot occupancy (lock state)
+#   newton-model select qwen27b       change the global selection (both slots
+#   newton-model select flash-next      must be stopped; never starts anything)
+#   newton-model verify [id] [--deep] installed/intact/runnable checks, no load
+#   newton-model plan A|B [--model id] [--argv]   resolved launch plan
+#
+# The control panel (Newton AI Control) manipulates the very same state file.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec /usr/bin/env python3 "$ROOT/scripts/newton_models.py" "$@"

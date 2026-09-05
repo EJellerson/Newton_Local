@@ -14,6 +14,12 @@ ALWAYS ON (login)                       ON DEMAND (operator click)
   Newton AI Control  127.0.0.1:8765
 ```
 
+> **Commission #5 (same day):** Qwen-A/B became execution slots driven by a
+> global model selection; the LaunchAgents now run `newton_models.py
+> exec-slot <slot>` instead of a baked llama-server argv. Every semantic
+> below (desired state, watchdog, Stop, boot policy) is unchanged. See
+> [10-dual-model-selection.md](10-dual-model-selection.md).
+
 ## 1. What changed
 
 | | Before (Comm. #1–3) | After (Comm. #4) |

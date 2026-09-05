@@ -48,6 +48,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SCRIPT_DIR)
+sys.path.insert(0, SCRIPT_DIR)
+import newton_models as nm  # noqa: E402  (model registry + global selection)
 
 QWENCTL = os.path.join(SCRIPT_DIR, "qwenctl.py")
 A_CONFIG = os.path.join(ROOT, "config", "qwen-a-controller.env")
@@ -313,7 +315,7 @@ def _tail(text, n=3):
 
 
 def op_start(by="panel"):
-    """Start exactly one production Qwen. Idempotent."""
+    """Start exactly one production model — the globally selected one. Idempotent."""
     write_desired("RUNNING", by)
     OPS.reset_recovery()
     rc, out, err = qwenctl("start", timeout=START_TIMEOUT_S)
@@ -321,9 +323,10 @@ def op_start(by="panel"):
         try:
             res = json.loads(out)
             note = res.get("note", "")
+            mid = res.get("model_id")
         except ValueError:
-            note = ""
-        OPS.finish("start", True, f"model running. {note}".strip())
+            note, mid = "", None
+        OPS.finish("start", True, f"{mid or 'model'} running. {note}".strip())
     else:
         # A failed explicit start must not leave the watchdog retrying a
         # start the controller just refused (peer active, timeout, ...).
@@ -418,6 +421,37 @@ def watchdog_loop():
             log_event("watchdog.error", error=str(e)[:300])
 
 
+# ------------------------------------------------------------ model selection
+def selection_lock_reasons(ui_state, b, peers):
+    """Pure: why the selector must be read-only right now (empty = free)."""
+    reasons = []
+    if ui_state != "Stopped":
+        reasons.append(f"Qwen-A is {ui_state}")
+    if b.get("active"):
+        reasons.append(f"Qwen-B is {b.get('state')}" + (" (listening)" if b.get("listening") else ""))
+    if peers:
+        reasons.append("a model runtime process is present")
+    return reasons
+
+
+def models_summary():
+    """Registry + selection + availability (no slot observation; cheap)."""
+    try:
+        reg = nm.load_registry()
+        st = nm.status(reg, probe_runtime=True, occupancy=False)
+        sel = st["selected"]
+        return {
+            "selected": {"id": sel, "display_name": reg["models"][sel]["display_name"],
+                         "runtime": reg["models"][sel]["runtime"],
+                         "source": st["selection_source"]},
+            "default": st["default"],
+            "models": st["models"],
+            "error": None,
+        }
+    except Exception as e:                      # registry trouble must be visible
+        return {"selected": None, "default": None, "models": {}, "error": str(e)[:300]}
+
+
 # ------------------------------------------------------------------ status
 def assemble_status():
     st = qwen_status()
@@ -428,6 +462,8 @@ def assemble_status():
                             OPS.recovery["gave_up"])
     b = qwen_b_probe()
     legacy = legacy_daemon_probe()
+    ms = models_summary()
+    lock_reasons = selection_lock_reasons(ui_state, b, st.get("peer_processes"))
     return {
         "model": {
             "state": ui_state,
@@ -437,10 +473,17 @@ def assemble_status():
             "rss_gib": st.get("rss_gib"),
             "endpoint": st.get("endpoint"),
             "alias": st.get("worker"),
+            "running_model": st.get("model"),
+            "running_runtime": st.get("model_runtime"),
             "health_ok": bool(st.get("health_ok")),
             "error": st.get("error"),
             "recovery": dict(OPS.recovery),
         },
+        "selection": ms["selected"],
+        "models": ms["models"],
+        "registry_error": ms["error"],
+        "selection_locked": bool(lock_reasons),
+        "selection_lock_reasons": lock_reasons,
         "operation": op,
         "last_operation": OPS.last,
         "hermes": hermes_probe(),
@@ -508,6 +551,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(500, "control-panel.html missing", "text/plain")
         if path == "/api/status":
             return self._json(200, assemble_status())
+        if path == "/api/models":
+            try:
+                reg = nm.load_registry()
+                return self._json(200, nm.status(reg))
+            except nm.RegistryError as e:
+                return self._json(500, {"error": f"registry invalid: {e}"})
         if path == "/chat":
             self.send_response(302)
             self.send_header("Location", WEBUI_URL)
@@ -521,6 +570,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(403, {"error": "forbidden (same-origin panel "
                                              "requests only)"})
         path = self.path.split("?", 1)[0]
+        if path == "/api/model/select":
+            return self._select()
         ops = {"/api/model/start": ("start", op_start),
                "/api/model/stop": ("stop", op_stop),
                "/api/model/restart": ("restart", op_restart)}
@@ -532,6 +583,33 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(409, {"ok": False,
                                 "error": "another operation is in progress",
                                 "operation": OPS.current})
+
+    def _select(self):
+        """Change the global model selection. Never starts anything.
+        Refused (409) while either slot is occupied, (422) when the model is
+        not installed/intact/runnable, (400) for an unknown id."""
+        if OPS.current:
+            return self._json(409, {"ok": False, "error": "an operation is in progress"})
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(n).decode() or "{}") if n else {}
+            model_id = str(body.get("model", ""))
+        except (ValueError, UnicodeDecodeError):
+            return self._json(400, {"ok": False, "error": "malformed JSON body"})
+        try:
+            reg = nm.load_registry()
+            rec = nm.select_model(reg, model_id, by="panel")
+        except nm.RegistryError as e:
+            return self._json(500, {"ok": False, "error": f"registry invalid: {e}"})
+        except nm.SelectionError as e:
+            http = {nm.EXIT_INVALID: 400, nm.EXIT_LOCKED: 409,
+                    nm.EXIT_UNAVAILABLE: 422}.get(e.code, 400)
+            log_event("select.refused", model=model_id, error=str(e)[:300])
+            return self._json(http, {"ok": False, "error": str(e)})
+        log_event("select", model=model_id, by="panel")
+        return self._json(200, {"ok": True, "selected": rec["selected"],
+                                "display_name": reg["models"][rec["selected"]]["display_name"],
+                                "note": "selection saved; nothing was started"})
 
 
 def main():

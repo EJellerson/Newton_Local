@@ -1,16 +1,23 @@
 {
   "_comment": [
     "Template for config/model-sources.local.json, which is machine-local and",
-    "untracked (.gitignore). It records where the model weights are downloaded",
-    "from: the Hugging Face repository and, where an upstream file name differs",
-    "from the local name, a local -> upstream file-name map.",
-    "Read by scripts/download-model.sh."
+    "untracked (.gitignore). It records where each registered model's weights",
+    "are downloaded from: the Hugging Face repository, the revision to pin and,",
+    "where an upstream file name differs from the local name in",
+    "config/models.json, a local -> upstream file-name map. Read by",
+    "scripts/download-model.sh, scripts/download-flash-next.sh and",
+    "scripts/make-model-manifest.py."
   ],
   "qwen27b": {
     "hf_repo": "<owner>/<repository>",
+    "hf_revision": "<40-hex commit sha>",
     "files": {
       "Qwen3.8-27B-Q8_0.gguf": "<upstream file name>",
       "mmproj-Qwen3.8-27B-f16.gguf": "<upstream file name>"
     }
+  },
+  "flash-next": {
+    "hf_repo": "<owner>/<repository>",
+    "hf_revision": "<40-hex commit sha>"
   }
 }
