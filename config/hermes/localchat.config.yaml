@@ -39,6 +39,8 @@ model:
 newton_local:
   enabled: true
   identity_url: http://127.0.0.1:8765/api/identity
+  completion_gate: true
+  completion_retries: 3
 agent:
   tool_use_enforcement: true
   execution_guidance: true

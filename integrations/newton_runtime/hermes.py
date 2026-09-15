@@ -8,19 +8,142 @@ import functools
 import json
 import logging
 import re
+import fcntl
+import hashlib
+import threading
 from pathlib import Path
 
 from .identity import IdentityError, http_json
+from .execution import Ledger, promised_work
 
 LOG = logging.getLogger(__name__)
 START = "<verified_resident_identity>"
 END = "</verified_resident_identity>"
+_ACTIVE = {}
+_REGISTER_LOCK = threading.Lock()
+_REGISTERED = False
+
+
+class CompletionHalt(BaseException):
+    """Bypass the upstream retry-on-Exception loop after ledger I/O failure."""
+
+
+def durable(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            raise CompletionHalt("Execution evidence could not be persisted; automatic retry stopped: " + str(exc)) from exc
+    return wrapped
+
+TASK_SCHEMA = {
+    "name": "task_result",
+    "description": "Read persistent required tasks and actual tool receipts (no arguments). "
+        "After doing the work, resolve task_ids as completed with successful, consumed receipt_ids "
+        "and a reason explaining how the evidence satisfies the task. A tool call alone is not proof. "
+        "Use blocked with a concrete reason when work cannot proceed. not_required is only for "
+        "an unnecessary action YOU promised, never an explicit user request. Do not rerun a successful "
+        "action just to obtain another receipt; reuse its receipt ID. This is internal bookkeeping: "
+        "give the user their requested results, without task IDs, receipt IDs, or ledger commentary.",
+    "parameters": {"type": "object", "properties": {
+        "task_ids": {"type": "array", "items": {"type": "string"}},
+        "disposition": {"type": "string", "enum": ["completed", "blocked", "not_required"]},
+        "receipt_ids": {"type": "array", "items": {"type": "integer"}},
+        "reason": {"type": "string"}}, "required": []}}
+
+
+def task_result(args, **kwargs):
+    ledger = _ACTIVE.get(kwargs.get("task_id"))
+    if ledger is None:
+        return json.dumps({"error": "No active local task ledger"})
+    with ledger.lock:
+        if not args.get("task_ids"):
+            return json.dumps(ledger.view())
+        return json.dumps(ledger.resolve(args["task_ids"], args.get("disposition"),
+                                         args.get("receipt_ids", []), args.get("reason")))
+
+
+def register_task_tool(agent):
+    global _REGISTERED
+    with _REGISTER_LOCK:
+        if not _REGISTERED:
+            from tools.registry import registry
+            registry.register(name="task_result", toolset="todo", schema=TASK_SCHEMA,
+                              handler=task_result,
+                              check_fn=lambda: bool(configuration(None)[1].get("completion_gate")), emoji="📋")
+            _REGISTERED = True
+    if "task_result" not in agent.valid_tool_names:
+        agent.tools.append({"type": "function", "function": TASK_SCHEMA})
+        agent.valid_tool_names.add("task_result")
+
+
+@durable
+def after_response(agent):
+    ledger = getattr(agent, "_newton_execution", None)
+    if ledger:
+        ledger.consume()
+
+
+@durable
+def before_tools(agent, assistant_msg, task_id):
+    ledger = getattr(agent, "_newton_execution", None)
+    if ledger:
+        _ACTIVE[task_id] = ledger
+        agent._newton_receipt_batch = ledger.requested(assistant_msg.get("tool_calls") or [])
+
+
+@durable
+def after_tools(agent, messages, start):
+    ledger = getattr(agent, "_newton_execution", None)
+    if ledger:
+        ledger.results(agent._newton_receipt_batch, messages[start:])
+        if getattr(agent, "_todo_store", None):
+            ledger.sync_todos(agent._todo_store.read())
+
+
+@durable
+def completion_gate(agent, text, messages):
+    ledger = getattr(agent, "_newton_execution", None)
+    if not ledger:
+        return "completed", text
+    status, message = ledger.gate(text, int(agent._newton_policy.get("completion_retries", 3)))
+    LOG.info("Completion gate: session=%s status=%s pending=%d receipts=%d retry=%d",
+             agent.session_id, status, len(ledger.unresolved()), len(ledger.data["receipts"]), ledger.retries)
+    return status, message
+
+
+def enforce_result(ledger, result):
+    # Cover upstream early/fallback exits that bypass the normal text branch.
+    for promise in promised_work(result.get("final_response") or ""):
+        ledger.add(promise, "promise", minimum=len(ledger.data["receipts"]) + 1)
+    status = ledger.data["status"]
+    if ledger.unresolved() and status in ("completed", "continuing"):
+        status = "incomplete"
+    if result.get("interrupted"):
+        status = "cancelled"
+    elif result.get("failed") and status == "completed":
+        status = "failed"
+    elif (result.get("partial") or result.get("completed") is False) and status == "completed":
+        status = "incomplete"
+    ledger.data["status"] = status
+    ledger.save()
+    result["execution_status"] = status
+    if status != "completed":
+        remaining = [t for t in ledger.data["tasks"].values()
+                     if t["status"] != "completed" and t["source"] != "tool"]
+        detail = "; ".join(t["description"] for t in remaining)[:3000]
+        note = status.capitalize() + (" — remaining work: " + detail if detail else "")
+        result.update(completed=False, failed=status == "failed", partial=status == "incomplete", error=note)
+        result["final_response"] = note + "\n\n" + (result.get("final_response") or "")
+    return result
 
 
 def configuration(agent):
     from agent.system_prompt import _agent_home
+    from hermes_constants import get_hermes_home
     import yaml
-    home = Path(_agent_home(agent))
+    home = Path(_agent_home(agent) or get_hermes_home())
     try:
         config = yaml.safe_load((home / "config.yaml").read_text()) or {}
     except FileNotFoundError:
@@ -96,6 +219,7 @@ def guard_turn(fn):
         home, policy = configuration(agent)
         if not policy:
             return fn(agent, *args, **kwargs)
+        ledger = lockfile = None
         try:
             if agent.model != "local-model":
                 raise IdentityError("this profile must route through local-model")
@@ -109,10 +233,44 @@ def guard_turn(fn):
                 agent.context_compressor.context_length = identity["effective_context"]
             LOG.info("Resident bound: session=%s model=%s backend=%s generation=%s",
                      agent.session_id, identity["registry_id"], identity["backend"], identity["generation"])
+            if policy.get("completion_gate") is True and not threading.current_thread().name.startswith("bg-review"):
+                state_dir = home / "state"
+                state_dir.mkdir(parents=True, exist_ok=True)
+                key = hashlib.sha256(str(agent.session_id).encode()).hexdigest()
+                lockfile = (state_dir / ("execution-" + key + ".lock")).open("a+")
+                try:
+                    fcntl.flock(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError as exc:
+                    raise IdentityError("another turn is already executing in this session") from exc
+                ledger = Ledger(state_dir / "newton-execution.db", agent.session_id)
+                request = kwargs.get("user_message", args[0] if args else "")
+                ledger.begin(request)
+                agent._newton_execution = ledger
+                register_task_tool(agent)
             result = fn(agent, *args, **kwargs)
             check_generation(agent)
             result["resident_identity"] = identity
+            if ledger:
+                result = enforce_result(ledger, result)
+                if result["execution_status"] != "completed" and getattr(agent, "stream_delta_callback", None):
+                    agent.stream_delta_callback("\n\n" + result["error"])
             return result
-        except IdentityError as exc:
-            return failure(exc, getattr(agent, "session_id", None))
+        except (IdentityError, CompletionHalt) as exc:
+            result = failure(exc, getattr(agent, "session_id", None))
+            if ledger:
+                ledger.data["status"] = "failed"
+                try:
+                    result = enforce_result(ledger, result)
+                except Exception:
+                    pass  # storage is unavailable; preserve the explicit failed result
+            return result
+        finally:
+            if ledger:
+                for key, value in list(_ACTIVE.items()):
+                    if value is ledger:
+                        _ACTIVE.pop(key, None)
+                ledger.close()
+                agent._newton_execution = None
+            if lockfile:
+                lockfile.close()
     return wrapped

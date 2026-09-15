@@ -30,13 +30,13 @@ def main():
         sha = digest(path)
         if sha == hashes["patched"]:
             continue
-        if args.check or sha != hashes["original"]:
+        stages = hashes.get("stages") or [{"patch": "hermes.patch", "sha256": hashes["patched"]}]
+        versions = [hashes["original"]] + [stage["sha256"] for stage in stages]
+        if args.check or sha not in versions:
             sys.exit("Unrecognized/unpatched Hermes source: " + str(path))
-        changes.append(rel)
-    if changes and len(changes) != len(manifest["files"]):
-        sys.exit("Partial installation; restore the bound original files before applying")
-    if changes:
-        patch = (ROOT / "integrations/hermes.patch").read_bytes()
+        changes.extend(stage["patch"] for stage in stages[versions.index(sha):])
+    for patch_name in dict.fromkeys(changes):
+        patch = (ROOT / "integrations" / patch_name).read_bytes()
         subprocess.run(["patch", "--dry-run", "-p1", "-d", str(args.runtime)], input=patch, check=True)
         subprocess.run(["patch", "-p1", "-d", str(args.runtime)], input=patch, check=True)
     for path in (ROOT / "integrations/newton_runtime").glob("*.py"):

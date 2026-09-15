@@ -72,6 +72,8 @@ model is verified through `GET http://127.0.0.1:8765/api/identity`. Selection
 and last-launch records are not proof of residency. Hermes binds this identity
 to each turn and refreshes its cached context when the resident generation changes.
 See [the runtime identity contract](docs/11-runtime-identity.md).
+The [completion gate](docs/12-completion-enforcement.md) preserves known unfinished
+work and requires tool evidence before accepting task completion.
 
 | | **Qwen-A** — production primary | **Qwen-B** — elastic worker |
 |---|---|---|

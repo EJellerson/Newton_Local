@@ -3,7 +3,17 @@
   "files": {
     "agent/conversation_loop.py": {
       "original": "fdebc30e22227ac5d368bba1b4cac35e61ca39cf50c8af0d116dcaecf7903a67",
-      "patched": "078ba41d01496bbbabfead5eaf03edf367417c015166fe3bb3c7ebc5d5c218df"
+      "patched": "07ff14e14ab7c334751aa62e9550727b5720c89bf85c4d8ced767db412e741ce",
+      "stages": [
+        {
+          "patch": "hermes.patch",
+          "sha256": "078ba41d01496bbbabfead5eaf03edf367417c015166fe3bb3c7ebc5d5c218df"
+        },
+        {
+          "patch": "hermes-completion.patch",
+          "sha256": "07ff14e14ab7c334751aa62e9550727b5720c89bf85c4d8ced767db412e741ce"
+        }
+      ]
     }
   }
 }

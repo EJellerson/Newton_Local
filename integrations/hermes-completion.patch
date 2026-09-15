@@ -1,0 +1,30 @@
+--- a/agent/conversation_loop.py
++++ b/agent/conversation_loop.py
+@@ -6833,0 +6834,2 @@
++            _newton.after_response(agent)
++
+@@ -7455 +7457,6 @@
+-                agent._execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count)
++                _newton.before_tools(agent, assistant_msg, effective_task_id)
++                _newton_results_start = len(messages)
++                try:
++                    agent._execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count)
++                finally:
++                    _newton.after_tools(agent, messages, _newton_results_start)
+@@ -8087,0 +8095,16 @@
++                _newton_status, _newton_message = _newton.completion_gate(agent, final_response, messages)
++                if _newton_status == "continuing":
++                    interim_msg = agent._build_assistant_message(assistant_message, "incomplete")
++                    append_message(messages, interim_msg)
++                    append_message(messages, {"role": "user", "content": _newton_message})
++                    agent._session_messages = messages
++                    final_response = None
++                    continue
++                if _newton_status != "completed":
++                    _turn_exit_reason = "newton_" + _newton_status
++                    final_response = _newton_message
++                    failed = True
++                    append_message(messages, {"role": "assistant", "content": final_response,
++                                              "finish_reason": _newton_status})
++                    break
++
