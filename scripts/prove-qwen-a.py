@@ -30,7 +30,7 @@ def get(path, timeout=60):
 
 
 def chat(messages, timeout=1800, **kw):
-    payload = {"model": "qwen-a", "messages": messages, **kw}
+    payload = {"model": "local-model", "messages": messages, **kw}
     return post("/v1/chat/completions", payload, timeout=timeout)
 
 

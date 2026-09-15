@@ -6,7 +6,7 @@ URL = "http://127.0.0.1:8080"
 
 def chat(msgs, **kw):
     req = urllib.request.Request(URL + "/v1/chat/completions",
-        data=json.dumps({"model": "qwen-a", "messages": msgs, **kw}).encode(),
+        data=json.dumps({"model": "local-model", "messages": msgs, **kw}).encode(),
         headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=3600) as r:
         return json.load(r)

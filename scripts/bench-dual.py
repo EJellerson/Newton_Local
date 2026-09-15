@@ -22,7 +22,7 @@ Usage:
 import argparse, json, os, subprocess, sys, threading, time
 import urllib.request
 
-ENDPOINTS = {"a": ("qwen-a", "http://127.0.0.1:8080"),
+ENDPOINTS = {"a": ("local-model", "http://127.0.0.1:8080"),
              "b": ("qwen-b", "http://127.0.0.1:8081")}
 
 GEN_PROMPT = ("Write a precise, self-contained technical explanation of how a "

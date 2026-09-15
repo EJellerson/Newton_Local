@@ -15,7 +15,7 @@ Runtime n_ctx is queried on both servers WHILE the requests are in flight.
 import json, sys, threading, time, urllib.request
 
 TASKS = {
-    "a": {"alias": "qwen-a", "base": "http://127.0.0.1:8080",
+    "a": {"alias": "local-model", "base": "http://127.0.0.1:8080",
           "prompt": "Answer in one short sentence. A freight train leaves at "
                     "14:20 and arrives at 21:05 the same day. How long is the "
                     "journey in hours and minutes? Then state the capital of "

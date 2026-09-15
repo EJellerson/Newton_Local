@@ -14,10 +14,8 @@
 #                  base_url is the only inference path; fallback_providers is
 #                  left empty so there is no silent cloud escape hatch.
 #   context_length 262144 mirrors llama.cpp's `--ctx-size 262144` exactly.
-#   supports_vision Qwen-A serves an F16 mmproj, so images go to the model
-#                  natively as image_url parts instead of being pre-described
-#                  by an auxiliary `vision_analyze` model (which would need a
-#                  cloud key).
+#   newton_local   verifies the actual resident independently of local-model;
+#                  context and vision come from that bound runtime record.
 #   approvals.mode `manual` — every dangerous-pattern match asks a human.
 #                  `smart` would let an auxiliary LLM auto-approve.
 #                  cron/single-query contexts have no human, so they deny.

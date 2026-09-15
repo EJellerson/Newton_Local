@@ -427,7 +427,7 @@ def selection_lock_reasons(ui_state, b, peers):
     """Pure: why the selector must be read-only right now (empty = free)."""
     reasons = []
     if ui_state != "Stopped":
-        reasons.append(f"Qwen-A is {ui_state}")
+        reasons.append(f"AI Inference is {ui_state}")
     if b.get("active"):
         reasons.append(f"Qwen-B is {b.get('state')}" + (" (listening)" if b.get("listening") else ""))
     if peers:

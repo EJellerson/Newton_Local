@@ -105,7 +105,7 @@ echo "port 8081: $(lsof -nP -iTCP:8081 -sTCP:LISTEN >/dev/null 2>&1 && echo OPEN
 step "QWEN-A UNAFFECTED THROUGHOUT"
 ahealth
 curl -sS --max-time 60 http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' \
-  -d '{"model":"qwen-a","messages":[{"role":"user","content":"Reply with exactly: A-UNAFFECTED"}],"max_tokens":256,"temperature":0}' \
+  -d '{"model":"local-model","messages":[{"role":"user","content":"Reply with exactly: A-UNAFFECTED"}],"max_tokens":256,"temperature":0}' \
   | python3 -c "import sys,json;d=json.load(sys.stdin);print('answer:',(d['choices'][0]['message'].get('content') or '').strip())"
 
 echo

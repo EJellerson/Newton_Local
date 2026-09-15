@@ -3,10 +3,10 @@
 # hermes-localchat — operator entry point for the Newton_Local general
 # assistant (Commission #3).
 #
-#     Open WebUI  ->  Hermes Agent (localchat profile)  ->  Qwen-A :8080
+#     Open WebUI  ->  Hermes Agent (localchat profile)  ->  AI Inference :8080
 #
 # Hermes owns agency (tools, memory, sessions, delegation, skills, browser).
-# Qwen-A owns intelligence. This script owns nothing but lifecycle.
+# AI Inference serves the verified resident model. This script owns nothing but lifecycle.
 #
 # Nothing here needs sudo. Qwen-A and Qwen-B are NOT touched by this script.
 # ---------------------------------------------------------------------------
@@ -45,13 +45,13 @@ usage() {
 usage: hermes-localchat <command> [args]
 
   Talking to the assistant
-    chat                  interactive CLI session   (Hermes -> Qwen-A)
+    chat                  interactive CLI session   (Hermes -> AI Inference)
     tui                   interactive full-screen TUI
     ask "<prompt>"        one-shot, non-interactive query
     resume [<id>]         resume a session (no id = most recent)
 
   Services
-    status                everything: Qwen-A, Qwen-B, Hermes API, Open WebUI
+    status                everything: AI Inference, Qwen-B, Hermes API, Open WebUI
     api start|stop|restart|status|logs
     ui  start|stop|restart|status|logs
     up                    start API + UI
@@ -73,7 +73,7 @@ USAGE
 
 # --------------------------------------------------------------------------
 cmd_status() {
-  h "Qwen-A (intelligence, persistent)"
+  h "AI Inference (production slot)"
   if curl -sS -m 3 "$QWEN_A/health" >/dev/null 2>&1; then
     printf '  %-14s %s\n' "endpoint" "$QWEN_A"
     printf '  %-14s %s\n' "health" "$(curl -sS -m 3 "$QWEN_A/health")"
