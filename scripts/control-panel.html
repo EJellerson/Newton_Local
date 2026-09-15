@@ -98,7 +98,7 @@
 
   <div class="card">
     <div class="model-head">
-      <div class="model-title">AI model &nbsp;<span class="sub" id="model-name"></span></div>
+      <div class="model-title">AI Inference &nbsp;<span class="sub" id="model-name"></span></div>
       <span class="pill"><span class="dot" id="model-dot"></span><span id="model-state">…</span></span>
     </div>
     <fieldset class="selector" id="model-selector">
@@ -223,6 +223,9 @@ function render(s) {
     detail = "Serving on " + (m.endpoint || "127.0.0.1:8080");
     if (m.pid) detail += " · pid " + m.pid;
     if (m.rss_gib) detail += " · " + m.rss_gib + " GiB";
+    if (!m.identity || m.identity.verification_status !== "verified") {
+      detail += " · resident identity unverified";
+    }
   } else if (m.state === "Stopped") {
     detail = "The model is unloaded and using no memory. Start it when you need the local AI.";
   } else if (m.state === "Starting") {

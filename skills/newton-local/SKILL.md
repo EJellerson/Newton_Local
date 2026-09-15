@@ -14,8 +14,10 @@ prerequisites:
 
 # Newton_Local operations
 
-This Mac runs two local Qwen3.8-27B Q8_0 instances off **one** copy of the
-weights, plus the Hermes assistant stack you are running inside.
+This Mac runs the Newton_Local inference stack. The production service is
+**AI Inference**, routed through **local-model**. Its resident model is established
+by verified runtime identity at `http://127.0.0.1:8765/api/identity`, never by
+memory, a routing alias, or the last selected catalog entry.
 
 Skill provenance marker: TERNARY-3055
 
@@ -24,7 +26,7 @@ Skill provenance marker: TERNARY-3055
 | | Qwen-A | Qwen-B |
 |---|---|---|
 | Bind | `127.0.0.1:8080` | `127.0.0.1:8081` |
-| Alias | `qwen-a` | `qwen-b` |
+| Alias | `local-model` | `qwen-b` |
 | Availability | **on demand** — the operator starts/stops it from Newton AI Control; OFF after every reboot | **normally stopped** |
 | launchd | `com.newton.qwen38server.a` (user agent, no sudo, no autostart) | `com.newton.qwen38server.b` (user agent, no sudo) |
 | Idle TTL | none — runs until explicitly stopped | 180 s after the last lease is released |

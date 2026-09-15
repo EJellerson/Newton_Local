@@ -1,0 +1,9 @@
+{
+  "upstream_commit": "41447a6d7063b2772b0c2f26a5b22d9bd444fb43",
+  "files": {
+    "agent/conversation_loop.py": {
+      "original": "fdebc30e22227ac5d368bba1b4cac35e61ca39cf50c8af0d116dcaecf7903a67",
+      "patched": "078ba41d01496bbbabfead5eaf03edf367417c015166fe3bb3c7ebc5d5c218df"
+    }
+  }
+}

@@ -7,7 +7,7 @@ PROMPT="${1:-In one sentence, what is the capital of Iceland?}"
 PAYLOAD=$(PROMPT="$PROMPT" python3 <<'PY'
 import json, os
 print(json.dumps({
-    "model": "qwen-a",
+    "model": "local-model",
     "messages": [{"role": "user", "content": os.environ["PROMPT"]}],
     "max_tokens": 2048,
     "temperature": 0.3,

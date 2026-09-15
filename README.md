@@ -5,7 +5,7 @@ Local AI infrastructure on an Apple M2 Ultra Mac Pro (128 GiB unified memory).
 ## The assistant
 
 ```
-you → Open WebUI :3000 → Hermes Agent :8642 → Qwen-A :8080
+you → Open WebUI :3000 → Hermes Agent :8642 → AI Inference :8080
         presentation        agency              intelligence
 ```
 
@@ -55,7 +55,7 @@ Dock: Newton AI Control  →  http://127.0.0.1:8765/
   Start Chat · Start the AI Model · Stop the AI Model · Restart the AI Model
 ```
 
-Hermes, Open WebUI and the control panel are always on from login; **the 27B
+Hermes, Open WebUI and the control panel are always on from login; **the selected
 model is OFF until you click Start, and OFF again after every reboot**. Stop
 unloads it and keeps it unloaded (`KeepAlive=false` plus a desired-state
 watchdog that never resurrects an intentional stop); while it is
@@ -67,19 +67,22 @@ Runbook: [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md).
 
 ## Current state
 
-Two Qwen3.8-27B **Q8_0 / 262144-context** instances, both Metal-accelerated,
-both OpenAI-compatible, both loopback-only, sharing **one** set of model weights.
+The production slot is **AI Inference**, routed as **local-model**. Its resident
+model is verified through `GET http://127.0.0.1:8765/api/identity`. Selection
+and last-launch records are not proof of residency. Hermes binds this identity
+to each turn and refreshes its cached context when the resident generation changes.
+See [the runtime identity contract](docs/11-runtime-identity.md).
 
 | | **Qwen-A** — production primary | **Qwen-B** — elastic worker |
 |---|---|---|
 | Bind | `127.0.0.1:8080` | `127.0.0.1:8081` |
-| Alias | `qwen-a` | `qwen-b` |
+| Alias | `local-model` | `qwen-b` |
 | Availability | **on demand** — operator Start/Stop, OFF at boot | **normally stopped**, leased on demand |
 | launchd | `com.newton.qwen38server.a` (user LaunchAgent, `gui/501`) | `com.newton.qwen38server.b` (user LaunchAgent, `gui/501`) |
 | Autostart | **no** (`RunAtLoad=false`, `KeepAlive=false`) | **no** (`RunAtLoad=false`, `KeepAlive=false`) |
 | Control | `scripts/qwen-a` / Newton AI Control — **no sudo** | `scripts/qwen-b` — **no sudo** |
-| Model | Qwen3.8-27B Q8_0 + F16 vision projector | **the same files** — no duplicate copy |
-| Runtime | llama.cpp `b10615` / `f280b26`, Apple Metal | identical |
+| Model | Verified resident from the selected catalog entry | Global selection; historical experimental worker |
+| Runtime | llama.cpp or mlx-serve, verified from the serving process | Selected model's runtime |
 
 ### Using the elastic worker
 
@@ -97,7 +100,7 @@ reload the model. Stopping returns ~46 GiB of Metal allocation to the machine.
 Lifecycle is owned by `scripts/qwenctl.py`, ordinary deterministic code. The
 model decides nothing about when workers start or stop.
 
-### Measured capacity (Apple M2 Ultra, 128 GiB)
+### Historical 27B capacity measurements (Apple M2 Ultra, 128 GiB)
 
 | | A alone | A + B concurrent | A after B stopped |
 |---|---:|---:|---:|

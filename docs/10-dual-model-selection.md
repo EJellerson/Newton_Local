@@ -1,5 +1,8 @@
 # 10 — Dual-model selection: registry, global selection, execution slots (Commission #5)
 
+Current identity/routing contract: see [11-runtime-identity.md](11-runtime-identity.md).
+The original commission record below retains historical aliases and measurements.
+
 **Date:** 2026-09-04 (implementation) · 2026-09-05 (live proving) · **Machine:** Mac Pro (M2 Ultra, 128 GB), macOS 14.8.5 → **26.6.2** · **Status:** implemented, no-load proven, and **live-proven for both models** (§10); Flash-Next required the macOS upgrade (§4).
 
 ```

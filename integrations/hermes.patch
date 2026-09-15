@@ -1,0 +1,14 @@
+--- a/agent/conversation_loop.py
++++ b/agent/conversation_loop.py
+@@ -17,0 +18,2 @@
++
++from agent.newton_runtime import hermes as _newton
+@@ -864,0 +867 @@
++@_newton.decorate_restore
+@@ -1087,0 +1091,2 @@
++    if not _newton.prompt_matches(agent, prompt):
++        return False
+@@ -1821,0 +1827 @@
++@_newton.guard_turn
+@@ -2017,0 +2024 @@
++        _newton.check_generation(agent)

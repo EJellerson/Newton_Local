@@ -50,6 +50,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SCRIPT_DIR)
 sys.path.insert(0, SCRIPT_DIR)
 import newton_models as nm  # noqa: E402  (model registry + global selection)
+from resident_identity import resident_identity
 
 QWENCTL = os.path.join(SCRIPT_DIR, "qwenctl.py")
 A_CONFIG = os.path.join(ROOT, "config", "qwen-a-controller.env")
@@ -463,6 +464,7 @@ def assemble_status():
     b = qwen_b_probe()
     legacy = legacy_daemon_probe()
     ms = models_summary()
+    identity = resident_identity()
     lock_reasons = selection_lock_reasons(ui_state, b, st.get("peer_processes"))
     return {
         "model": {
@@ -472,9 +474,10 @@ def assemble_status():
             "pid": st.get("pid"),
             "rss_gib": st.get("rss_gib"),
             "endpoint": st.get("endpoint"),
-            "alias": st.get("worker"),
-            "running_model": st.get("model"),
-            "running_runtime": st.get("model_runtime"),
+            "alias": identity["routing_alias"],
+            "running_model": identity.get("registry_id"),
+            "running_runtime": identity.get("backend"),
+            "identity": identity,
             "health_ok": bool(st.get("health_ok")),
             "error": st.get("error"),
             "recovery": dict(OPS.recovery),
@@ -551,6 +554,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(500, "control-panel.html missing", "text/plain")
         if path == "/api/status":
             return self._json(200, assemble_status())
+        if path == "/api/identity":
+            identity = resident_identity()
+            return self._json(200, identity)
         if path == "/api/models":
             try:
                 reg = nm.load_registry()

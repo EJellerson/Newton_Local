@@ -59,7 +59,7 @@ echo "   ok  ProgramArguments == newton-model shim-argv A"
 echo "== drift check 2: registry Qwen-27B plan for slot A == frozen Commission-#1 daemon argv"
 PLAN_ARGV=$(python3 "$REPO/scripts/newton_models.py" plan A --model qwen27b --argv)
 DAEMON_ARGV=$(plutil -extract ProgramArguments json -o - "$DAEMON_SRC" \
-              | python3 -c 'import sys,json;[print(x) for x in json.load(sys.stdin)]')
+              | python3 -c 'import sys,json;a=json.load(sys.stdin);a[a.index("--alias")+1]="local-model";[print(x) for x in a]')
 if [ "$PLAN_ARGV" != "$DAEMON_ARGV" ]; then
     echo "FATAL: registry plan for qwen27b on slot A drifted from $DAEMON_SRC" >&2
     diff <(echo "$DAEMON_ARGV") <(echo "$PLAN_ARGV") >&2 || true

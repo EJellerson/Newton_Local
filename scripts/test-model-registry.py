@@ -257,7 +257,8 @@ def main():
         ["plutil", "-extract", "ProgramArguments", "json", "-o", "-",
          os.path.join(REAL_ROOT, "config", "com.newton.qwen38server.a.plist")],
         capture_output=True, text=True).stdout)
-    check("real plan A/qwen27b == frozen Commission-#1 daemon argv", real == daemon,
+    daemon[daemon.index("--alias") + 1] = "local-model"
+    check("real plan A/qwen27b == frozen argv except generic routing alias", real == daemon,
           f"\n{real}\n{daemon}")
     realb = subprocess.run([sys.executable, os.path.join(SCRIPT_DIR, "newton_models.py"),
                             "plan", "B", "--model", "qwen27b", "--argv"], capture_output=True,

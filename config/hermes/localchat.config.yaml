@@ -34,9 +34,14 @@
 model:
   provider: custom
   base_url: http://127.0.0.1:8080/v1
-  default: qwen-a
+  default: local-model
   context_length: 262144
-  supports_vision: true
+newton_local:
+  enabled: true
+  identity_url: http://127.0.0.1:8765/api/identity
+agent:
+  tool_use_enforcement: true
+  execution_guidance: true
 approvals:
   mode: manual
   timeout: 300

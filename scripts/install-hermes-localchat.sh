@@ -26,6 +26,7 @@ say() { printf '\033[1m%s\033[0m\n' "$*"; }
 [ -f "$TEMPLATE" ] || die "missing $TEMPLATE"
 
 say "1. Profile"
+python3 "$REPO/scripts/install-hermes-integration.py" --runtime "$HOME/.hermes/hermes-agent"
 if [ -d "$PROFILE_HOME" ]; then
   printf '   %s already exists — reusing it\n' "$PROFILE_HOME"
 else
@@ -46,6 +47,8 @@ tpl, live = (pathlib.Path(p) for p in sys.argv[1:3])
 want = yaml.safe_load(tpl.read_text()) or {}
 have = yaml.safe_load(live.read_text()) if live.exists() else {}
 have = have or {}
+if isinstance(have.get("model"), dict):
+    have["model"].pop("supports_vision", None)  # now supplied by resident identity
 
 def merge(dst, src):
     for k, v in src.items():
@@ -79,6 +82,7 @@ fi
 
 say "4. Repository skills"
 "$REPO/scripts/install-hermes-skill.sh"
+python3 "$REPO/scripts/migrate-resident-memory.py" "$PROFILE_HOME"
 
 say "5. Gateway service (hosts the API server, starts at login)"
 GW_LABEL=ai.hermes.gateway-localchat

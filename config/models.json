@@ -16,7 +16,8 @@
       "label": "com.newton.qwen38server.a",
       "host": "127.0.0.1",
       "port": 8080,
-      "alias": "qwen-a",
+      "alias": "local-model",
+      "display_name": "AI Inference",
       "logdir": "logs/qwen-a",
       "role": "production (Hermes target)"
     },

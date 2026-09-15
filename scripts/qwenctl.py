@@ -205,6 +205,8 @@ def read_lease(cfg):
         return default_lease(cfg)
     base = default_lease(cfg)
     base.update({k: v for k, v in d.items() if k in base})
+    # Routing configuration can change independently of the last lease.
+    base["alias"] = cfg["alias"]
     if base["state"] not in LIFECYCLE:
         base["state"] = STOPPED
     return base
