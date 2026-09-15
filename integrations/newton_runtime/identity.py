@@ -10,6 +10,9 @@ import json
 import os
 import shlex
 import subprocess
+import sys
+import struct
+import ctypes
 import urllib.request
 from pathlib import Path
 
@@ -34,7 +37,41 @@ def process_snapshot(pid):
         if result.returncode or not result.stdout.strip():
             raise IdentityError("serving process disappeared")
         return result.stdout.strip()
-    return {"pid": int(pid), "started": ps("lstart"), "argv": shlex.split(ps("command"))}
+    return {"pid": int(pid), "started": ps("lstart"), "argv": process_arguments(pid)}
+
+
+def decode_procargs(raw):
+    """Darwin KERN_PROCARGS2: argc, executable, padding, argv, then env.
+
+    Stop at argc: environment values are never returned or logged.
+    """
+    argc = struct.unpack_from("=i", raw)[0]
+    if not 0 < argc < 10000:
+        raise IdentityError("invalid process argument count")
+    start = raw.index(b"\0", 4) + 1
+    while raw[start] == 0:
+        start += 1
+    values = raw[start:].split(b"\0")
+    if len(values) < argc:
+        raise IdentityError("incomplete process arguments")
+    return [os.fsdecode(value) for value in values[:argc]]
+
+
+def process_arguments(pid):
+    if sys.platform == "darwin":
+        # Values are defined by the local SDK's sys/sysctl.h.
+        libc = ctypes.CDLL(None, use_errno=True)
+        mib = (ctypes.c_int * 3)(1, 49, int(pid))  # CTL_KERN, KERN_PROCARGS2
+        size = ctypes.c_size_t()
+        if libc.sysctl(mib, 3, None, ctypes.byref(size), None, 0) != 0:
+            raise IdentityError("cannot read process arguments")
+        buf = ctypes.create_string_buffer(size.value)
+        if libc.sysctl(mib, 3, buf, ctypes.byref(size), None, 0) != 0:
+            raise IdentityError("process arguments changed or became unavailable")
+        return decode_procargs(buf.raw[:size.value])
+    if sys.platform.startswith("linux"):
+        return [os.fsdecode(v) for v in Path(f"/proc/{pid}/cmdline").read_bytes().rstrip(b"\0").split(b"\0")]
+    raise IdentityError("lossless process argument inspection is unavailable on this platform")
 
 
 def socket_pid(port):
@@ -58,6 +95,18 @@ def canonical(path):
     return os.path.realpath(os.path.expanduser(str(path)))
 
 
+def executable_matches(expected, actual):
+    expected, actual = canonical(expected), canonical(actual)
+    if expected == actual:
+        return True
+    # macOS framework Python launches its app executable. Match the exact
+    # framework/version, never just the generic "Python" process name.
+    if "/Python.framework/Versions/" in expected and "/bin/python" in expected:
+        app = expected.split("/bin/python", 1)[0] + "/Resources/Python.app/Contents/MacOS/Python"
+        return actual == canonical(app)
+    return False
+
+
 def verify(model, process, owner_pid, metadata, *, slot="production"):
     """Pure verification. ``model`` is a normalized registry/launch spec.
 
@@ -74,7 +123,7 @@ def verify(model, process, owner_pid, metadata, *, slot="production"):
     if argument(argv, "--host") != "127.0.0.1":
         raise IdentityError("inference process is not bound to loopback")
     expected_command = model["command"]
-    if canonical(argv[0]) != canonical(expected_command[0]):
+    if not executable_matches(expected_command[0], argv[0]):
         raise IdentityError("unexpected serving executable")
     if argv[1:len(expected_command)] != expected_command[1:]:
         raise IdentityError("unexpected serving module")
@@ -123,6 +172,7 @@ def verify(model, process, owner_pid, metadata, *, slot="production"):
                 "artifact_path": canonical(model["artifact_path"]),
                 "manifest_sha256": model.get("manifest_sha256"),
                 "backend": backend, "runtime_version": version,
+                "inference_base_url": "http://127.0.0.1:" + str(model["port"]) + "/v1",
                 "process": process, "effective_context": context,
                 "capabilities": {"vision": vision, "tools": bool(model["capabilities"].get("tools"))},
                 "verification_status": "verified"}

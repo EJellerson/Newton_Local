@@ -6,6 +6,9 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+import subprocess
+import os
+import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CONTROL = "http://127.0.0.1:8765"
@@ -31,6 +34,27 @@ def operation(verb, state):
     raise TimeoutError(verb)
 
 
+def wait_gateway():
+    """Do not mistake a draining old listener for the restarted gateway."""
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
+        job = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/ai.hermes.gateway-localchat"],
+                             capture_output=True, text=True).stdout
+        match = re.search(r"(?m)^\s*pid = (\d+)", job)
+        listeners = subprocess.run(["lsof", "-nP", "-iTCP:8642", "-sTCP:LISTEN", "-t"],
+                                   capture_output=True, text=True).stdout.split()
+        if match and len(set(listeners)) == 1:
+            parent = subprocess.run(["ps", "-p", listeners[0], "-o", "ppid="], capture_output=True, text=True).stdout.strip()
+            if parent == match.group(1):
+                try:
+                    request("http://127.0.0.1:8642/health", timeout=3)
+                    return
+                except urllib.error.URLError:
+                    pass
+        time.sleep(2)
+    raise TimeoutError("Hermes launchd-owned gateway did not become ready")
+
+
 def main():
     selection = json.loads((ROOT / "state/model-selection.json").read_text())["selected"]
     env = dict(line.split("=", 1) for line in (pathlib.Path.home() / ".hermes/profiles/localchat/.env").read_text().splitlines()
@@ -38,6 +62,7 @@ def main():
     session = "newton-identity-proof-" + uuid.uuid4().hex[:12]
     results = []
     try:
+        wait_gateway()
         for model in ("qwen27b", "flash-next", "qwen27b"):
             operation("stop", "Stopped")
             request(CONTROL + "/api/model/select", {"model": model}, {"X-Newton-Control": "1"})
@@ -58,6 +83,10 @@ def main():
             assert identity["display_name"].lower() in text.lower(), text
             assert identity["backend"].lower() in text.lower(), text
             assert "local-model" in text, text
+            assert f"{identity['effective_context']:,}" in text, text
+            assert "Vision: " + ("yes" if identity['capabilities']['vision'] else "no") in text, text
+            assert identity["generation"][:12] in text, text
+            assert pathlib.Path(identity["artifact_path"]).name in text, text
             assert not results or results[-1]["identity"]["generation"] != identity["generation"]
             results.append({"identity": identity, "answer": text, "session": session})
             print(json.dumps({"model": model, "generation": identity["generation"], "answer": text}), flush=True)

@@ -58,15 +58,7 @@ def main():
                if "=" in line and not line.startswith("#"))
     results = []
     try:
-        deadline = time.monotonic() + 90
-        while True:
-            try:
-                request("http://127.0.0.1:8642/health", timeout=3)
-                break
-            except urllib.error.URLError:
-                if time.monotonic() >= deadline:
-                    raise
-                time.sleep(2)
+        helpers["wait_gateway"]()
         operation("stop", "Stopped")
         request(CONTROL + "/api/model/select", {"model": args.model}, {"X-Newton-Control": "1"})
         operation("start", "Running")

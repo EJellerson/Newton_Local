@@ -16,15 +16,23 @@ and matching `/props` context. The portable adapters use MLX loaded-provider
 metadata; a list of downloaded models alone is insufficient.
 
 Hermes routes to `local-model` but receives a separate verified identity block.
-The persisted prompt is invalidated by resident generation. A generation change
+Persisted and in-memory prompts are invalidated by resident generation. A generation change
 inside a turn fails the turn rather than attributing its result to another model.
 Vision and context follow the verified record. Execution guidance is an explicit
 local-profile policy and does not depend on model-name substring matching.
 
+For identity-only questions, the final facts are rendered deterministically from
+the verified record. The model still receives the bound context, but its own
+self-description cannot override the answer or stream a stale identity first.
+General tasks/comparisons keep their model-generated answers. This was required
+by a live regression: Flash-Next once copied an earlier 27B answer even though
+the refreshed system prompt contained the correct Flash-Next generation.
+
 ## Reproduction
 
 The upstream Hermes source identity and exact patch hashes are in
-`integrations/hermes-patch.json`; source changes are in `integrations/hermes.patch`.
+`integrations/hermes-patch.json`; its ordered identity, completion, and identity-output
+patch stages reproduce the exact final source.
 Shared modules live in `integrations/newton_runtime/`. Install into the pinned
 Hermes runtime with:
 

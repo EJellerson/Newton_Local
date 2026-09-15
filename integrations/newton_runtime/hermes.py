@@ -53,6 +53,32 @@ TASK_SCHEMA = {
         "reason": {"type": "string"}}, "required": []}}
 
 
+def identity_question(request):
+    from .execution import text_content
+    text = text_content(request).lower()
+    if text.count("?") > 1 or re.search(
+        r"\b(?:run|execute|inspect|search|download|install|write|create|compare|benchmark|rank|why|how|directory|folder|capable|strengths|weaknesses|explain|definition|performance|other|another|remote|studio)\b|what (?:time|date)", text
+    ):
+        return False
+    if "verified resident identity block" in text:
+        return True
+    return bool(re.search(r"\b(?:which|what|name|identify|tell me)\b", text) and re.search(
+        r"\b(?:(?:resident|loaded) (?:model|weights)|your (?:current )?(?:model|backend)|"
+        r"(?:model|backend|weights)\b.{0,60}(?:are you|you (?:are|use|run)|powers you|serving this (?:chat|session)))", text))
+
+
+def canonical_response(agent, text):
+    """Identity-only answers are facts rendered by the harness, not model guesses."""
+    if not getattr(agent, "_newton_identity_question", False):
+        return text
+    identity = agent._newton_identity
+    return (f"AI Inference is serving {identity['display_name']} ({identity['registry_id']}).\n"
+            f"Backend: {identity['backend']}. Context: {identity['effective_context']:,} tokens. "
+            f"Vision: {'yes' if identity['capabilities']['vision'] else 'no'}.\n"
+            f"Artifact: {Path(identity['artifact_path']).name}.\n"
+            f"Routing alias: local-model. Resident generation: {identity['generation'][:12]}.")
+
+
 def task_result(args, **kwargs):
     ledger = _ACTIVE.get(kwargs.get("task_id"))
     if ledger is None:
@@ -203,8 +229,13 @@ def decorate_restore(fn):
 
 def check_generation(agent):
     policy = getattr(agent, "_newton_policy", None)
-    if policy and fetch_identity(policy)["generation"] != agent._newton_identity["generation"]:
-        raise IdentityError("resident changed during this turn; resume with refreshed identity")
+    if policy:
+        current = fetch_identity(policy)
+        if current["generation"] != agent._newton_identity["generation"]:
+            raise IdentityError("resident changed during this turn; resume with refreshed identity")
+        if (agent.model != "local-model" or agent.provider != "custom" or
+                str(agent.base_url).rstrip("/") != current.get("inference_base_url")):
+            raise IdentityError("inference route differs from the verified resident binding")
 
 
 def failure(reason, session_id=None):
@@ -218,13 +249,28 @@ def guard_turn(fn):
     def wrapped(agent, *args, **kwargs):
         home, policy = configuration(agent)
         if not policy:
+            agent._newton_policy = agent._newton_identity = agent._newton_execution = None
+            agent._newton_identity_question = False
             return fn(agent, *args, **kwargs)
         ledger = lockfile = None
+        result = None
+        original_delta = getattr(agent, "stream_delta_callback", None)
+        request = kwargs.get("user_message", args[0] if args else "")
+        agent._newton_identity_question = identity_question(request)
+        if agent._newton_identity_question:
+            # Keep an unvalidated self-identification out of streamed prose.
+            # The canonical answer is emitted once, after final verification.
+            agent.stream_delta_callback = None
         try:
             if agent.model != "local-model":
                 raise IdentityError("this profile must route through local-model")
             identity = fetch_identity(policy)
             agent._newton_identity, agent._newton_policy = identity, policy
+            check_generation(agent)
+            cached = getattr(agent, "_cached_system_prompt", None)
+            if cached and not prompt_matches(agent, cached):
+                agent._cached_system_prompt = None
+                agent._cached_system_prompt_static = None
             agent._tool_use_enforcement = True
             agent._execution_guidance = True
             agent._model_supports_vision = lambda: identity["capabilities"]["vision"]
@@ -243,7 +289,6 @@ def guard_turn(fn):
                 except BlockingIOError as exc:
                     raise IdentityError("another turn is already executing in this session") from exc
                 ledger = Ledger(state_dir / "newton-execution.db", agent.session_id)
-                request = kwargs.get("user_message", args[0] if args else "")
                 ledger.begin(request)
                 agent._newton_execution = ledger
                 register_task_tool(agent)
@@ -273,4 +318,8 @@ def guard_turn(fn):
                 agent._newton_execution = None
             if lockfile:
                 lockfile.close()
+            if agent._newton_identity_question:
+                agent.stream_delta_callback = original_delta
+                if original_delta and result:
+                    original_delta(result.get("final_response") or result.get("error", ""))
     return wrapped

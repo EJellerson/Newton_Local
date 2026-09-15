@@ -3,7 +3,7 @@
   "files": {
     "agent/conversation_loop.py": {
       "original": "fdebc30e22227ac5d368bba1b4cac35e61ca39cf50c8af0d116dcaecf7903a67",
-      "patched": "07ff14e14ab7c334751aa62e9550727b5720c89bf85c4d8ced767db412e741ce",
+      "patched": "44f88b9bd1402dd7694097d90f6c9f962a1490ff92e3e158201b88f0acfc8c5e",
       "stages": [
         {
           "patch": "hermes.patch",
@@ -12,6 +12,10 @@
         {
           "patch": "hermes-completion.patch",
           "sha256": "07ff14e14ab7c334751aa62e9550727b5720c89bf85c4d8ced767db412e741ce"
+        },
+        {
+          "patch": "hermes-identity-output.patch",
+          "sha256": "44f88b9bd1402dd7694097d90f6c9f962a1490ff92e3e158201b88f0acfc8c5e"
         }
       ]
     }

@@ -22,6 +22,7 @@ def main():
         os.environ["HERMES_HOME"] = str(home)
         os.environ["TERMINAL_CWD"] = temp
         calls = []
+        mode = {"identity": False, "generation": "SIMULATED", "name": "Fixture"}
         replies = ["Let me check that.", "I'll inspect it now.", "Doing it now.",
                    "The first part is answered. " * 25 + "Let me check the remaining request."]
         class Handler(BaseHTTPRequestHandler):
@@ -38,9 +39,10 @@ def main():
 
             def do_GET(self):
                 if self.path == "/identity":
-                    return self.respond({"verification_status": "verified", "generation": "SIMULATED",
-                        "routing_alias": "local-model", "registry_id": "fixture", "display_name": "Fixture",
+                    return self.respond({"verification_status": "verified", "generation": mode["generation"],
+                        "routing_alias": "local-model", "registry_id": "fixture", "display_name": mode["name"],
                         "artifact_path": "/simulated/no-weights", "backend": "fixture", "runtime_version": "1",
+                        "inference_base_url": f"http://127.0.0.1:{self.server.server_address[1]}/v1",
                         "effective_context": 262144, "capabilities": {"vision": False, "tools": True}})
                 if "models" in self.path:
                     return self.respond({"data": [{"id": "local-model", "context_length": 262144}]})
@@ -49,7 +51,7 @@ def main():
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 if body.get("tools"):
-                    text = replies[min(len(calls), len(replies)-1)]
+                    text = "Resident model: Qwen 3.8 27B, generation OLD." if mode["identity"] else replies[min(len(calls), len(replies)-1)]
                     calls.append(text)
                 else:
                     text = "Fixture title"
@@ -86,6 +88,24 @@ def main():
             assert result["completed"] is False, result
             assert result["execution_status"] == "incomplete", result
             print("PASS: real Hermes loop rejected four narration-only provider replies, continued 3 times, then returned incomplete")
+            mode["identity"] = True
+            emitted = []
+            second = AIAgent(model="local-model", provider="custom", api_key="fixture",
+                            base_url=f"http://127.0.0.1:{port}/v1", max_iterations=8,
+                            enabled_toolsets=["terminal"], quiet_mode=True, skip_context_files=True,
+                            session_id="identity-proof", platform="api_server", stream_delta_callback=emitted.append)
+            try:
+                result = second.run_conversation("Which model are you running?")
+                assert result["completed"] and "Fixture" in result["final_response"], result
+                assert "27B" not in "".join(x for x in emitted if isinstance(x, str)), emitted
+                assert "27B" not in result["messages"][-1]["content"], result
+                mode.update(generation="SIMULATED-2", name="Second fixture")
+                result = second.run_conversation("Which model are you running?", conversation_history=result["messages"])
+                assert "Second fixture" in result["final_response"], result
+                assert "Resident generation: SIMULATED-2" in second._cached_system_prompt
+                print("PASS: stale model-generated identity never streamed/persisted; cached-agent generation change refreshed context")
+            finally:
+                second.close()
         finally:
             agent.close()
             server.shutdown()

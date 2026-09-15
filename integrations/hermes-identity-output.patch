@@ -1,0 +1,5 @@
+--- a/agent/conversation_loop.py
++++ b/agent/conversation_loop.py
+@@ -8094,0 +8095,2 @@
++                final_response = _newton.canonical_response(agent, final_response)
++                assistant_message.content = final_response
