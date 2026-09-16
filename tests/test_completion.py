@@ -91,7 +91,7 @@ class CompletionTests(unittest.TestCase):
         receipt = self.ledger.data["receipts"][ids[0]-1]
         self.assertTrue(receipt["requested"] and receipt["executed"] and receipt["result_consumed"])
         self.assertIs(receipt["succeeded"], False)
-        self.assertEqual(self.ledger.gate("Done.")[0], "continuing")
+        self.assertEqual(self.ledger.gate("Done.")[0], "blocked")
         self.assertEqual(self.ledger.gate("The command failed; I cannot complete this operation.")[0], "blocked")
         result = enforce_result(self.ledger, {"completed": True, "final_response": "The command failed."})
         self.assertFalse(result["completed"])
@@ -168,9 +168,13 @@ class CompletionTests(unittest.TestCase):
     def test_ledger_failure_bypasses_ordinary_model_retry_loop(self):
         def fail(*args):
             raise OSError("disk full")
-        agent = SimpleNamespace(_newton_execution=SimpleNamespace(requested=fail))
-        with self.assertRaises(hermes.CompletionHalt):
-            hermes.before_tools(agent, {"tool_calls": []}, "failing-session")
+        agent = SimpleNamespace(_newton_execution=SimpleNamespace(requested=fail, progress_signature=lambda: ()))
+        try:
+            with self.assertRaises(hermes.CompletionHalt) as caught:
+                hermes.before_tools(agent, {"tool_calls": []}, "failing-session")
+            self.assertIsInstance(caught.exception.__cause__, OSError)
+        finally:
+            hermes._ACTIVE.pop("failing-session", None)
 
 
 if __name__ == "__main__":
