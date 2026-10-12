@@ -40,7 +40,9 @@ COMMANDS
     acquire     ensure a READY worker and take the lease (starts B if needed)
     release     give the lease back; worker goes IDLE and starts its TTL
     terminate   stop the worker now and return to STOPPED (idempotent when
-                already stopped)
+                already stopped); first cancels any start still loading
+    cancel      ask a start/acquire in progress (or queued) to abort; lock-free,
+                returns at once (terminate = cancel + stop)
     reconcile   force reconciliation, handle orphans and stale leases
     reap        terminate the worker if its idle TTL has expired (a no-op for
                 instances whose idle TTL is disabled)
@@ -50,7 +52,22 @@ COMMANDS
 EXIT CODES
     0 ok   1 error   3 lease conflict   4 timeout   5 inconsistent (duplicates
     or peer instance)   6 selected model unavailable   7 restart would switch
-    the model
+    the model   8 the engine exited while loading (reason taken from its log)
+    9 start cancelled by an operator stop
+
+START SUPERVISION (2026-10-12 incident fixes)
+    * A start no longer only polls /health: it also watches the launchd job,
+      and fails within about a second when the engine exits while loading
+      (e.g. mlx-serve refusing for lack of memory) instead of sitting out
+      the whole start timeout.
+    * The failure carries the engine's own reason, read from the slot's
+      launchd stderr log written since the kickstart.
+    * Stop wins over start: `terminate` (and `cancel`) drop a cancel marker
+      that an in-progress start checks on every poll, so a stop never queues
+      behind a load for the full start timeout.
+    * Unlocked observers (`status`) persist a reconciliation only by
+      compare-and-swap, so a stale poll can never overwrite a record that a
+      lock holder wrote after the poll read it.
 
 MODEL / RUNTIME (Commission #5)
     A and B are EXECUTION SLOTS. Which model (and therefore which runtime —
@@ -61,6 +78,7 @@ MODEL / RUNTIME (Commission #5)
     executable occupies the one large-model resource.
 """
 import argparse
+import copy
 import errno
 import fcntl
 import json
@@ -197,19 +215,36 @@ def default_lease(cfg):
     }
 
 
-def read_lease(cfg):
+def _lease_file_bytes(cfg):
     try:
-        with open(cfg["lease"]) as f:
-            d = json.load(f)
-    except (OSError, ValueError):
-        return default_lease(cfg)
+        with open(cfg["lease"], "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def read_lease_raw(cfg):
+    """(lease, raw) where raw is the exact file content the lease was parsed
+    from (None when the file is absent). raw is the compare-and-swap token an
+    unlocked writer must still match before it may persist anything."""
+    raw = _lease_file_bytes(cfg)
+    try:
+        d = json.loads(raw.decode("utf-8")) if raw is not None else None
+    except (ValueError, UnicodeDecodeError):
+        d = None
+    if not isinstance(d, dict):
+        return default_lease(cfg), raw
     base = default_lease(cfg)
     base.update({k: v for k, v in d.items() if k in base})
     # Routing configuration can change independently of the last lease.
     base["alias"] = cfg["alias"]
     if base["state"] not in LIFECYCLE:
         base["state"] = STOPPED
-    return base
+    return base, raw
+
+
+def read_lease(cfg):
+    return read_lease_raw(cfg)[0]
 
 
 def write_lease(cfg, lease):
@@ -258,6 +293,35 @@ class Lock:
             self.fh.close()
 
 
+class TryLock:
+    """Non-blocking attempt at the controller lock. `with TryLock(cfg) as
+    held:` — held is False when a mutation owns the lock right now."""
+
+    def __init__(self, cfg):
+        self.path = cfg["lock"]
+        self.fh = None
+        self.held = False
+
+    def __enter__(self):
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        self.fh = open(self.path, "a+")
+        try:
+            fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.held = True
+        except OSError as e:
+            if e.errno not in (errno.EACCES, errno.EAGAIN):
+                self.fh.close()
+                raise
+        return self.held
+
+    def __exit__(self, *a):
+        try:
+            if self.held:
+                fcntl.flock(self.fh, fcntl.LOCK_UN)
+        finally:
+            self.fh.close()
+
+
 # --------------------------------------------------------------- observation
 def sh(cmd, timeout=20):
     try:
@@ -271,7 +335,7 @@ def obs_launchd(cfg):
     rc, out, _ = sh(["launchctl", "print", f"gui/{cfg['uid']}/{cfg['label']}"])
     if rc != 0:
         return {"bootstrapped": False, "state": None, "pid": None,
-                "runs": None, "last_exit": None}
+                "runs": None, "last_exit": None, "stderr_path": None}
     g = lambda pat: (re.search(pat, out, re.M).group(1).strip()
                      if re.search(pat, out, re.M) else None)
     pid = g(r'^\s*pid\s*=\s*(\d+)')
@@ -280,7 +344,8 @@ def obs_launchd(cfg):
             "state": g(r'^\s*state\s*=\s*(.+)$'),
             "pid": int(pid) if pid else None,
             "runs": int(runs) if runs else None,
-            "last_exit": g(r'^\s*last exit code\s*=\s*(.+)$')}
+            "last_exit": g(r'^\s*last exit code\s*=\s*(.+)$'),
+            "stderr_path": g(r'^\s*stderr path\s*=\s*(.+)$')}
 
 
 def classify_model_processes(cfg, ps_lines, signatures):
@@ -419,13 +484,27 @@ def observe(cfg, health_timeout=5):
 
 
 # ------------------------------------------------------------- reconciliation
-def reconcile(cfg, lease=None, orphan_policy="adopt", health_timeout=5):
+def reconcile(cfg, lease=None, orphan_policy="adopt", health_timeout=5,
+              locked=True):
     """Bring the recorded lease into agreement with observed reality.
 
     Returns (lease, observation, corrections). Never trusts the recorded state
     when observation contradicts it.
+
+    locked=True   the caller holds the controller Lock; the result is written.
+    locked=False  an observer such as `status`: destructive orphan policies are
+                  downgraded to 'report', and the result is persisted only by
+                  compare-and-swap (see _persist_observation), so a stale poll
+                  can never overwrite a record a lock holder wrote meanwhile.
     """
-    lease = read_lease(cfg) if lease is None else lease
+    raw = None
+    if lease is None:
+        lease, raw = read_lease_raw(cfg)
+    elif not locked:
+        raise ValueError("an unlocked reconcile must read the lease itself")
+    before = copy.deepcopy(lease)
+    if not locked and orphan_policy == "terminate":
+        orphan_policy = "report"
     o = observe(cfg, health_timeout)
     corrections = []
     rec = lease["state"]
@@ -554,11 +633,44 @@ def reconcile(cfg, lease=None, orphan_policy="adopt", health_timeout=5):
     if lease["state"] == STOPPED:
         lease["pid"] = None
 
-    write_lease(cfg, lease)
+    if locked:
+        write_lease(cfg, lease)
+    else:
+        _persist_observation(cfg, raw, before, lease)
     if corrections:
         log(cfg, "reconcile", corrections=corrections,
             recorded=rec, observed=obs, state=lease["state"])
     return lease, o, corrections
+
+
+def _persist_observation(cfg, raw_before, before, after):
+    """Compare-and-swap write for an unlocked reconcile.
+
+    Writes only when the reconciliation changed something, no mutation holds
+    the controller lock, and the lease file is still byte-identical to what
+    this observer read. On 2026-10-12 a status poll that read the lease just
+    before a start wrote STARTING (generation 42) wrote back its stale
+    STOPPED/41 copy afterwards; this is the fix. Returns True if written."""
+    def strip(d):
+        return {k: v for k, v in d.items() if k != "updated_at"}
+    if strip(before) == strip(after):
+        return False
+    state_moved = before.get("state") != after.get("state")
+    with TryLock(cfg) as held:
+        if not held:
+            if state_moved:
+                log(cfg, "reconcile.persist_skipped",
+                    reason="controller lock held by a mutation",
+                    observed_state=after.get("state"))
+            return False
+        if _lease_file_bytes(cfg) != raw_before:
+            if state_moved:
+                log(cfg, "reconcile.persist_skipped",
+                    reason="lease changed since this observer read it",
+                    observed_state=after.get("state"))
+            return False
+        write_lease(cfg, after)
+        return True
 
 
 # ------------------------------------------------------------ start and stop
@@ -594,16 +706,300 @@ def _do_stop(cfg, o=None, grace=45):
     return False
 
 
-def wait_ready(cfg, deadline, poll=0.5):
-    """Poll until the worker answers /health. Returns (ok, t_spawn, t_ready)."""
+# --------------------------------------------------------- start supervision
+def cancel_path(cfg):
+    return os.path.splitext(cfg["lock"])[0] + ".cancel"
+
+
+def request_cancel(cfg, by):
+    """Ask any start/acquire in progress on this slot to abort. Lock-free on
+    purpose: the start that must notice it is the one holding the lock."""
+    rec = {"requested_at": now(), "requested_at_iso": iso(now()), "by": by,
+           "pid": os.getpid()}
+    path = cancel_path(cfg)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.tmp.{os.getpid()}"
+    with open(tmp, "w") as f:
+        json.dump(rec, f)
+        f.write("\n")
+    os.replace(tmp, path)
+    log(cfg, "cancel.requested", by=by)
+    return rec
+
+
+def read_cancel(cfg):
+    """The pending cancel marker, or None. An unreadable marker counts as a
+    request of unknown age (requested_at 0), which every start treats as
+    stale — a corrupt file can never wedge the slot."""
+    path = cancel_path(cfg)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            rec = json.load(f)
+        return rec if isinstance(rec, dict) else {"requested_at": 0}
+    except (OSError, ValueError):
+        return {"requested_at": 0}
+
+
+def clear_cancel(cfg):
+    try:
+        os.remove(cancel_path(cfg))
+    except FileNotFoundError:
+        pass
+
+
+def cancel_requested(cfg, since):
+    """True when a cancel was requested at or after `since` (the moment the
+    operation being cancelled began). Older markers are stale."""
+    rec = read_cancel(cfg)
+    return bool(rec) and float(rec.get("requested_at") or 0) >= since
+
+
+def _consume_stale_cancel(cfg, t0):
+    """Drop a marker older than this operation (left by a terminate that
+    died early); return a fresh one if an operator already asked to stop."""
+    rec = read_cancel(cfg)
+    if rec is None:
+        return None
+    if float(rec.get("requested_at") or 0) < t0:
+        clear_cancel(cfg)
+        log(cfg, "cancel.stale_cleared", requested_at=rec.get("requested_at_iso"))
+        return None
+    return rec
+
+
+def log_size(path):
+    try:
+        return os.path.getsize(path)
+    except (OSError, TypeError):
+        return 0
+
+
+def read_log_since(path, offset, limit=256 * 1024, tail=64 * 1024):
+    """Text appended to a log since byte `offset` (at most `limit` bytes, the
+    newest). offset None means "just the last `tail` bytes" (used when the
+    start being diagnosed was begun by another controller process). A log
+    that shrank (rotated or truncated) is read from its start."""
+    try:
+        size = os.path.getsize(path)
+    except (OSError, TypeError):
+        return ""
+    if offset is None:
+        start = max(0, size - tail)
+    else:
+        if offset > size:
+            offset = 0
+        start = max(offset, size - limit)
+    try:
+        with open(path, "rb") as f:
+            f.seek(start)
+            return f.read(size - start).decode("utf-8", "replace")
+    except OSError:
+        return ""
+
+
+_INSUFFICIENT_RE = re.compile(
+    r"Insufficient memory to load model: needs ~([\d.]+) GB free "
+    r"\(([\d.]+) GB of weights.*?only ([\d.]+) GB is available")
+_PREFLIGHT_RE = re.compile(
+    r"\[preflight\] weights ~([\d.]+) GB, available ([\d.]+) GB")
+# Ranked: the first pattern with any match wins, and its LAST matching line
+# is quoted (the most recent attempt in a shared log).
+_REASON_PATTERNS = [
+    re.compile(r"refusing to launch"),                       # exec-slot gate
+    re.compile(r"(?i)model load failed|error loading model|failed to load "
+               r"model|unable to load model"),
+    re.compile(r"(?i)address already in use|AddressInUse|couldn'?t bind|"
+               r"could not bind|failed to bind|bind failed"),
+    re.compile(r"(?im)^[ \t]*(?:error|fatal)\b[: ]"),
+    re.compile(r"(?m)^[A-Za-z_][\w.]*(?:Error|Exception): "),
+]
+
+
+def _line_at(text, pos):
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    return text[start:end if end != -1 else len(text)].strip()
+
+
+def diagnose_start_failure(text):
+    """Pure: the decisive reason a runtime printed while failing to start.
+
+    Returns None when the text is empty, else {"kind", "summary", "line"}
+    plus parsed figures for a memory refusal. mlx-serve's preflight prints
+    "GB" but divides by 1024**3 (src/scheduler.zig), so its figures are GiB.
+    """
+    text = text or ""
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    if not lines:
+        return None
+    hits = list(_INSUFFICIENT_RE.finditer(text))
+    if hits:
+        m = hits[-1]
+        need, weights, avail = (float(x) for x in m.groups())
+        res = {"kind": "insufficient_memory", "required_gib": need,
+               "weights_gib": weights, "available_gib": avail,
+               "short_by_gib": round(max(0.0, need - avail), 1),
+               "line": _line_at(text, m.start()),
+               "summary": f"not enough free memory: it needs {need:.1f} GiB "
+                          f"free and only {avail:.1f} GiB was available"}
+        pre = [p for p in _PREFLIGHT_RE.finditer(text) if p.start() < m.start()]
+        if pre:
+            res["preflight_weights_gib"] = float(pre[-1].group(1))
+            res["preflight_available_gib"] = float(pre[-1].group(2))
+        return res
+    for pat in _REASON_PATTERNS:
+        found = list(pat.finditer(text))
+        if found:
+            line = _line_at(text, found[-1].start())
+            return {"kind": "engine_error", "line": line, "summary": line[:300]}
+    return {"kind": "unknown", "line": lines[-1], "summary": lines[-1][:300]}
+
+
+def wait_ready(cfg, deadline, poll=0.5, runs_before=None, cancel_since=None):
+    """Poll until the worker answers /health.
+
+    Returns (ok, t_spawn, t_ready, failure); failure is None on success, else
+    {"kind": "exited" | "cancelled" | "timeout", ...}.
+
+    Fails FAST when the launchd job has run and is no longer running: an
+    engine that refused or crashed while loading is reported within about a
+    second instead of after the whole deadline (the 2026-10-12 ten-minute
+    hang). "Has run" means launchd's run counter rose above `runs_before`, or
+    the job or a slot process was seen alive during this wait, so the window
+    before launchd registers the spawn can never be mistaken for an exit.
+    Two consecutive not-running observations are required. Aborts promptly
+    when an operator cancel newer than `cancel_since` appears."""
     t_spawn = None
+    seen_alive = False
+    gone_streak = 0
     while now() < deadline:
-        if t_spawn is None and obs_processes(cfg):
+        if cancel_since is not None and cancel_requested(cfg, cancel_since):
+            return False, t_spawn, None, {"kind": "cancelled",
+                                          "cancel": read_cancel(cfg)}
+        procs = obs_processes(cfg)
+        if t_spawn is None and procs:
             t_spawn = now()
         if obs_health(cfg, timeout=3)["ok"]:
-            return True, t_spawn, now()
+            return True, t_spawn, now(), None
+        ld = obs_launchd(cfg)
+        state = (ld.get("state") or "").strip()
+        alive = state == "running" or bool(ld.get("pid")) or bool(procs)
+        if alive:
+            seen_alive = True
+            gone_streak = 0
+        else:
+            ran = seen_alive or (runs_before is not None
+                                 and ld.get("runs") is not None
+                                 and ld["runs"] > runs_before)
+            if ran and state == "not running":
+                gone_streak += 1
+                if gone_streak >= 2:
+                    return False, t_spawn, None, {
+                        "kind": "exited", "last_exit": ld.get("last_exit"),
+                        "runs": ld.get("runs"),
+                        "stderr_path": ld.get("stderr_path")}
+            else:
+                gone_streak = 0
         time.sleep(poll)
-    return False, t_spawn, None
+    return False, t_spawn, None, {"kind": "timeout"}
+
+
+def _fail_start(cfg, args, lease, plan, failure, timeout, err_path, err_off,
+                verb, timeout_message=None):
+    """Common ending for a start/acquire that did not become healthy: read the
+    engine's reason, make sure nothing is left half-started, record it in the
+    lease, emit a machine-readable result, and exit with a precise code."""
+    failure = failure or {"kind": "timeout"}
+    kind = failure.get("kind", "timeout")
+    reason = None
+    if kind != "cancelled" and err_path:
+        reason = diagnose_start_failure(read_log_since(err_path, err_off))
+    stopped = _do_stop(cfg)
+    lease["state"] = STOPPED if stopped else STOPPING
+    lease["pid"] = None
+    lease["start_deadline"] = None
+    if verb == "acquire":
+        lease["owner"] = None
+    name = (plan or {}).get("display_name") or cfg["instance"]
+    runtime = (plan or {}).get("runtime") or lease.get("runtime") or "model"
+    if kind == "cancelled":
+        code = 9
+        message = f"start of {name} was cancelled by a stop request; the worker is stopped"
+    elif kind == "exited":
+        code = 8
+        ex = failure.get("last_exit")
+        message = (f"{name} failed to start: the {runtime} engine exited"
+                   + (f" with code {ex}" if ex and ex != "(never exited)" else "")
+                   + (f" — {reason['summary']}" if reason
+                      else " (its log gave no reason)"))
+    else:
+        code = 4
+        message = timeout_message or (
+            f"{cfg['instance']} did not become healthy within {timeout}s; "
+            f"worker stopped")
+        if reason:
+            message += f" — last engine output: {reason['summary']}"
+    if not stopped:
+        message += " (WARNING: the worker could not be confirmed stopped)"
+    lease["notes"] = [f"{verb} {kind} at {iso(now())}: {message}"]
+    write_lease(cfg, lease)
+    log(cfg, f"{verb}.{kind}", timeout_s=timeout, reason=reason,
+        engine_exit_code=failure.get("last_exit"), worker_stopped=stopped)
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "ok": False, "error": kind, "exit_code": code, "message": message,
+            "worker": cfg["instance"], "model_id": (plan or {}).get("model"),
+            "display_name": name, "runtime": runtime,
+            "engine_exit_code": failure.get("last_exit"), "reason": reason,
+            "log": err_path, "worker_stopped": stopped}, indent=2))
+    die(message, code)
+
+
+def _stderr_path(cfg, ld=None):
+    """Where the slot's runtime writes stderr: launchd's StandardErrorPath,
+    falling back to the slot log directory's stderr.log."""
+    return ((ld or {}).get("stderr_path")
+            or os.path.join(cfg["logdir"], "stderr.log"))
+
+
+def _plan_for_lease(lease):
+    """Plan-like identity of the model a recorded lease says is loading."""
+    mid = lease.get("model")
+    try:
+        disp = registry()["models"][mid].get("display_name")
+    except (KeyError, TypeError, AttributeError):
+        disp = None
+    return {"model": mid, "runtime": lease.get("runtime"), "display_name": disp}
+
+
+def _runs_before_adopted_start(o):
+    """For a STARTING lease left by another controller process: if launchd
+    already reports the job not running and no slot process exists, the
+    worker ran and is gone, so let wait_ready report the exit immediately."""
+    ld = o.get("launchd") or {}
+    if ((ld.get("state") or "").strip() == "not running"
+            and not o.get("processes")):
+        return max(0, (ld.get("runs") or 1) - 1)
+    return None
+
+
+def _refuse_cancelled_before_spawn(cfg, args, t0, plan, verb):
+    """A stop that arrived while this operation waited for the lock wins
+    before anything is spawned; nothing needs stopping."""
+    rec = _consume_stale_cancel(cfg, t0)
+    if rec is None:
+        return
+    name = (plan or {}).get("display_name") or cfg["instance"]
+    message = f"start of {name} was cancelled by a stop request before it began"
+    log(cfg, f"{verb}.cancelled_before_spawn", by=rec.get("by"))
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": False, "error": "cancelled", "exit_code": 9,
+                          "message": message, "worker": cfg["instance"],
+                          "model_id": (plan or {}).get("model"),
+                          "display_name": name}, indent=2))
+    die(message, 9)
 
 
 # ----------------------------------------------- production start / restart
@@ -658,15 +1054,19 @@ def _start_locked(cfg, args, t0):
 
     if state == STARTING:
         timeout = args.timeout or cfg["start_timeout"]
-        ok, _, _ = wait_ready(cfg, deadline=now() + timeout)
+        ok, _, _, failure = wait_ready(
+            cfg, deadline=now() + timeout,
+            runs_before=_runs_before_adopted_start(o), cancel_since=t0)
         lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
         state = lease["state"]
-        if not ok and state not in (READY, IDLE, BUSY):
-            log(cfg, "start.starting_timeout", timeout_s=timeout)
-            _do_stop(cfg)
-            reconcile(cfg, orphan_policy=args.orphan_policy)
-            die(f"a worker was already STARTING but did not become healthy "
-                f"within {timeout}s; it has been stopped", 4)
+        cancelled = (failure or {}).get("kind") == "cancelled"
+        if cancelled or (not ok and state not in (READY, IDLE, BUSY)):
+            _fail_start(cfg, args, lease, _plan_for_lease(lease), failure,
+                        timeout, _stderr_path(cfg, o["launchd"]), None,
+                        "start", timeout_message=(
+                            f"a worker was already STARTING but did not "
+                            f"become healthy within {timeout}s; it has been "
+                            f"stopped"))
 
     if state in (READY, IDLE, BUSY):
         if not observe(cfg)["health"]["ok"]:
@@ -691,6 +1091,7 @@ def _start_locked(cfg, args, t0):
                 f"refusing to start {cfg['instance']}", 5)
 
         plan, _ = _resolve_launch(cfg)
+        _refuse_cancelled_before_spawn(cfg, args, t0, plan, "start")
         timeout = args.timeout or max(cfg["start_timeout"], plan["start_timeout_s"])
         lease["state"] = STARTING
         lease["owner"] = None
@@ -706,6 +1107,9 @@ def _start_locked(cfg, args, t0):
         log(cfg, "start.begin", generation=lease["generation"],
             model=plan["model"], runtime=plan["runtime"])
 
+        ld0 = obs_launchd(cfg)
+        err_path = _stderr_path(cfg, ld0)
+        err_off = log_size(err_path)
         t_kick = now()
         rc, msg = _kickstart(cfg)
         if rc != 0:
@@ -713,18 +1117,12 @@ def _start_locked(cfg, args, t0):
             write_lease(cfg, lease)
             die(f"launchctl kickstart failed (rc={rc}): {msg}", 1)
 
-        ok, t_spawn, t_ready = wait_ready(cfg, deadline=t_kick + timeout)
+        ok, t_spawn, t_ready, failure = wait_ready(
+            cfg, deadline=t_kick + timeout,
+            runs_before=ld0.get("runs") or 0, cancel_since=t0)
         if not ok:
-            log(cfg, "start.timeout", timeout_s=timeout)
-            _do_stop(cfg)
-            lease["state"] = STOPPED
-            lease["pid"] = None
-            lease["start_deadline"] = None
-            lease["notes"] = [f"start timed out after {timeout}s at "
-                              f"{iso(now())}; worker stopped"]
-            write_lease(cfg, lease)
-            die(f"{cfg['instance']} did not become healthy within {timeout}s; "
-                f"worker stopped", 4)
+            _fail_start(cfg, args, lease, plan, failure, timeout, err_path,
+                        err_off, "start")
 
         o2 = observe(cfg)
         lease["state"] = READY
@@ -824,7 +1222,10 @@ def cmd_restart(cfg, args):
 
 # ------------------------------------------------------------------ commands
 def cmd_status(cfg, args):
-    lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy)
+    # An observer: never holds the lock, so it never queues behind a start,
+    # and persists what it learned only by compare-and-swap.
+    lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy,
+                               locked=False)
     idle_remaining = None
     if lease["state"] == IDLE and lease.get("idle_since"):
         idle_remaining = round(lease["idle_ttl_seconds"]
@@ -981,16 +1382,19 @@ def cmd_acquire(cfg, args):
             # Someone (or an adopted orphan) is already loading. Wait for it
             # rather than starting a second worker.
             timeout = args.timeout or cfg["start_timeout"]
-            ok, _, _ = wait_ready(cfg, deadline=now() + timeout)
+            ok, _, _, failure = wait_ready(
+                cfg, deadline=now() + timeout,
+                runs_before=_runs_before_adopted_start(o), cancel_since=t0)
             lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
             state = lease["state"]
-            if not ok and state not in (READY, IDLE, BUSY):
-                log(cfg, "acquire.starting_timeout", owner=args.owner,
-                    timeout_s=timeout)
-                _do_stop(cfg)
-                lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
-                die(f"a worker was already STARTING but did not become healthy "
-                    f"within {timeout}s; it has been stopped", 4)
+            cancelled = (failure or {}).get("kind") == "cancelled"
+            if cancelled or (not ok and state not in (READY, IDLE, BUSY)):
+                _fail_start(cfg, args, lease, _plan_for_lease(lease), failure,
+                            timeout, _stderr_path(cfg, o["launchd"]), None,
+                            "acquire", timeout_message=(
+                                f"a worker was already STARTING but did not "
+                                f"become healthy within {timeout}s; it has "
+                                f"been stopped"))
 
         # ---- reuse path: worker already loaded, no model reload -------------
         if state in (READY, IDLE, BUSY):
@@ -1022,6 +1426,7 @@ def cmd_acquire(cfg, args):
                     f"refusing to start {cfg['instance']}", 5)
 
             plan, _ = _resolve_launch(cfg)
+            _refuse_cancelled_before_spawn(cfg, args, t0, plan, "acquire")
             timeout = args.timeout or max(cfg["start_timeout"], plan["start_timeout_s"])
             lease["state"] = STARTING
             lease["owner"] = args.owner
@@ -1038,6 +1443,9 @@ def cmd_acquire(cfg, args):
                 generation=lease["generation"], model=plan["model"],
                 runtime=plan["runtime"])
 
+            ld0 = obs_launchd(cfg)
+            err_path = _stderr_path(cfg, ld0)
+            err_off = log_size(err_path)
             t_kick = now()
             rc, msg = _kickstart(cfg)
             if rc != 0:
@@ -1046,19 +1454,15 @@ def cmd_acquire(cfg, args):
                 write_lease(cfg, lease)
                 die(f"launchctl kickstart failed (rc={rc}): {msg}", 1)
 
-            ok, t_spawn, t_ready = wait_ready(cfg, deadline=t_kick + timeout)
+            ok, t_spawn, t_ready, failure = wait_ready(
+                cfg, deadline=t_kick + timeout,
+                runs_before=ld0.get("runs") or 0, cancel_since=t0)
             if not ok:
-                log(cfg, "acquire.timeout", owner=args.owner, timeout_s=timeout)
-                _do_stop(cfg)
-                lease["state"] = STOPPED
-                lease["owner"] = None
-                lease["pid"] = None
-                lease["start_deadline"] = None
-                lease["notes"] = [f"start timed out after {timeout}s at "
-                                  f"{iso(now())}; worker stopped and lease cleared"]
-                write_lease(cfg, lease)
-                die(f"{cfg['instance']} did not become healthy within "
-                    f"{timeout}s; worker stopped, lease cleared", 4)
+                _fail_start(cfg, args, lease, plan, failure, timeout, err_path,
+                            err_off, "acquire", timeout_message=(
+                                f"{cfg['instance']} did not become healthy "
+                                f"within {timeout}s; worker stopped, lease "
+                                f"cleared"))
 
             o2 = observe(cfg)
             lease["state"] = BUSY
@@ -1155,7 +1559,22 @@ def cmd_release(cfg, args):
     return 0
 
 
+def _cancel_permitted(cfg, args):
+    """An owned lease (a Qwen-B job) is only ever cancelled deliberately."""
+    lease = read_lease(cfg)
+    return (not lease.get("owner")) or bool(getattr(args, "force", False)), lease
+
+
 def cmd_terminate(cfg, args):
+    # Stop wins over start. A start that is loading holds the lock for its
+    # whole load; without this marker terminate would queue behind it (up to
+    # the start timeout). The marker makes that start abort within a poll.
+    # It is deliberately left in place afterwards: a start or acquire that was
+    # requested BEFORE this terminate but has not got the lock yet must see it
+    # too. Any later start clears it as stale.
+    permitted, _ = _cancel_permitted(cfg, args)
+    if permitted:
+        request_cancel(cfg, by=getattr(args, "by", None) or "terminate")
     with Lock(cfg, timeout=args.lock_timeout):
         lease, o, _ = reconcile(cfg, orphan_policy=args.orphan_policy)
         if lease["state"] == BUSY and not args.force:
@@ -1169,11 +1588,12 @@ def cmd_terminate(cfg, args):
 
         before = {"pid": o["pid"], "rss_gib": o["rss_gib"],
                   "socket_listening": o["socket"]["listening"]}
+        previous_state = lease["state"]
         lease["state"] = STOPPING
         lease["stop_deadline"] = now() + 60
         write_lease(cfg, lease)
         log(cfg, "terminate.begin", pid=o["pid"], forced=bool(args.force),
-            previous_state=lease["state"])
+            previous_state=previous_state)
 
         t0 = now()
         ok = _do_stop(cfg, o)
@@ -1270,7 +1690,58 @@ def cmd_heartbeat(cfg, args):
     return 0
 
 
+def cmd_cancel(cfg, args):
+    """Ask a start/acquire in progress (or still waiting for the lock) on this
+    slot to abort. Lock-free on purpose and returns at once; the start that
+    sees the marker stops its worker and exits 9. `--wait N` then waits up to
+    N seconds for the lock to come free and reports the resulting state."""
+    permitted, lease = _cancel_permitted(cfg, args)
+    if not permitted:
+        sys.stderr.write(
+            f"qwenctl: refusing to cancel — {cfg['instance']} is "
+            f"{lease['state']} for owner '{lease['owner']}'. Use --force to "
+            f"override deliberately.\n")
+        sys.exit(3)
+    rec = request_cancel(cfg, by=args.by or "cancel")
+    in_progress = lease["state"] == STARTING
+    settled = None
+    if args.wait and args.wait > 0:
+        deadline = now() + args.wait
+        settled = False
+        while now() < deadline:
+            with TryLock(cfg) as held:
+                if held:
+                    settled = True
+                    break
+            time.sleep(0.25)
+        lease = read_lease(cfg)
+    res = {"ok": True, "worker": cfg["instance"],
+           "cancel_requested_at": rec["requested_at_iso"], "by": rec["by"],
+           "start_in_progress": in_progress, "state": lease["state"],
+           "settled": settled,
+           "note": ("the start in progress will abort and stop its worker"
+                    if in_progress else
+                    "no start is in progress; any start already waiting for "
+                    "the lock will be refused, later starts are unaffected")}
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"CANCEL requested for {cfg['instance']}  state={res['state']}  "
+              f"by={res['by']}")
+        print(f"  {res['note']}")
+        if settled is not None:
+            print(f"  settled={settled}")
+    return 0
+
+
 def cmd_reconcile(cfg, args):
+    # A mutation (it may adopt or, with --orphan-policy terminate, kill), so it
+    # serialises with start/stop like every other writer.
+    with Lock(cfg, timeout=args.lock_timeout):
+        return _reconcile_locked(cfg, args)
+
+
+def _reconcile_locked(cfg, args):
     before = read_lease(cfg)
     lease, o, corr = reconcile(cfg, orphan_policy=args.orphan_policy)
     res = {"recorded_before": before["state"],
@@ -1363,9 +1834,21 @@ def main():
     r = common(sub.add_parser("release", help="give the lease back -> IDLE"),
                owner=True)
     r.add_argument("--force", action="store_true")
-    t = common(sub.add_parser("terminate", help="stop the worker now -> STOPPED"))
+    t = common(sub.add_parser("terminate", help="stop the worker now -> STOPPED "
+                                               "(cancels a start in progress)"))
     t.add_argument("--force", action="store_true",
                    help="terminate even if the worker is BUSY")
+    t.add_argument("--by", default=None,
+                   help="who asked (recorded in the cancel marker and log)")
+    c = common(sub.add_parser("cancel", help="abort a start/acquire in progress "
+                                            "(lock-free, returns at once)"))
+    c.add_argument("--force", action="store_true",
+                   help="also cancel an acquire that names a lease owner")
+    c.add_argument("--by", default=None,
+                   help="who asked (recorded in the cancel marker and log)")
+    c.add_argument("--wait", type=float, default=0,
+                   help="seconds to wait for the aborted start to release the "
+                        "lock (default 0: return immediately)")
     rp = common(sub.add_parser("reap", help="terminate if the idle TTL expired"))
     rp.add_argument("--verbose", action="store_true")
     common(sub.add_parser("heartbeat", help="refresh a held lease"), owner=True)
@@ -1377,7 +1860,8 @@ def main():
     cfg = load_config(args.config)
     fn = {"status": cmd_status, "health": cmd_health, "start": cmd_start,
           "restart": cmd_restart, "acquire": cmd_acquire,
-          "release": cmd_release, "terminate": cmd_terminate, "reap": cmd_reap,
+          "release": cmd_release, "terminate": cmd_terminate,
+          "cancel": cmd_cancel, "reap": cmd_reap,
           "heartbeat": cmd_heartbeat, "reconcile": cmd_reconcile,
           "logs": cmd_logs}[args.cmd]
     sys.exit(fn(cfg, args) or 0)

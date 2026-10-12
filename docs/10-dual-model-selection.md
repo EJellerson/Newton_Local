@@ -123,6 +123,14 @@ the selector is disabled and says why. Changing it POSTs
 `/api/model/select` and only records the choice — nothing starts. Errors are
 shown inline, never swallowed. `GET /api/models` exposes the registry view.
 
+Since 2026-10-12 each model also carries an advisory **memory fit** while
+both slots are stopped — *fits in free memory*, *memory is tight*, or
+*probably won't fit right now* — computed with mlx-serve's own admission
+formula (`models.<id>.memory.admission` in the registry; Flash-Next needs
+77.13 GiB free). A warning appears above Start when the selected model will
+probably not fit. It never blocks Start; the engine's own check decides,
+and a refusal is reported within seconds with its reason (docs/16).
+
 ```
 scripts/newton-model list                      # models, availability, selection
 scripts/newton-model status [--json]           # + lock state, slot leases
@@ -130,7 +138,7 @@ scripts/newton-model select qwen27b            # both slots must be stopped
 scripts/newton-model select flash-next         # refused while unavailable
 scripts/newton-model verify [id] [--deep]
 scripts/newton-model plan A|B [--model id] [--argv]
-scripts/qwen-a start | terminate | restart | status      (slot A)
+scripts/qwen-a start | terminate | restart | status | cancel   (slot A)
 scripts/qwen-b acquire --owner X | release | terminate    (slot B)
 ```
 CLI and panel read and write the same `state/model-selection.json`.

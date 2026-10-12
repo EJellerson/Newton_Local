@@ -182,11 +182,14 @@ else
     [ "$CODE" = "422" ] && ok "select flash-next refused: unavailable on this host (422)" || bad "unavailable select got $CODE"
     note "flash-next unavailable here: $(jget "$M" "'; '.join(d['models']['flash-next']['reasons'])")"
 fi
+# Restore the operator's selection exactly as found (never force the default:
+# the operator may have chosen Flash-Next deliberately).
 CODE=$(curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST -H 'X-Newton-Control: 1' \
-       -H 'Content-Type: application/json' -d '{"model":"qwen27b"}' "$CTRL/api/model/select")
-[ "$CODE" = "200" ] && ok "select qwen27b accepted (200) — restored default" || bad "select qwen27b got $CODE"
-[ "$("$REPO/scripts/newton-model" status --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["selected"], d["selection_source"])')" = "qwen27b recorded" ] \
-    && ok "CLI: selected qwen27b (recorded) — same state file as the panel" || bad "CLI state mismatch"
+       -H 'Content-Type: application/json' -d "{\"model\":\"$SEL_BEFORE\"}" "$CTRL/api/model/select")
+[ "$CODE" = "200" ] && ok "select $SEL_BEFORE accepted (200) — operator's selection restored" \
+    || bad "restoring the selection $SEL_BEFORE got $CODE"
+[ "$("$REPO/scripts/newton-model" status --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["selected"], d["selection_source"])')" = "$SEL_BEFORE recorded" ] \
+    && ok "CLI: selected $SEL_BEFORE (recorded) — same state file as the panel" || bad "CLI state mismatch"
 [ -f "$REPO/state/model-selection.json" ] && ok "selection persisted at state/model-selection.json" || bad "selection file missing"
 no_qwen && ok "selection operations started nothing" || bad "a model process appeared during selection tests"
 rm -f "$M"

@@ -5,7 +5,9 @@
 #
 #   qwen-a status
 #   qwen-a start                 (refuses while Qwen-B / any peer is active)
-#   qwen-a terminate             (stop; idempotent when already stopped)
+#   qwen-a terminate             (stop; idempotent when already stopped;
+#                                 first cancels a start that is still loading)
+#   qwen-a cancel                (abort a start in progress; returns at once)
 #   qwen-a restart
 #   qwen-a health
 #   qwen-a reconcile

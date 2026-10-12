@@ -29,6 +29,14 @@ DESIGN
       operations (one at a time) and is idempotent per button.
     * The service holds no secrets. The Hermes bearer key is read from the
       profile .env only to probe /health and is never sent to the page.
+    * START SUPERVISION (2026-10-12): a start that the engine refuses fails
+      within seconds with the engine's own reason (qwenctl exit 8), shown on
+      the page in plain words. Stop stays available while a start is in
+      flight and CANCELS it: the page's Stop drops qwenctl's cancel marker,
+      the start aborts within a poll and stops its worker, and this service
+      confirms the stop. Next to the model choice the page shows whether the
+      model will probably fit in the memory that is free right now
+      (advisory; the engine's own check still decides).
 
 SECURITY
     Loopback bind; Host-header allow-list (anti DNS-rebinding); mutating
@@ -76,6 +84,7 @@ WATCHDOG_PERIOD_S = 15
 
 START_TIMEOUT_S = 700                  # ceiling on a qwenctl start/restart call (Flash-Next cold load: registry 600 s)
 STOP_TIMEOUT_S = 150
+CANCELLABLE_OPS = ("start", "restart")  # Stop pressed during these cancels them
 
 
 # ------------------------------------------------------------------ utilities
@@ -182,9 +191,10 @@ def qwen_status():
 
 
 # --------------------------------------------------------------- UI mapping
-def map_ui_state(ctl_state, health_ok, desired, op_name, recovery_gave_up):
+def map_ui_state(ctl_state, health_ok, desired, op_name, recovery_gave_up,
+                 cancelling=False):
     """Pure mapping from controller truth to the operator-facing state."""
-    if op_name == "stop":
+    if op_name == "stop" or (cancelling and op_name in CANCELLABLE_OPS):
         return "Stopping"
     if op_name in ("start", "restart"):
         return "Starting"
@@ -223,8 +233,24 @@ def webui_probe():
     return {"up": st == 200, "http": st}
 
 
-def memory_probe():
+def memory_measure():
+    """(panel memory row, vm page counts, hw.memsize) from ONE vm_stat read.
+    The row's models_free_gib is free memory as mlx-serve's load check
+    computes it, so the number on the page is the number the engine uses."""
     rc, out, _ = sh(["vm_stat"])
+    row = _memory_row(out)
+    counts = nm.vm_counts(out)
+    total = nm.host_memory_bytes()
+    row["models_free_gib"] = (round(nm.engine_available_bytes(total, counts) / 2**30, 1)
+                              if counts and total else None)
+    return row, counts, total
+
+
+def memory_probe():
+    return memory_measure()[0]
+
+
+def _memory_row(out):
     pages = {}
     for line in out.splitlines():
         m = re.match(r"^(.*?):\s+(\d+)\.?$", line.strip())
@@ -284,24 +310,47 @@ class Ops:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self.current = None            # {"name", "started_at"}
+        self.current = None            # {"name", "started_at", "cancelling"}
         self.last = None               # {"name", "ok", "message", ...}
+        self.cancel = None             # {"requested_at", "by"} while cancelling
         self.recovery = {"attempts": 0, "next_at": 0.0, "gave_up": False}
 
     def begin(self, name):
         with self._lock:
             if self.current:
                 return False
-            self.current = {"name": name, "started_at": now()}
+            self.current = {"name": name, "started_at": now(),
+                            "cancelling": False}
+            self.cancel = None
             return True
 
-    def finish(self, name, ok, message):
+    def request_cancel(self, by):
+        """Mark the in-flight start/restart as cancelled by the operator.
+        Returns that operation's name, or None when nothing cancellable is
+        running (no operation, or a stop that is already running)."""
+        with self._lock:
+            if not self.current or self.current["name"] not in CANCELLABLE_OPS:
+                return None
+            if self.cancel is None:
+                self.cancel = {"requested_at": now(), "by": by}
+                self.current["cancelling"] = True
+            return self.current["name"]
+
+    def cancel_requested(self):
+        with self._lock:
+            return self.cancel is not None
+
+    def finish(self, name, ok, message, **extra):
         with self._lock:
             self.last = {"name": name, "ok": ok, "message": message[:500],
                          "finished_at": now(),
                          "finished_at_iso": time.strftime("%H:%M:%S")}
+            self.last.update(extra)
             self.current = None
-        log_event("op.finish", name=name, ok=ok, message=message[:500])
+            self.cancel = None
+        log_event("op.finish", name=name, ok=ok, message=message[:500],
+                  **{k: v for k, v in extra.items()
+                     if k in ("cancelled", "error", "exit_code")})
 
     def reset_recovery(self):
         self.recovery = {"attempts": 0, "next_at": 0.0, "gave_up": False}
@@ -315,11 +364,84 @@ def _tail(text, n=3):
     return " | ".join(lines[-n:]) if lines else ""
 
 
+def _parse_json(text):
+    try:
+        v = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    return v if isinstance(v, dict) else None
+
+
+def describe_start_failure(res, fallback):
+    """Pure: the operator-facing sentence for a failed start, from qwenctl's
+    --json failure record (exit 4 timeout, 8 engine exited, 9 cancelled).
+    Returns (message, extra) where extra carries the structured reason."""
+    if not res or res.get("ok") is not False or not res.get("error"):
+        return fallback, {}
+    name = res.get("display_name") or res.get("model_id") or "The model"
+    reason = res.get("reason") or {}
+    kind = res.get("error")
+    if kind == "exited" and reason.get("kind") == "insufficient_memory":
+        msg = (f"Not enough free memory to load {name}: it needs "
+               f"{reason['required_gib']:.1f} GiB free and only "
+               f"{reason['available_gib']:.1f} GiB was available. Close other "
+               f"memory-heavy apps and try again, or choose a smaller model.")
+    elif kind == "exited":
+        why = reason.get("summary") or "the engine exited without giving a reason"
+        msg = f"{name} failed to start: {why}"
+    elif kind == "cancelled":
+        msg = "Start cancelled; the model is stopped."
+    elif kind == "timeout":
+        msg = f"{name} did not become ready in time and was stopped."
+        if reason.get("summary"):
+            msg += f" Last engine output: {reason['summary']}"
+    else:
+        msg = res.get("message") or fallback
+    if res.get("worker_stopped") is False:
+        msg += " Warning: the model could not be confirmed stopped."
+    extra = {"error": kind, "exit_code": res.get("exit_code"),
+             "reason": reason or None, "log": res.get("log")}
+    if kind == "cancelled":
+        extra["cancelled"] = True
+    return msg, extra
+
+
+def _finish_cancelled(name):
+    """Stop was pressed while a start/restart was in flight. The aborted start
+    already stopped its own worker; confirm the slot really is stopped (an
+    idempotent terminate) and report it as what the operator asked for."""
+    rc, out, err = qwenctl("terminate", "--force", "--by", "panel:cancel",
+                           timeout=STOP_TIMEOUT_S)
+    if rc == 0:
+        OPS.finish(name, True, "Start cancelled; the model is stopped.",
+                   cancelled=True)
+    else:
+        OPS.finish(name, False, "Start cancelled, but the model could not be "
+                   "confirmed stopped: " + (_tail(err or out) or f"rc={rc}"),
+                   cancelled=True)
+
+
+def _finish_failed_start(name, by, rc, out, err, desired_note):
+    """A start/restart that qwenctl did not complete. Keeps the watchdog from
+    retrying a start the controller refused, and explains why it failed."""
+    res = _parse_json(out)
+    write_desired("STOPPED", f"{by}:{desired_note}")
+    msg, extra = describe_start_failure(
+        res, _tail(err or out) or f"{name} failed rc={rc}")
+    if extra.get("cancelled"):
+        # Cancelled from outside the page (qwen-a cancel / terminate in a shell).
+        OPS.finish(name, True, msg, **extra)
+    else:
+        OPS.finish(name, False, msg, **extra)
+
+
 def op_start(by="panel"):
     """Start exactly one production model — the globally selected one. Idempotent."""
     write_desired("RUNNING", by)
     OPS.reset_recovery()
     rc, out, err = qwenctl("start", timeout=START_TIMEOUT_S)
+    if OPS.cancel_requested():
+        return _finish_cancelled("start")
     if rc == 0:
         try:
             res = json.loads(out)
@@ -331,8 +453,7 @@ def op_start(by="panel"):
     else:
         # A failed explicit start must not leave the watchdog retrying a
         # start the controller just refused (peer active, timeout, ...).
-        write_desired("STOPPED", f"{by}:start-failed")
-        OPS.finish("start", False, _tail(err or out) or f"start failed rc={rc}")
+        _finish_failed_start("start", by, rc, out, err, "start-failed")
 
 
 def op_stop(by="panel"):
@@ -357,11 +478,12 @@ def op_restart(by="panel"):
     write_desired("RUNNING", by)
     OPS.reset_recovery()
     rc, out, err = qwenctl("restart", timeout=START_TIMEOUT_S + STOP_TIMEOUT_S)
+    if OPS.cancel_requested():
+        return _finish_cancelled("restart")
     if rc == 0:
         OPS.finish("restart", True, "model restarted and healthy.")
     else:
-        write_desired("STOPPED", f"{by}:restart-failed")
-        OPS.finish("restart", False, _tail(err or out) or f"restart failed rc={rc}")
+        _finish_failed_start("restart", by, rc, out, err, "restart-failed")
 
 
 def run_op(name, fn):
@@ -409,15 +531,24 @@ def watchdog_loop():
             if not OPS.begin("start"):
                 continue
             rc, out, err = qwenctl("start", timeout=START_TIMEOUT_S)
+            if OPS.cancel_requested():
+                # The operator pressed Stop during the recovery start.
+                OPS.reset_recovery()
+                _finish_cancelled("start")
+                continue
             ok = rc == 0
             r["attempts"] = 0 if ok else attempt
             backoff = RECOVERY_BACKOFF_S[min(attempt,
                                              len(RECOVERY_BACKOFF_S) - 1)]
             r["next_at"] = now() + backoff
-            OPS.finish("start", ok,
-                       "model recovered after an unexpected exit." if ok
-                       else f"recovery attempt {attempt} failed: "
-                            f"{_tail(err or out)}")
+            if ok:
+                OPS.finish("start", True,
+                           "model recovered after an unexpected exit.")
+            else:
+                msg, extra = describe_start_failure(_parse_json(out),
+                                                    _tail(err or out))
+                OPS.finish("start", False,
+                           f"recovery attempt {attempt} failed: {msg}", **extra)
         except Exception as e:              # the watchdog must never die
             log_event("watchdog.error", error=str(e)[:300])
 
@@ -454,18 +585,37 @@ def models_summary():
 
 
 # ------------------------------------------------------------------ status
+def attach_memory_fit(models, lock_reasons, counts, total):
+    """Per-model advisory fit, only while everything is stopped (while a model
+    is loaded its own memory would make every other model look too big)."""
+    fits = {}
+    if not lock_reasons and models and counts and total:
+        try:
+            fits = nm.memory_fits(nm.load_registry(), total_bytes=total,
+                                  counts=counts)
+        except Exception as e:                  # advisory: never break status
+            log_event("memory_fit.error", error=str(e)[:300])
+            fits = {}
+    for mid, m in models.items():
+        m["memory_fit"] = fits.get(mid)
+    return models
+
+
 def assemble_status():
     st = qwen_status()
     desired = effective_desired(read_desired_record(), boot_time_sec())
     op = OPS.current
     ui_state = map_ui_state(st.get("state"), st.get("health_ok"),
                             desired, op["name"] if op else None,
-                            OPS.recovery["gave_up"])
+                            OPS.recovery["gave_up"],
+                            cancelling=bool(op and op.get("cancelling")))
     b = qwen_b_probe()
     legacy = legacy_daemon_probe()
     ms = models_summary()
     identity = resident_identity()
     lock_reasons = selection_lock_reasons(ui_state, b, st.get("peer_processes"))
+    mem_row, mem_counts, mem_total = memory_measure()
+    attach_memory_fit(ms["models"], lock_reasons, mem_counts, mem_total)
     return {
         "model": {
             "state": ui_state,
@@ -494,7 +644,7 @@ def assemble_status():
         "chat_url": WEBUI_URL,
         "qwen_b": b,
         "legacy_daemon": legacy,
-        "memory": memory_probe(),
+        "memory": mem_row,
         "control": {"port": SERVER_PORT, "pid": os.getpid(),
                     "boot_sec": boot_time_sec()},
         "ts": now(),
@@ -578,6 +728,10 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/model/select":
             return self._select()
+        if path == "/api/model/stop":
+            inflight = OPS.request_cancel(by="panel")
+            if inflight:
+                return self._cancel_inflight(inflight)
         ops = {"/api/model/start": ("start", op_start),
                "/api/model/stop": ("stop", op_stop),
                "/api/model/restart": ("restart", op_restart)}
@@ -589,6 +743,20 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(409, {"ok": False,
                                 "error": "another operation is in progress",
                                 "operation": OPS.current})
+
+    def _cancel_inflight(self, name):
+        """Stop pressed while a start/restart is in flight: cancel it rather
+        than queue behind it. desired=STOPPED first (the watchdog must never
+        restart it), then qwenctl's lock-free cancel marker, which the start
+        checks on every poll; the operation thread confirms the stop."""
+        write_desired("STOPPED", "panel:cancel")
+        rc, out, err = qwenctl("cancel", "--by", "panel", timeout=20)
+        log_event("op.cancel", name=name, qwenctl_rc=rc,
+                  detail=_tail(err or out)[:300] if rc else None)
+        return self._json(202, {"ok": rc == 0, "operation": "cancel",
+                                "cancelling": name,
+                                "note": "the start is being cancelled; the "
+                                        "model will be stopped"})
 
     def _select(self):
         """Change the global model selection. Never starts anything.

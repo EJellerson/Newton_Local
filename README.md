@@ -60,7 +60,12 @@ model is OFF until you click Start, and OFF again after every reboot**. Stop
 unloads it and keeps it unloaded (`KeepAlive=false` plus a desired-state
 watchdog that never resurrects an intentional stop); while it is
 *intentionally* running, that same watchdog recovers it after a crash. The
-production path enforces **at most one** active Qwen instance. A chat sent
+production path enforces **at most one** active Qwen instance. A start the
+engine refuses (for example for lack of free memory) fails within seconds
+with the engine's reason on the page; Stop also cancels a start that is
+still loading; and the model selector warns when a model will probably not
+fit in the memory that is free
+([docs/16](docs/16-start-supervision.md)). A chat sent
 while the model is off fails clearly — there is no cloud fallback to leak to.
 Runbook: [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md).
 
@@ -168,6 +173,7 @@ tail -f logs/qwen-a/stderr.log
 | [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md) | **Newton AI Control runbook** — on-demand Qwen-A, boot policy, singleton enforcement, watchdog semantics, the control panel and app, deferred live tests |
 | [docs/10-dual-model-selection.md](docs/10-dual-model-selection.md) | **Dual-model runbook** — model registry, global selection contract, execution slots + launch shim, runtimes, Flash-Next provenance and host requirement, UI/CLI, heterogeneous singleton, deferred live proving |
 | [models/qwen38-flash-next-mlx-4bit/MANIFEST.md](models/qwen38-flash-next-mlx-4bit/MANIFEST.md) | Flash-Next record: architecture, file inventory, hash verification, engine requirement |
+| [docs/16-start-supervision.md](docs/16-start-supervision.md) | **Start supervision** — the 2026-10-12 stuck start: fail-fast on engine exit, the engine's reason in the panel, Stop cancels a start, status polls never clobber the record, advisory memory fit |
 
 ## What is not in this repository
 

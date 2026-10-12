@@ -66,7 +66,9 @@
       "context_length": 262144,
       "vision": {"enabled": true, "mmproj": "mmproj-Qwen3.8-27B-f16.gguf"},
       "start_timeout_s": 300,
-      "memory": {"resident_gib_expected": 47, "min_unified_gib": 64},
+      "memory": {"resident_gib_expected": 47, "min_unified_gib": 64,
+                 "admission": {"rule": "fixed", "required_gib": 52,
+                               "basis": "llama.cpp has no load preflight; ~47 GiB measured resident at 262144 context, plus 5 GiB headroom"}},
       "args": [
         "--model", "{path}/Qwen3.8-27B-Q8_0.gguf",
         "--mmproj", "{path}/mmproj-Qwen3.8-27B-f16.gguf",
@@ -96,7 +98,8 @@
       "context_length": 262144,
       "vision": {"enabled": true, "tower": "model-vision.safetensors"},
       "start_timeout_s": 600,
-      "memory": {"resident_gib_expected": 68, "min_unified_gib": 96},
+      "memory": {"resident_gib_expected": 68, "min_unified_gib": 96,
+                 "admission": {"rule": "mlx-serve-preflight"}},
       "args": [
         "--model", "{path}",
         "--serve",

@@ -24,6 +24,11 @@ CONTRACT
       requirement, and answers `--version`.
     * Launch plan: slot + model -> executable, argv, endpoint, health probe.
       `exec-slot` is what the LaunchAgents run: resolve, gate, execv.
+    * Memory fit (advisory, 2026-10-12): an estimate of whether a model will
+      fit in the memory that is free right now, using mlx-serve's own
+      admission formula (models.<id>.memory.admission). It feeds a warning
+      next to the model choice; it never blocks a start. The engine's own
+      check (or llama.cpp's allocation) still decides.
 
 COMMANDS
     list | status [--json] | select <id> | verify [<id>] [--deep] |
@@ -37,6 +42,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -109,6 +115,20 @@ def validate_registry(reg):
             raise RegistryError(f"model {mid} references unknown runtime {m['runtime']}")
         if not isinstance(m["args"], list) or not m["args"]:
             raise RegistryError(f"model {mid} args must be a non-empty list")
+        adm = (m.get("memory") or {}).get("admission")
+        if adm is not None:
+            rule = adm.get("rule") if isinstance(adm, dict) else None
+            if rule not in ADMISSION_RULES:
+                raise RegistryError(f"model {mid} memory.admission.rule must be one "
+                                    f"of {sorted(ADMISSION_RULES)}")
+            if rule == "fixed":
+                try:
+                    ok = float(adm.get("required_gib")) > 0
+                except (TypeError, ValueError):
+                    ok = False
+                if not ok:
+                    raise RegistryError(f"model {mid} memory.admission 'fixed' needs "
+                                        f"a positive required_gib")
     for rid, r in reg["runtimes"].items():
         for k in ("executable", "health"):
             if k not in r:
@@ -294,6 +314,165 @@ def check_model(reg, model_id, deep=False, probe_runtime=True):
     return {"model": model_id, "display_name": m["display_name"],
             "available": w["ok"] and r["ok"], "weights": w, "runtime": r,
             "reasons": reasons}
+
+
+# ---------------------------------------------------------------- memory fit
+# Advisory only. Mirrors mlx-serve v26.9.1's load admission exactly
+# (src/status.zig computeAvailableBytes, src/scheduler.zig loadRequirementBytes
+# and modelDiskBytes) so the panel can warn BEFORE Start, in the engine's own
+# terms, that a model will probably be refused. Nothing here blocks a start.
+GIB = 1 << 30
+ADMISSION_RULES = {"mlx-serve-preflight", "fixed"}
+MEMORY_TIGHT_MARGIN_GIB = 2.0
+
+
+def vm_counts(text=None):
+    """The page counts the engine reads from host_statistics64, via vm_stat:
+    wire_count, compressor_page_count, internal_page_count ("Anonymous
+    pages"), purgeable_count, plus the page size. None if unmeasurable."""
+    if text is None:
+        try:
+            text = subprocess.run(["vm_stat"], capture_output=True, text=True,
+                                  timeout=5).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+    m = re.search(r"page size of (\d+) bytes", text or "")
+
+    def g(label):
+        mm = re.search(r"^" + re.escape(label) + r":\s+(\d+)\.?\s*$", text, re.M)
+        return int(mm.group(1)) if mm else None
+    counts = {"page_size": int(m.group(1)) if m else None,
+              "wired": g("Pages wired down"),
+              "compressor": g("Pages occupied by compressor"),
+              "internal": g("Anonymous pages"),
+              "purgeable": g("Pages purgeable")}
+    return None if any(v is None for v in counts.values()) else counts
+
+
+def host_memory_bytes():
+    try:
+        return int(subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True,
+                                  text=True, timeout=5).stdout.strip())
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+
+
+def engine_available_bytes(total_bytes, counts):
+    """computeAvailableBytes: hw.memsize minus wired, compressed and resident
+    anonymous (minus purgeable) pages, saturating at 0. File cache and free
+    pages count as available because macOS evicts them for a new load."""
+    page = counts["page_size"]
+    resident_anon = max(0, counts["internal"] - counts["purgeable"])
+    used = (counts["wired"] + counts["compressor"] + resident_anon) * page
+    return max(0, int(total_bytes) - used)
+
+
+def mlx_load_requirement_bytes(weights_bytes):
+    """loadRequirementBytes: the weights plus min(weights/8, 6 GiB) of warmup
+    and baseline-KV headroom plus a fixed 1 GiB."""
+    return int(weights_bytes) + min(int(weights_bytes) // 8, 6 * GIB) + GIB
+
+
+_weights_cache = {}
+
+
+def mlx_weights_bytes(reg, model_id):
+    """modelDiskBytes: the top-level *.safetensors files of the pack (symlinks
+    followed, regular files only), restricted to the shards its
+    model.safetensors.index.json names when that index is readable."""
+    base = abspath(reg["models"][model_id]["path"])
+    try:
+        names = sorted(n for n in os.listdir(base) if n.endswith(".safetensors"))
+    except OSError:
+        return None
+    idx = os.path.join(base, "model.safetensors.index.json")
+    try:
+        st = os.stat(idx)
+        key = (base, st.st_mtime_ns, st.st_size, tuple(names))
+    except OSError:
+        key = (base, None, None, tuple(names))
+    if key in _weights_cache:
+        return _weights_cache[key]
+    referenced = None
+    try:
+        with open(idx) as f:
+            wm = (json.load(f) or {}).get("weight_map")
+        if isinstance(wm, dict):
+            referenced = set(wm.values())
+    except (OSError, ValueError, AttributeError):
+        referenced = None
+    total = 0
+    for n in names:
+        if referenced is not None and n not in referenced:
+            continue
+        p = os.path.join(base, n)
+        if os.path.isfile(p):                      # follows symlinks
+            total += os.path.getsize(p)
+    _weights_cache[key] = total
+    return total
+
+
+def memory_requirement(reg, model_id):
+    """Free memory the model needs to start, per its registry admission rule.
+    None when the registry states no rule (no warning is shown)."""
+    adm = ((reg["models"][model_id].get("memory") or {}).get("admission")) or {}
+    rule = adm.get("rule")
+    if rule == "mlx-serve-preflight":
+        w = mlx_weights_bytes(reg, model_id)
+        if not w:
+            return None            # the engine treats unknown weights as "never block"
+        return {"rule": rule, "authoritative": True, "weights_bytes": w,
+                "required_bytes": mlx_load_requirement_bytes(w)}
+    if rule == "fixed":
+        return {"rule": rule, "authoritative": False, "weights_bytes": None,
+                "required_bytes": int(float(adm["required_gib"]) * GIB),
+                "basis": adm.get("basis")}
+    return None
+
+
+def memory_fit(reg, model_id, total_bytes=None, counts=None,
+               tight_margin_gib=MEMORY_TIGHT_MARGIN_GIB):
+    """Advisory verdict: "fits", "tight" (margin under tight_margin_gib),
+    "wont_fit", or "unknown". GiB figures are rounded to 0.1 for display."""
+    req = memory_requirement(reg, model_id)
+    out = {"model": model_id, "verdict": "unknown", "rule": None,
+           "authoritative": False, "required_gib": None, "available_gib": None,
+           "margin_gib": None, "summary": None}
+    if req is None:
+        out["summary"] = "no memory rule registered for this model"
+        return out
+    total = host_memory_bytes() if total_bytes is None else total_bytes
+    c = vm_counts() if counts is None else counts
+    out.update(rule=req["rule"], authoritative=req["authoritative"],
+               required_gib=round(req["required_bytes"] / GIB, 1))
+    if not total or not c:
+        out["summary"] = "free memory could not be measured"
+        return out
+    avail = engine_available_bytes(total, c)
+    margin = avail - req["required_bytes"]
+    out.update(available_gib=round(avail / GIB, 1), margin_gib=round(margin / GIB, 1))
+    if margin < 0:
+        out["verdict"] = "wont_fit"
+        text = (f"probably won't fit: needs {out['required_gib']:.1f} GiB free, "
+                f"{out['available_gib']:.1f} GiB is free")
+    elif margin < tight_margin_gib * GIB:
+        out["verdict"] = "tight"
+        text = (f"tight: needs {out['required_gib']:.1f} GiB free, "
+                f"{out['available_gib']:.1f} GiB is free")
+    else:
+        out["verdict"] = "fits"
+        text = (f"fits: needs {out['required_gib']:.1f} GiB free, "
+                f"{out['available_gib']:.1f} GiB is free")
+    out["summary"] = text + ("" if req["authoritative"] else " (estimate)")
+    return out
+
+
+def memory_fits(reg, total_bytes=None, counts=None):
+    """memory_fit for every registered model from ONE measurement."""
+    total = host_memory_bytes() if total_bytes is None else total_bytes
+    c = vm_counts() if counts is None else counts
+    return {mid: memory_fit(reg, mid, total_bytes=total, counts=c)
+            for mid in model_ids(reg)}
 
 
 # --------------------------------------------------------------- launch plan
@@ -528,6 +707,11 @@ def cmd_status(reg, args):
         print(f"  slot {slot}: lease={s['lease_state']} observed={s['observed']}"
               + (f" pid={s['pid']}" if s["pid"] else "")
               + (f" model={s['model']}" if s.get("model") else ""))
+    if not st["selection_locked"]:
+        # Advisory: meaningful only while nothing is loaded.
+        for mid, fit in memory_fits(reg).items():
+            if fit["verdict"] != "unknown":
+                print(f"  memory {mid:<11} {fit['summary']}")
     return 0
 
 

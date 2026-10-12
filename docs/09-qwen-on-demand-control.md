@@ -59,6 +59,14 @@ New production verbs (wrapper: `scripts/qwen-a`):
 * `restart` — stop → confirm process+port gone → start, under ONE controller
   lock, so overlapping instances are impossible.
 * `terminate` — stop; idempotent when stopped (this is the panel's Stop).
+  Since 2026-10-12 it first cancels any start still loading, so it never
+  queues behind a load (docs/16).
+* `cancel` — lock-free: ask a start in progress (or still waiting for the
+  lock) to abort; the start stops its worker and exits 9 (docs/16).
+
+A start that the engine refuses now fails within seconds with exit **8** and
+the engine's own reason (for example mlx-serve's memory refusal), instead of
+waiting out the start timeout (docs/16).
 
 ## 3. Singleton enforcement (`active Qwen instances <= 1`)
 
@@ -75,7 +83,9 @@ Layered, all deterministic:
 4. **Duplicate detection** — reconciliation flags/refuses on >1 matching
    process (Commission-#2 machinery).
 5. **Panel serialisation** — the control service runs one operation at a
-   time (409 otherwise) and its buttons are idempotent.
+   time (409 otherwise) and its buttons are idempotent. The one exception
+   (2026-10-12): Stop while a start or restart is in flight cancels it
+   rather than waiting behind it (docs/16).
 6. `acquire` (Qwen-B dev/bench path) keeps its historical dual capability but
    now logs and warns loudly when a peer is up. It is not reachable from the
    panel or from Hermes (the skill forbids the assistant using it).
@@ -87,7 +97,8 @@ Layered, all deterministic:
 (RunAtLoad+KeepAlive, `127.0.0.1:8765` only).
 
 * **API:** `GET /` panel · `GET /api/status` · `GET /chat` (302 → Open WebUI)
-  · `POST /api/model/{start,stop,restart}`.
+  · `POST /api/model/{start,stop,restart}`. `stop` during a start/restart
+  answers `202 {"operation": "cancel"}` and cancels it (docs/16).
 * **Desired state** (`state/qwen-a-desired.json`) records RUNNING/STOPPED
   **plus the kernel boot time**. A record from a previous boot reads as
   STOPPED, so a reboot always lands on Qwen=OFF regardless of shutdown state
@@ -98,7 +109,10 @@ Layered, all deterministic:
   intentional stop; with KeepAlive=false, neither can launchd.
 * **UI states:** Stopped / Starting / Running / Stopping / Recovering /
   Unhealthy, plus Hermes/Open WebUI/memory health, a Qwen-B-active banner,
-  and (until migration was done) a legacy-daemon banner.
+  and (until migration was done) a legacy-daemon banner. A failed start
+  shows the engine's reason in plain words; the Memory row shows free memory
+  as the model engine counts it ("GiB free for models"), and each model in
+  the selector says whether it will probably fit (docs/16).
 * **Hardening:** loopback bind; Host-header allow-list; mutations need the
   `X-Newton-Control` header and same-origin Origin; the Hermes bearer key is
   read only server-side for health probes and never leaves the machine.
@@ -201,7 +215,7 @@ Dock: Newton AI Control  →  http://127.0.0.1:8765/
   Start Chat | Start the AI Model | Stop the AI Model | Restart the AI Model
 
 Terminal equivalents:
-  scripts/qwen-a status|start|terminate|restart
+  scripts/qwen-a status|start|terminate|restart|cancel
   scripts/hermes-localchat status
   scripts/prove-control-panel.sh
 ```

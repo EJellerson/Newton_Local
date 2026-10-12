@@ -78,6 +78,14 @@
   .opt .rt { color: var(--muted); font-size: 12px; }
   .opt.unavail { color: var(--muted); }
   .opt.unavail .why { color: var(--amber); font-size: 12px; }
+  .opt .fit { font-size: 12px; color: var(--muted); }
+  .opt .fit.tight, .opt .fit.wont_fit { color: var(--amber); }
+  .memwarn { display: none; margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+             font-size: 13px; background: var(--amber-bg); color: var(--amber);
+             border: 1px solid var(--line); }
+  .memwarn.show { display: block; }
+  .lastop .logpath { display: block; font: 11.5px ui-monospace, Menlo, monospace;
+                     color: var(--muted); margin-top: 3px; word-break: break-all; }
   .selected-line { font-size: 13px; margin-top: 6px; }
   .lock-note { font-size: 12px; color: var(--amber); margin-top: 4px; min-height: 0; }
   .sel-error { font-size: 12px; color: var(--red); margin-top: 4px; }
@@ -110,6 +118,7 @@
       <div class="sel-error" id="sel-error"></div>
     </fieldset>
     <div class="detail" id="model-detail">Checking…</div>
+    <div class="memwarn" id="mem-warn"></div>
     <div class="btnrow">
       <button id="btn-start"   class="primary" onclick="op('start')">Start the AI Model</button>
       <button id="btn-stop"    onclick="op('stop')">Stop the AI Model</button>
@@ -186,12 +195,18 @@ function renderModels(s) {
     const dis = locked || !m.available;
     const why = m.available ? "" :
       ' <span class="why">— unavailable: ' + (m.reasons || []).join("; ") + "</span>";
+    const fit = m.memory_fit;
+    const fitText = { fits: "fits in free memory", tight: "memory is tight",
+                      wont_fit: "probably won't fit right now" };
+    const fitHint = (m.available && fit && fitText[fit.verdict])
+      ? ' <span class="fit ' + fit.verdict + '" title="' + esc(fit.summary || "") + '">· ' +
+        fitText[fit.verdict] + "</span>" : "";
     return '<label class="opt' + (m.available ? "" : " unavail") + '">' +
       '<input type="radio" name="model" value="' + m.id + '"' +
       (m.selected ? " checked" : "") + (dis ? " disabled" : "") +
       ' onchange="selectModel(\'' + m.id + '\')">' +
       '<span>' + m.display_name + (m.default ? ' <span class="rt">(default)</span>' : "") +
-      ' <span class="rt">· ' + m.runtime + '</span>' + why + '</span></label>';
+      ' <span class="rt">· ' + m.runtime + '</span>' + fitHint + why + '</span></label>';
   }).join("");
   if (box.innerHTML !== html) box.innerHTML = html;
   $("selected-name").textContent = sel.display_name || "—";
@@ -201,6 +216,34 @@ function renderModels(s) {
       (s.selection_lock_reasons || []).join("; ") + ")."
     : "Changing the selection only records it — nothing starts until you click Start.";
   if (s.registry_error) $("sel-error").textContent = "Registry problem: " + s.registry_error;
+}
+
+function esc(t) {
+  return String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;",
+                                              '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function memWarning(s) {
+  // Advisory only: shown before Start while everything is stopped. The engine's
+  // own check still decides; Start is never blocked by this.
+  const sel = s.selection || {};
+  const m = (s.models || {})[sel.id];
+  const fit = m && m.memory_fit;
+  if (!fit || !["wont_fit", "tight"].includes(fit.verdict) || s.selection_locked ||
+      (s.model && s.model.state !== "Stopped")) return "";
+  const est = fit.authoritative ? "" : " (estimate)";
+  const need = "it needs about " + fit.required_gib.toFixed(1) + " GiB free and " +
+               fit.available_gib.toFixed(1) + " GiB is free" + est;
+  if (fit.verdict === "wont_fit") {
+    return m.display_name + " probably won't fit in the memory that is free right now: " +
+           need + ". Close other memory-heavy apps first. You can still try — the engine " +
+           "checks for itself and refuses safely, and you will see why within seconds.";
+  }
+  if (fit.verdict === "tight") {
+    return "Memory is tight for " + m.display_name + ": " + need +
+           ". Starting may be refused if memory use grows.";
+  }
+  return "";
 }
 
 function dotClass(state) {
@@ -231,7 +274,8 @@ function render(s) {
   } else if (m.state === "Starting") {
     detail = "Loading the model into memory — this can take a minute or two…";
   } else if (m.state === "Stopping") {
-    detail = "Unloading the model…";
+    detail = (opn && opn.cancelling) ? "Cancelling the start and unloading the model…"
+                                     : "Unloading the model…";
   } else if (m.state === "Recovering") {
     detail = "The model stopped unexpectedly — bringing it back…";
   } else if (m.state === "Unhealthy") {
@@ -243,15 +287,29 @@ function render(s) {
   $("model-detail").textContent = detail;
 
   const inOp = !!opn;
+  // Stop stays available while a start/restart is in flight: it cancels it.
+  const cancellable = inOp && ["start", "restart"].includes(opn.name) && !opn.cancelling;
   $("btn-start").disabled   = inOp || ["Running","Starting","Stopping","Recovering"].includes(m.state);
-  $("btn-stop").disabled    = inOp || m.state === "Stopped";
+  $("btn-stop").disabled    = inOp ? !cancellable : m.state === "Stopped";
+  $("btn-stop").title       = cancellable ? "Cancels the start and unloads the model" : "";
   $("btn-restart").disabled = inOp || ["Stopped","Starting","Stopping"].includes(m.state);
+
+  const mw = memWarning(s);
+  $("mem-warn").textContent = mw;
+  $("mem-warn").className = "memwarn" + (mw ? " show" : "");
 
   const lo = s.last_operation;
   const el = $("lastop");
   if (lo) {
     el.textContent = "Last action — " + lo.name + " at " + lo.finished_at_iso +
-                     (lo.ok ? ": " : " FAILED: ") + (lo.message || "");
+                     (lo.cancelled ? " (cancelled): " : lo.ok ? ": " : " FAILED: ") +
+                     (lo.message || "");
+    if (!lo.ok && lo.log) {
+      const lp = document.createElement("span");
+      lp.className = "logpath";
+      lp.textContent = "Engine log: " + lo.log;
+      el.appendChild(lp);
+    }
     el.className = "lastop" + (lo.ok ? "" : " err");
   } else { el.textContent = ""; }
 
@@ -278,8 +336,11 @@ function render(s) {
   const mem = s.memory || {};
   const memWarn = mem.pressure && mem.pressure !== "normal";
   $("dot-mem").className = "dot " + (memWarn ? "warn" : "on");
-  $("val-mem").textContent = (mem.available_gib != null ? mem.available_gib + " GiB available · " : "")
-                             + "pressure " + (mem.pressure || "?");
+  const memFree = mem.models_free_gib != null ? mem.models_free_gib + " GiB free for models · "
+                : mem.available_gib != null ? mem.available_gib + " GiB available · " : "";
+  $("val-mem").textContent = memFree + "pressure " + (mem.pressure || "?");
+  $("val-mem").title = "Free memory as the model engine counts it before loading " +
+                       "(physical memory minus wired, compressed and app memory).";
 
   // banners
   const bl = $("banner-legacy");
@@ -298,17 +359,26 @@ function render(s) {
   } else { bb.className = "banner"; }
 }
 
+let pollMs = 4000;
 async function refresh() {
   try {
     const r = await fetch("/api/status", { cache: "no-store" });
-    render(await r.json());
+    const s = await r.json();
+    render(s);
+    // Poll every second while an operation runs, so its outcome (and any
+    // failure reason) shows up promptly; every 4 s otherwise.
+    pollMs = s.operation ? 1000 : 4000;
   } catch (e) {
     $("model-state").textContent = "…";
     $("model-detail").textContent = "Control service unreachable — retrying…";
+    pollMs = 4000;
   }
 }
-refresh();
-setInterval(refresh, 4000);
+async function loop() {
+  await refresh();
+  setTimeout(loop, pollMs);
+}
+loop();
 </script>
 </body>
 </html>
