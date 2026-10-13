@@ -1,211 +1,178 @@
 # Newton_Local
 
-Local AI infrastructure on an Apple M2 Ultra Mac Pro (128 GiB unified memory).
-
-## The assistant
+A self-hosted AI assistant on one Apple Silicon workstation (Mac Pro, M2 Ultra,
+128 GiB unified memory): local LLM inference, a tool-using agent, and a
+one-click control app, with no cloud model anywhere in the loop.
 
 ```
 you → Open WebUI :3000 → Hermes Agent :8642 → AI Inference :8080
-        presentation        agency              intelligence
+        chat UI            agent + tools        llama.cpp or mlx-serve
 ```
 
-```bash
-./scripts/hermes-localchat status    # every layer at once
-open http://127.0.0.1:3000           # the ChatGPT-like front door
-./scripts/hermes-localchat chat      # the same agent, in the terminal
-```
+Everything binds to `127.0.0.1`. No cloud LLM key exists on the machine and the
+agent's provider fallback chain is empty, so if the local model is off, a chat
+fails clearly instead of quietly going to the cloud. The agent's web tools do
+reach the internet, so this is *local intelligence*, not an air-gapped box.
 
-**Hermes Agent v0.20.5** runs the `localchat` profile: terminal and file tools
-on the real macOS host, persistent memory across sessions, sessions and search,
-web search and a Playwright browser, vision, skills, and fresh-context
-delegation. **Qwen-A supplies all of the intelligence** — 73 of 73 inference
-calls during proving went to `http://127.0.0.1:8080/v1` and nowhere else; no
-cloud LLM key exists on this machine and the fallback chain is empty.
+## What's worth looking at
 
-Both backends run as user LaunchAgents with `RunAtLoad` and `KeepAlive`, so the
-stack is already up when you log in and comes back on its own after a crash —
-`./scripts/hermes-localchat autostart status`. Only the backends auto-start; the
-TUI and the browser stay manual.
+| If you want to see… | Start here |
+|---|---|
+| A lifecycle controller that trusts observation over its own records | [`scripts/qwenctl.py`](scripts/qwenctl.py) |
+| An incident write-up, with tests pinned to the real logs | [`docs/16-start-supervision.md`](docs/16-start-supervision.md) |
+| A local control service hardened against browser attacks | [`scripts/newton_control.py`](scripts/newton_control.py) |
+| Keeping an agent honest about which model is running and what it finished | [`docs/11`](docs/11-runtime-identity.md), [`docs/12`](docs/12-completion-enforcement.md), [`integrations/newton_runtime/`](integrations/newton_runtime/) |
+| Capacity measurements with their confounders disclosed | [`docs/05-commission-2-completion-record.md`](docs/05-commission-2-completion-record.md) |
 
-Destructive shell commands require an explicit human approval in the CLI.
-Web tools do reach the internet when the model calls them, so **this assistant
-is not air-gapped** — the split is *internet as a tool*, never *intelligence
-from a cloud model*. Runbook: [docs/06-hermes-localchat.md](docs/06-hermes-localchat.md).
+- **Lifecycle control.** `qwenctl.py` runs each model server as an explicit
+  state machine. Before every decision it observes launchd, the process
+  table, the listening socket and the HTTP health endpoint; where its record
+  and reality disagree, reality wins and the correction is logged. Writers
+  serialise on a file lock, unlocked observers persist only by
+  compare-and-swap, a lock-free cancel marker lets Stop win over a slow Start,
+  and only one large model runs at a time, across two different runtimes
+  (a second needs an explicit flag reserved for experiments).
+- **Incident response.** On 2026-10-12 a model start hung for ten minutes
+  although the engine had refused it within a second. `docs/16` traces the
+  hang to four defects in the control path, fixes them, and pins the fixes
+  with tests built from the incident's own log lines: a refused start now
+  fails in about 1.6 s, with the engine's reason on screen.
+- **Security posture.** The control panel accepts only loopback Host headers
+  (against DNS rebinding) and requires a same-origin `Origin` plus a custom
+  header on every state change (against CSRF). Dangerous agent commands need
+  a human approval in the terminal and are denied wherever no human can
+  answer.
+- **Agent integrity.** When asked which model it is, the agent answers from a
+  verified identity record (the registered artifact bound to the serving
+  process), not from the model's self-description. A turn is accepted as
+  finished only against durable task state and tool receipts.
+- **Evidence over claims.** The completion records in `docs/` cite
+  transcripts and benchmark JSON in [`benchmarks/`](benchmarks/), and model
+  weights are verified file by file against the hashes in their manifests.
 
-## Model selection (Commission #5)
+## How this was built
 
-Qwen-A and Qwen-B are **execution slots**; one global selection
-(`state/model-selection.json`, default **Qwen 3.8 27B**) decides what both
-launch. The registry `config/models.json` describes every supported model
-and runtime — Qwen 3.8 27B on llama.cpp, Qwen 3.8 Flash-Next on
-`ddalcu/mlx-serve`. The selection can only change while both slots are
-stopped, only to a model whose weights and runtime verify, and changing it
-never starts anything. Panel selector + `scripts/newton-model
-list|status|select|verify|plan`. Both models are provisioned,
-hash-verified and live-proven (the Flash-Next engine needs macOS 26.2+; this
-Mac runs 26.6.2). Runbook:
-[docs/10-dual-model-selection.md](docs/10-dual-model-selection.md).
+Newton_Local was built by directing AI coding agents rather than by writing
+the code by hand: Claude Code did most of the work, and OpenAI Codex made the
+fixes of 15–16 September 2026. I wrote each stage as a *commission*: the goal,
+hard constraints (for example "never load a model while a training job is
+running", "at most one model in memory", "no cloud fallback") and the evidence
+that would count as done. I authorised every live test on the real machine and
+reviewed the evidence before accepting the work. The agents worked out the
+details, wrote the code, tests and proving scripts, ran them, and wrote the
+completion records.
 
-## Newton AI Control
+That is why the docs speak of "Commission #1" to "#5" and of an "operator", and
+why each claim in them cites a transcript or a measurement.
 
-One Dock application operates the whole stack (Commission #4):
+## Architecture
 
-```
-Dock: Newton AI Control  →  http://127.0.0.1:8765/
-  Start Chat · Start the AI Model · Stop the AI Model · Restart the AI Model
-```
-
-Hermes, Open WebUI and the control panel are always on from login; **the selected
-model is OFF until you click Start, and OFF again after every reboot**. Stop
-unloads it and keeps it unloaded (`KeepAlive=false` plus a desired-state
-watchdog that never resurrects an intentional stop); while it is
-*intentionally* running, that same watchdog recovers it after a crash. The
-production path enforces **at most one** active Qwen instance. A start the
-engine refuses (for example for lack of free memory) fails within seconds
-with the engine's reason on the page; Stop also cancels a start that is
-still loading; and the model selector warns when a model will probably not
-fit in the memory that is free
-([docs/16](docs/16-start-supervision.md)). A chat sent
-while the model is off fails clearly — there is no cloud fallback to leak to.
-Runbook: [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md).
-
-
-## Current state
-
-The production slot is **AI Inference**, routed as **local-model**. Its resident
-model is verified through `GET http://127.0.0.1:8765/api/identity`. Selection
-and last-launch records are not proof of residency. Hermes binds this identity
-to each turn and refreshes its cached context when the resident generation changes.
-See [the runtime identity contract](docs/11-runtime-identity.md).
-The [completion gate](docs/12-completion-enforcement.md) preserves known unfinished
-work and requires tool evidence before accepting task completion.
-
-| | **Qwen-A** — production primary | **Qwen-B** — elastic worker |
+| Component | Role | Port |
 |---|---|---|
-| Bind | `127.0.0.1:8080` | `127.0.0.1:8081` |
-| Alias | `local-model` | `qwen-b` |
-| Availability | **on demand** — operator Start/Stop, OFF at boot | **normally stopped**, leased on demand |
-| launchd | `com.newton.qwen38server.a` (user LaunchAgent, `gui/501`) | `com.newton.qwen38server.b` (user LaunchAgent, `gui/501`) |
-| Autostart | **no** (`RunAtLoad=false`, `KeepAlive=false`) | **no** (`RunAtLoad=false`, `KeepAlive=false`) |
-| Control | `scripts/qwen-a` / Newton AI Control — **no sudo** | `scripts/qwen-b` — **no sudo** |
-| Model | Verified resident from the selected catalog entry | Global selection; historical experimental worker |
-| Runtime | llama.cpp or mlx-serve, verified from the serving process | Selected model's runtime |
+| [Open WebUI](https://github.com/open-webui/open-webui) | Chat front end (single-user, loopback) | 3000 |
+| [Hermes Agent](https://github.com/NousResearch/hermes-agent) v0.20.5, `localchat` profile | The agent: terminal and file tools on the host, persistent memory, sessions, web search, a Playwright browser, vision, skills, delegation | 8642 |
+| Newton AI Control ([`scripts/newton_control.py`](scripts/newton_control.py)) | Dock app + web panel: Start, Stop, Restart, model selector | 8765 |
+| [`scripts/qwenctl.py`](scripts/qwenctl.py) | Deterministic lifecycle controller for the model slots | — |
+| [`scripts/newton_models.py`](scripts/newton_models.py) + [`config/models.json`](config/models.json) | Model registry, global selection, launch plans, integrity checks | — |
+| Slot A — "AI Inference" | Production model server, alias `local-model` | 8080 |
+| Slot B | Elastic worker, leased on demand, stops after a 180 s idle TTL | 8081 |
 
-### Using the elastic worker
+Hermes, Open WebUI and the control panel run as user LaunchAgents and come up
+at login. **The model is off until you click Start, and off again after every
+reboot.** While it is intentionally running, a watchdog restarts it after a
+crash; an intentional Stop is never undone. Hermes is extended through a small
+pinned patch ([`integrations/`](integrations/)) rather than a fork.
 
-```bash
-~/Newton_Local/scripts/qwen-b status                   # state, pid, health, idle countdown
-~/Newton_Local/scripts/qwen-b acquire --owner my-job   # start it (or reuse a loaded one)
-~/Newton_Local/scripts/qwen-b release --owner my-job   # give it back; stops after a 180 s idle TTL
-~/Newton_Local/scripts/qwen-b terminate                # stop it now
-~/Newton_Local/scripts/qwen-status.sh                  # both services + machine memory
-```
+## Models
 
-Cold start is ~6 s; re-acquiring inside the idle TTL is ~0.5 s and does not
-reload the model. Stopping returns ~46 GiB of Metal allocation to the machine.
+One global selection decides what both slots launch. It can change only
+while both slots are stopped, only to a model whose weights and runtime
+verify, and changing it never starts anything.
 
-Lifecycle is owned by `scripts/qwenctl.py`, ordinary deterministic code. The
-model decides nothing about when workers start or stop.
+| | Qwen 3.8 27B (default) | Qwen 3.8 Flash-Next |
+|---|---|---|
+| Runtime | llama.cpp, built from source with Metal | [mlx-serve](https://github.com/ddalcu/mlx-serve) v26.9.1, pinned by SHA-256 |
+| Format | Q8_0 GGUF + F16 vision projector | 4-bit MLX pack, 125B total / ~6B active MoE |
+| Context | 262,144 tokens | 262,144 tokens |
+| Start → ready (panel) | 20 s | 28 s |
+| GPU allocation | 47.9 GiB | 71.3 GiB |
+| Generation | ~20 tok/s | ~43 tok/s |
+| Crash recovery (`kill -9`) | ~21 s | 35 s |
 
-### Historical 27B capacity measurements (Apple M2 Ultra, 128 GiB)
+Long-context retrieval was proven with a 150,170-token prompt on the 27B and
+32k/100k-token prompts on Flash-Next. Running two 27B instances at once buys
+only ~14–18% more aggregate throughput, because the GPU is already saturated;
+that is why slot B is elastic rather than permanent
+([docs/05](docs/05-commission-2-completion-record.md)).
 
-| | A alone | A + B concurrent | A after B stopped |
-|---|---:|---:|---:|
-| A generation | 19.9 tok/s | 11.7 tok/s | 19.9 tok/s |
-| B generation | — | 11.0 tok/s | — |
-| Aggregate | 19.9 tok/s | 22.7 tok/s | 19.9 tok/s |
-| Metal allocation | 47 GiB | 93 GiB | 47 GiB |
-| Swap / pressure | 0 / normal | 0 / normal | 0 / normal |
+Weights are not in the repository. The download scripts fetch them from the
+Hugging Face sources recorded in the machine-local
+`config/model-sources.local.json` (template:
+[`config/model-sources.example.json`](config/model-sources.example.json)), and
+`scripts/newton-model verify <id> --deep` checks every byte against
+`models/*/MANIFEST.json`.
 
-Both instances fit and run correctly at full 262144 context. The constraint is
-**GPU throughput, not memory** — the GPU is already saturated by one instance, so
-a second buys a separate context and ~14–18% more aggregate throughput, not a
-second full-speed model. That is precisely why B is elastic rather than
-persistent. Full numbers, caveats and measurement contamination:
-`docs/05-commission-2-completion-record.md`.
+## Running it
 
-Not yet built, and deliberately out of scope so far: **Foreman** (governed
-commissioned-implementation workflow), MCP servers, automatic Qwen-B routing
-from the assistant, and any third Qwen instance. Hermes and Open WebUI arrived
-in Commission #3; what Hermes already gives a future Foreman — and what it does
-not — is written up in
-[docs/08-foreman-relevant-hermes-findings.md](docs/08-foreman-relevant-hermes-findings.md).
-
-## Quick start
+This is one machine's deployment, kept as a working record rather than a
+packaged tool: paths in `config/` and the plists are specific to this Mac.
 
 ```bash
-# The primary (no sudo; the same verbs sit behind the Newton AI Control panel)
-./scripts/qwen-a status
-curl -sS http://127.0.0.1:8080/health
+./scripts/hermes-localchat status      # every layer at once
+open http://127.0.0.1:3000             # the chat front door
+./scripts/hermes-localchat chat        # the same agent, in the terminal
 
-# Both services + machine memory
-./scripts/qwen-status.sh
+./scripts/qwen-a status                # the production slot (no sudo)
+./scripts/newton-model list            # registered models and availability
+./scripts/newton-model select <id>     # only while both slots are stopped
+./scripts/qwen-status.sh               # both slots + machine memory
 
-# Ask the primary something
-./scripts/qwen-a-infer.sh "What is 17 * 23? Reply with just the number."
-
-# Rent the elastic worker for a job, then give it back
-./scripts/qwen-b acquire --owner my-job
-curl -sS http://127.0.0.1:8081/v1/chat/completions \
-     -H 'Content-Type: application/json' \
-     -d '{"model":"qwen-b","messages":[{"role":"user","content":"hello"}],"max_tokens":512}'
-./scripts/qwen-b release --owner my-job
-
-# Watch the logs
-tail -f logs/qwen-a/stderr.log
-./scripts/qwen-b logs -n 40
+./scripts/qwen-b acquire --owner my-job   # lease the elastic worker
+./scripts/qwen-b release --owner my-job   # give it back; stops after the idle TTL
 ```
+
+Day to day, the Newton AI Control app in the Dock does the same: Start Chat,
+Start, Stop and Restart the model, and pick which model to run.
+
+## Tests and proving
+
+- `tests/`: 131 hermetic unit tests (`python3 -m unittest discover -s tests`).
+- `scripts/test-model-registry.py` and `scripts/test-qwenctl-logic.py`:
+  fixture suites for the registry and the controller; no real process starts.
+- `scripts/prove-*.py` / `prove-*.sh`: live proving against the real launchd
+  jobs and engines. Their outputs are the evidence in `benchmarks/`.
 
 ## Documentation
 
 | Document | Contents |
 |---|---|
-| [docs/00-machine-baseline.md](docs/00-machine-baseline.md) | Machine state before any work; the pre-existing Command Line Tools defect |
-| [docs/01-llamacpp.md](docs/01-llamacpp.md) | llama.cpp build identity, why source over Homebrew, `qwen35` verification |
-| [docs/02-operations.md](docs/02-operations.md) | **Operations runbook** — start/stop/restart/status/logs, flag rationale, troubleshooting |
-| [docs/03-completion-record.md](docs/03-completion-record.md) | Commission #1 record: proving results, performance baseline, provenance hashes, deviations |
-| [docs/04-qwen-b-elastic-worker.md](docs/04-qwen-b-elastic-worker.md) | **Qwen-B runbook** — launchd design, lifecycle states, lease semantics, idle TTL, orphan policy, operator commands |
-| [docs/05-commission-2-completion-record.md](docs/05-commission-2-completion-record.md) | Commission #2 record: dual-instance benchmarks, memory comparison, reclamation, controller proving, deviations |
-| [models/qwen38-27b/MANIFEST.md](models/qwen38-27b/MANIFEST.md) | Model provenance: SHA-256, sizes, GGUF metadata, single-copy guarantee |
-| [docs/06-hermes-localchat.md](docs/06-hermes-localchat.md) | **Assistant runbook** — architecture, Qwen wiring, approvals, memory, sessions, web, delegation, skills, the two front doors, operator commands |
-| [docs/07-commission-3-completion-record.md](docs/07-commission-3-completion-record.md) | Commission #3 record: Hermes identity, proving results, security posture, deviations |
-| [docs/08-foreman-relevant-hermes-findings.md](docs/08-foreman-relevant-hermes-findings.md) | Research note: which Hermes primitives a future Foreman can reuse, and what it must still build |
-| [docs/09-qwen-on-demand-control.md](docs/09-qwen-on-demand-control.md) | **Newton AI Control runbook** — on-demand Qwen-A, boot policy, singleton enforcement, watchdog semantics, the control panel and app, deferred live tests |
-| [docs/10-dual-model-selection.md](docs/10-dual-model-selection.md) | **Dual-model runbook** — model registry, global selection contract, execution slots + launch shim, runtimes, Flash-Next provenance and host requirement, UI/CLI, heterogeneous singleton, deferred live proving |
-| [models/qwen38-flash-next-mlx-4bit/MANIFEST.md](models/qwen38-flash-next-mlx-4bit/MANIFEST.md) | Flash-Next record: architecture, file inventory, hash verification, engine requirement |
-| [docs/16-start-supervision.md](docs/16-start-supervision.md) | **Start supervision** — the 2026-10-12 stuck start: fail-fast on engine exit, the engine's reason in the panel, Stop cancels a start, status polls never clobber the record, advisory memory fit |
+| [00 Machine baseline](docs/00-machine-baseline.md) | The machine before any work, including a pre-existing toolchain defect |
+| [01 llama.cpp](docs/01-llamacpp.md) | Build identity and why it is built from source |
+| [02 Operations](docs/02-operations.md) | Runbook for the production slot: start, stop, logs, troubleshooting |
+| [03 Completion record #1](docs/03-completion-record.md) | First service: proving, performance baseline, provenance hashes |
+| [04 Elastic worker](docs/04-qwen-b-elastic-worker.md) | Slot B: lease semantics, idle TTL, orphan policy |
+| [05 Completion record #2](docs/05-commission-2-completion-record.md) | Dual-instance benchmarks, memory reclamation |
+| [06 Assistant runbook](docs/06-hermes-localchat.md) | Hermes `localchat`: approvals, memory, sessions, web, delegation |
+| [07 Completion record #3](docs/07-commission-3-completion-record.md) | Assistant proving and security posture |
+| [08 Hermes findings](docs/08-foreman-relevant-hermes-findings.md) | Research note for a planned, not yet built, work-order system ("Foreman"): which Hermes primitives it could reuse |
+| [09 On-demand control](docs/09-qwen-on-demand-control.md) | Newton AI Control: boot policy, singleton, watchdog |
+| [10 Dual-model selection](docs/10-dual-model-selection.md) | Registry, global selection, execution slots, live proving of both models |
+| [11 Runtime identity](docs/11-runtime-identity.md) | How the agent learns which model is actually resident |
+| [12 Completion enforcement](docs/12-completion-enforcement.md) | Durable task ledger and tool receipts |
+| [13](docs/13-architecture-repair.md), [14](docs/14-tool-recovery.md), [15](docs/15-remediation-verification.md) | Verification of the September fixes |
+| [16 Start supervision](docs/16-start-supervision.md) | The 2026-10-12 stuck start: incident, fixes, tests |
+| [`models/*/MANIFEST.md`](models/) | Per-model sizes, hashes, metadata, engine requirements |
 
-## What is not in this repository
-
-Model weights (~30 GB), the `tools/llama.cpp` upstream clone, the
-`tools/hf-venv` virtualenv, runtime logs, runtime state, all credential
-material, and everything the assistant privately owns — `~/.hermes/` (its
-install, config, memory, sessions and delegation transcripts) and
-`~/.open-webui/` (conversation data) both live outside this tree. The weights are reproducible from the manifest; the toolchain is
-reproducible from the pinned commit via `scripts/build-llamacpp.sh`.
-
-## Layout
+## Repository layout
 
 ```
-assets/      proving inputs          logs/      runtime logs (untracked)
-benchmarks/  proving evidence        models/    weights (untracked) + MANIFEST
-config/      runtime env + plists    scripts/   build, run, prove, operate
-docs/        documentation           skills/    Hermes skill source
-state/       lease + lock (untracked)  tools/   llama.cpp, hf-venv (untracked)
-
-Key scripts
-  qwenctl.py             instance-parametric lifecycle controller (A and B)
-  qwen-a / qwen-b        operator entry points for each instance
-  newton_control.py      Newton AI Control service (127.0.0.1:8765)
-  install-launchagent-a.sh / install-control.sh / build-control-app.sh /
-  pin-dock-app.py        on-demand Qwen-A + control panel + Dock app setup
-  qwen-status.sh         A and B side by side, plus machine memory
-  hermes-localchat       assistant lifecycle: chat, status, api, ui, memory,
-                         sessions, logs, recover
-  install-hermes-localchat.sh / install-openwebui.sh / install-hermes-skill.sh
-                         reproducible setup of the assistant stack
-  snapshot-machine.py    the common memory/GPU measurement primitive
-  prove-*.py / prove-*.sh   proving suites (parity, concurrency, lifecycle,
-                            reconciliation, cycles, reclamation)
-  bench-dual.py / bench-capacity.sh   overlap-aware capacity benchmarks
+assets/       proving inputs            models/       MANIFESTs (weights untracked)
+benchmarks/   proving evidence          scripts/      build, run, prove, operate
+config/       registry, env, plists     skills/       Hermes skill source
+docs/         documentation             tests/        unit tests
+integrations/ Hermes patch + runtime hooks
 ```
+
+Not in the repository: model weights, the llama.cpp clone and Python venvs
+(rebuilt by the scripts), runtime logs and state, all credentials, and
+everything the assistant owns privately (`~/.hermes/`, `~/.open-webui/`).
