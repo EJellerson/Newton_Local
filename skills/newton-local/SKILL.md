@@ -84,7 +84,7 @@ second *context*, not a second full-speed model: A drops from ~19.9 to
 ## Where things are
 
 ```
-~/Newton_Local/            project root (git: Newton_Local_Foreman)
+~/Newton_Local/            project root (git: Newton_Local)
   scripts/                 operator entry points
   docs/                    runbooks + commission records
   logs/qwen-a/stderr.log   the real Qwen-A log
