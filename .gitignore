@@ -110,4 +110,6 @@ tools/fish-src
 *.webm
 *.aiff
 *.caf
+# A voice store copied into the tree (its layout), never the page's code.
 voice-studio/
+!scripts/voice-studio/

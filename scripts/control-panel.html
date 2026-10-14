@@ -89,6 +89,7 @@
   .selected-line { font-size: 13px; margin-top: 6px; }
   .lock-note { font-size: 12px; color: var(--amber); margin-top: 4px; min-height: 0; }
   .sel-error { font-size: 12px; color: var(--red); margin-top: 4px; }
+  .attrib { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
   footer { color: var(--muted); font-size: 12px; margin-top: 22px;
            text-align: center; }
 </style>
@@ -135,6 +136,22 @@
     <div class="detail" id="chat-detail"></div>
   </div>
 
+  <div class="card" id="fish-card">
+    <div class="model-head">
+      <div class="model-title">Voice Studio &nbsp;<span class="sub" id="fish-name">(Fish Audio Drama 3, local)</span></div>
+      <span class="pill"><span class="dot" id="fish-dot"></span><span id="fish-state">…</span></span>
+    </div>
+    <div class="detail" id="fish-detail">Checking…</div>
+    <div class="memwarn" id="fish-warn"></div>
+    <div class="btnrow">
+      <a class="linkbtn primary" id="btn-voice" href="/voice">Open Voice Studio</a>
+      <button id="btn-fish-start" onclick="fishOp('start')">Start Fish</button>
+      <button id="btn-fish-stop" onclick="fishOp('stop')">Stop Fish</button>
+    </div>
+    <div class="lastop" id="fish-lastop"></div>
+    <div class="attrib">Speech model: Fish Audio Drama 3 (MLX Q4), Fish Audio Community License. Built with Fish Audio.</div>
+  </div>
+
   <div class="card">
     <div class="rows">
       <div class="row"><span class="name"><span class="dot" id="dot-hermes"></span>Hermes gateway</span><span class="val" id="val-hermes"></span></div>
@@ -164,6 +181,80 @@ async function op(name) {
   } catch (e) { /* status poll will surface it */ }
   busyClick = false;
   refresh();
+}
+
+async function fishOp(name) {
+  if (busyClick) return;
+  busyClick = true;
+  try {
+    const r = await fetch("/api/fish/" + name, {
+      method: "POST",
+      headers: { "X-Newton-Control": "1" }
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      $("fish-lastop").textContent = j.error || ("HTTP " + r.status);
+      $("fish-lastop").className = "lastop err";
+    }
+  } catch (e) { /* status poll will surface it */ }
+  busyClick = false;
+  refresh();
+}
+
+function renderFish(s) {
+  const f = s.fish;
+  const card = $("fish-card");
+  if (!f) {   // the control service predates Voice Studio: it needs one restart
+    $("fish-state").textContent = "Not loaded";
+    $("fish-dot").className = "dot warn";
+    $("fish-detail").textContent = "Voice Studio is installed but the control service has not been restarted since, so it is not active yet.";
+    ["btn-fish-start", "btn-fish-stop"].forEach(id => $(id).disabled = true);
+    return;
+  }
+  const st = f.state || "Unknown";
+  $("fish-state").textContent = st === "Ready" ? "Ready" : st;
+  $("fish-dot").className = "dot " + ({ Ready: "on", Busy: "busy", Starting: "busy",
+    Stopping: "busy", Recovering: "busy", Stopped: "off", Failed: "err" }[st] || "warn");
+  const mem = f.memory || {};
+  let d = "";
+  if (!f.available) d = f.error || "Voice Studio is unavailable.";
+  else if (st === "Ready" || st === "Busy")
+    d = (st === "Busy" ? "Generating speech" : "Ready") + (mem.mlx_active_gib != null ? " · model " + mem.mlx_active_gib.toFixed(1) + " GiB" : "") + (f.pid ? " · pid " + f.pid : "");
+  else if (st === "Stopped") d = "The speech model is not loaded and uses no memory.";
+  else if (st === "Starting") d = "Loading the speech model…";
+  else if (st === "Stopping") d = "Unloading the speech model…";
+  else if (st === "Recovering") d = "The speech model stopped unexpectedly — restarting it…";
+  else if (st === "Failed") d = "The speech model is not working." + (f.last_operation ? " " + f.last_operation.message : "");
+  $("fish-detail").textContent = d;
+  const names = f.model_names || {};
+  const blocked = (f.blocked_by || []).map(id => names[id] || id);
+  const w = $("fish-warn");
+  if (blocked.length) {
+    w.textContent = blocked.join(", ") + " is active, so Fish can't start: they are never allowed to run together.";
+    w.className = "memwarn show";
+  } else { w.className = "memwarn"; w.textContent = ""; }
+  const op = f.operation;
+  const cancellable = op && ["start", "restart"].includes(op.name) && !op.cancelling;
+  $("btn-fish-start").disabled = !f.available || !!op || ["Ready", "Busy", "Starting", "Stopping", "Recovering"].includes(st);
+  $("btn-fish-stop").disabled = !f.available || (op ? !cancellable : st === "Stopped");
+  const lo = f.last_operation, el = $("fish-lastop");
+  if (lo) {
+    el.textContent = "Last action — " + lo.name + " at " + lo.finished_at_iso +
+      (lo.cancelled ? " (cancelled): " : lo.ok ? ": " : " FAILED: ") + (lo.message || "");
+    el.className = "lastop" + (lo.ok ? "" : " err");
+  } else if (!el.classList.contains("err")) { el.textContent = ""; }
+}
+
+function fishConflict(s) {
+  // Fish and a model it may never run beside: say so before Start is pressed.
+  const f = s.fish, sel = s.selection || {};
+  if (!f || !f.available || !sel.id) return "";
+  const active = ["Ready", "Busy", "Starting", "Recovering"].includes(f.state);
+  const rule = (f.compatibility || {})[sel.id] || "prohibited";
+  if (!active || rule === "conditional" || (s.model && s.model.state !== "Stopped")) return "";
+  return "The Fish speech model (Voice Studio) is " + f.state.toLowerCase() + ", and " +
+    (sel.display_name || sel.id) + " is never allowed to run at the same time, so Start will be refused. " +
+    "Stop Fish first, or choose a model that may run alongside it.";
 }
 
 let selectBusy = false;
@@ -294,7 +385,7 @@ function render(s) {
   $("btn-stop").title       = cancellable ? "Cancels the start and unloads the model" : "";
   $("btn-restart").disabled = inOp || ["Stopped","Starting","Stopping"].includes(m.state);
 
-  const mw = memWarning(s);
+  const mw = fishConflict(s) || memWarning(s);
   $("mem-warn").textContent = mw;
   $("mem-warn").className = "memwarn" + (mw ? " show" : "");
 
@@ -312,6 +403,8 @@ function render(s) {
     }
     el.className = "lastop" + (lo.ok ? "" : " err");
   } else { el.textContent = ""; }
+
+  renderFish(s);
 
   // chat
   $("btn-chat").href = s.chat_url;

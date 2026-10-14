@@ -38,6 +38,13 @@ DESIGN
       model will probably fit in the memory that is free right now
       (advisory; the engine's own check still decides).
 
+    * VOICE STUDIO (2026-10-14, docs/18): /voice and /api/voice, /api/fish
+      are served by scripts/voice_studio.py, which drives the Fish speech
+      service only through scripts/fishctl.py and keeps its own stricter
+      checks (a session tied to this Mac's operator account for private
+      recordings and takes). /api/status gains a "fish" summary. If Voice
+      Studio cannot load, the rest of this panel works exactly as before.
+
 SECURITY
     Loopback bind; Host-header allow-list (anti DNS-rebinding); mutating
     endpoints require the X-Newton-Control header and a same-origin Origin
@@ -59,6 +66,15 @@ ROOT = os.path.dirname(SCRIPT_DIR)
 sys.path.insert(0, SCRIPT_DIR)
 import newton_models as nm  # noqa: E402  (model registry + global selection)
 from resident_identity import resident_identity
+
+try:                                      # Voice Studio must never take the panel down
+    import voice_studio
+    VOICE_ERROR = None
+except Exception as e:
+    voice_studio = None
+    VOICE_ERROR = f"{type(e).__name__}: {e}"[:300]
+VOICE = None                              # voice_studio.Studio, created in main()
+VOICE_PREFIXES = ("/voice", "/api/voice/", "/api/fish/")
 
 QWENCTL = os.path.join(SCRIPT_DIR, "qwenctl.py")
 A_CONFIG = os.path.join(ROOT, "config", "qwen-a-controller.env")
@@ -585,6 +601,18 @@ def models_summary():
 
 
 # ------------------------------------------------------------------ status
+def fish_summary():
+    """The Fish speech service for the panel's Voice Studio card."""
+    if VOICE is None:
+        return {"available": False, "state": "Unavailable",
+                "error": VOICE_ERROR or "Voice Studio is not loaded"}
+    try:
+        return VOICE.summary()
+    except Exception as e:                      # status must never break
+        log_event("fish_summary.error", error=f"{type(e).__name__}: {e}"[:300])
+        return {"available": False, "state": "Unknown", "error": type(e).__name__}
+
+
 def attach_memory_fit(models, lock_reasons, counts, total):
     """Per-model advisory fit, only while everything is stopped (while a model
     is loaded its own memory would make every other model look too big)."""
@@ -645,6 +673,7 @@ def assemble_status():
         "qwen_b": b,
         "legacy_daemon": legacy,
         "memory": mem_row,
+        "fish": fish_summary(),
         "control": {"port": SERVER_PORT, "pid": os.getpid(),
                     "boot_sec": boot_time_sec()},
         "ts": now(),
@@ -691,10 +720,23 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):   # quiet; JSONL log carries the signal
         pass
 
+    def _voice(self, method):
+        """Hand Voice Studio routes to voice_studio (its own checks apply)."""
+        path = self.path.split("?", 1)[0]
+        if not path.startswith(VOICE_PREFIXES):
+            return False
+        if VOICE is None:
+            self._json(503, {"ok": False, "error": "Voice Studio is unavailable: "
+                                                   + (VOICE_ERROR or "not loaded")})
+            return True
+        return VOICE.handle(self, method)
+
     # ---- routes
     def do_GET(self):
         if not self._host_ok():
             return self._json(403, {"error": "bad host header"})
+        if self._voice("GET"):
+            return None
         path = self.path.split("?", 1)[0]
         if path == "/":
             try:
@@ -722,6 +764,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(404, {"error": "not found"})
 
     def do_POST(self):
+        if self._voice("POST"):
+            return None
         if not self._mutation_ok():
             return self._json(403, {"error": "forbidden (same-origin panel "
                                              "requests only)"})
@@ -743,6 +787,14 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(409, {"ok": False,
                                 "error": "another operation is in progress",
                                 "operation": OPS.current})
+
+    def do_PATCH(self):
+        if not self._voice("PATCH"):
+            self._json(404, {"error": "not found"})
+
+    def do_DELETE(self):
+        if not self._voice("DELETE"):
+            self._json(404, {"error": "not found"})
 
     def _cancel_inflight(self, name):
         """Stop pressed while a start/restart is in flight: cancel it rather
@@ -787,7 +839,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global SERVER_PORT
+    global SERVER_PORT, VOICE, VOICE_ERROR
     port = DEFAULT_PORT
     args = sys.argv[1:]
     if "--port" in args:
@@ -798,6 +850,13 @@ def main():
     log_event("service.start", port=port, root=ROOT)
 
     threading.Thread(target=watchdog_loop, name="watchdog", daemon=True).start()
+    if voice_studio is not None:
+        try:
+            VOICE = voice_studio.Studio(port)
+            VOICE.start_background()
+        except Exception as e:                  # the panel runs without it
+            VOICE_ERROR = f"{type(e).__name__}: {e}"[:300]
+    log_event("voice_studio", loaded=VOICE is not None, error=VOICE_ERROR)
 
     srv = ThreadingHTTPServer((BIND_HOST, port), Handler)
     srv.daemon_threads = True

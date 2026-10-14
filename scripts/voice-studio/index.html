@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Studio · Newton AI Control</title>
+<link rel="stylesheet" href="/voice/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Voice Studio</h1>
+      <span class="sub">speech on this Mac with Fish Audio Drama 3</span>
+    </div>
+    <a class="back" href="/">← Newton AI Control</a>
+  </header>
+
+  <div id="banner-error" class="banner"></div>
+  <div id="banner-conflict" class="banner"></div>
+
+  <!-- 9.1 model control -->
+  <section class="card" id="card-model">
+    <div class="model-head">
+      <div class="model-title">Speech model &nbsp;<span class="sub" id="fish-name">Fish Audio Drama 3 · MLX Q4</span></div>
+      <span class="pill"><span class="dot" id="fish-dot"></span><span id="fish-state">…</span></span>
+    </div>
+    <div class="detail" id="fish-detail">Checking…</div>
+    <div class="rows compact">
+      <div class="row"><span class="name">Memory</span><span class="val" id="fish-mem">—</span></div>
+      <div class="row"><span class="name">Language models</span><span class="val" id="fish-compat">—</span></div>
+    </div>
+    <div class="note" id="fish-admission"></div>
+    <div class="btnrow">
+      <button id="btn-fish-start" class="primary">Start Fish</button>
+      <button id="btn-fish-stop">Stop Fish</button>
+      <button id="btn-fish-restart">Restart</button>
+    </div>
+    <div class="lastop" id="fish-lastop"></div>
+  </section>
+
+  <!-- 9.5 voice profiles -->
+  <section class="card" id="card-profiles">
+    <div class="model-head">
+      <div class="model-title">Voice profile</div>
+      <div class="inline">
+        <select id="profile-select" aria-label="Voice profile"></select>
+        <button id="btn-profile-new" class="small">New profile</button>
+      </div>
+    </div>
+    <div id="profile-empty" class="detail hidden">No voice profiles yet. Create one for your own voice to begin.</div>
+    <div id="profile-info" class="detail"></div>
+    <div class="btnrow tight" id="profile-actions">
+      <button id="btn-profile-rename" class="small">Rename</button>
+      <button id="btn-profile-delete" class="small danger">Delete profile…</button>
+    </div>
+    <form id="profile-form" class="subpanel hidden" autocomplete="off">
+      <label class="field">Profile name
+        <input id="pf-name" type="text" maxlength="60" placeholder="e.g. My voice">
+      </label>
+      <fieldset class="consent">
+        <legend>Whose voice is this?</legend>
+        <label class="opt"><input type="radio" name="pf-basis" value="own_voice" checked> My own voice</label>
+        <label class="opt"><input type="radio" name="pf-basis" value="documented_permission"> Someone else's voice, and I have their documented permission</label>
+        <label class="field hidden" id="pf-note-wrap">Who gave permission, and where is the record kept?
+          <textarea id="pf-note" maxlength="500" rows="2"></textarea>
+        </label>
+        <label class="opt"><input type="checkbox" id="pf-attest"> I confirm this. Voices are only cloned with the speaker's consent (Fish Audio Community License).</label>
+      </fieldset>
+      <div class="btnrow tight">
+        <button type="submit" class="primary small">Create profile</button>
+        <button type="button" id="pf-cancel" class="small">Cancel</button>
+      </div>
+      <div class="err" id="pf-error"></div>
+    </form>
+    <form id="rename-form" class="subpanel hidden" autocomplete="off">
+      <label class="field">New name <input id="rn-name" type="text" maxlength="60"></label>
+      <div class="btnrow tight">
+        <button type="submit" class="primary small">Save name</button>
+        <button type="button" id="rn-cancel" class="small">Cancel</button>
+      </div>
+      <div class="err" id="rn-error"></div>
+    </form>
+  </section>
+
+  <!-- 9.2 - 9.6 recordings -->
+  <section class="card" id="card-refs">
+    <div class="model-head">
+      <div class="model-title">Reference recordings</div>
+      <span class="sub" id="refs-count"></span>
+    </div>
+    <details class="guide">
+      <summary>How to record a good reference</summary>
+      <ul>
+        <li><b>Quiet room.</b> Turn off fans, music and TV. Soft furnishings help; a bare room echoes.</li>
+        <li><b>Same microphone position each time</b>, about a hand-span (20–30 cm) from your mouth and slightly to the side, so breaths don't pop.</li>
+        <li><b>Speak naturally</b>, at your normal pace and volume, as if talking to someone. Don't perform unless you want the clone to perform.</li>
+        <li><b>8–15 seconds</b> of continuous speech works best (at least 3 s and at most 30 s once silence is trimmed).</li>
+        <li><b>Watch the level meter.</b> Keep the peaks below the red zone; if it turns red you're clipping: move back or turn the input gain down.</li>
+        <li><b>Record several</b> (different sentences, maybe different moods), then generate the same text from each and keep the one that sounds most like you.</li>
+        <li><b>Type exactly what you said</b> as the transcript, word for word. A wrong transcript is the most common cause of poor cloning.</li>
+      </ul>
+      <p class="sub">Something to read, if you want: “I moved the meeting to Thursday because the projector in the small room still isn't working. If that's a problem, call me back and we'll sort it out.”</p>
+    </details>
+
+    <div id="refs-list"></div>
+    <details class="older hidden" id="refs-older">
+      <summary id="refs-older-sum">Earlier versions</summary>
+      <div id="refs-older-list"></div>
+    </details>
+
+    <div class="subpanel" id="add-ref">
+      <div class="model-head">
+        <div class="subtitle" id="add-ref-title">Add a recording</div>
+        <div class="tabs" role="tablist">
+          <button id="tab-record" class="tab active" role="tab">Record</button>
+          <button id="tab-upload" class="tab" role="tab">Upload a file</button>
+        </div>
+      </div>
+      <div class="replacing hidden" id="replacing">Replacing <b id="replacing-label"></b>. The current version is kept until you delete it. <button id="btn-replace-cancel" class="small">Cancel replacing</button></div>
+      <label class="field">Label (optional) <input id="ref-label" type="text" maxlength="80" placeholder="e.g. Calm, desk mic"></label>
+
+      <div id="pane-record">
+        <div class="btnrow tight">
+          <button id="btn-mic" class="small">Allow microphone</button>
+          <select id="mic-select" class="hidden" aria-label="Microphone"></select>
+        </div>
+        <div class="recorder">
+          <button id="btn-rec" class="primary" disabled>Record</button>
+          <div class="meter" aria-hidden="true"><div class="meter-bar" id="meter-bar"></div></div>
+          <span class="mono" id="rec-time">0.0 s</span>
+          <span class="mono" id="rec-level"></span>
+        </div>
+        <div class="note" id="rec-note">Allow the microphone, then press Record and read naturally for 8–15 seconds.</div>
+        <div id="rec-preview" class="hidden">
+          <audio id="rec-audio" controls></audio>
+          <div class="btnrow tight">
+            <button id="btn-rec-save" class="primary small">Save recording</button>
+            <button id="btn-rec-redo" class="small">Re-record</button>
+            <button id="btn-rec-discard" class="small">Discard</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="pane-upload" class="hidden">
+        <input id="file-input" type="file" accept="audio/*,.wav,.flac,.mp3,.m4a,.aac,.ogg,.opus,.webm,.caf,.aif,.aiff">
+        <div class="note">WAV, FLAC, MP3, M4A/AAC, Ogg, WebM, CAF or AIFF, up to 32 MiB. The file is checked by its content, kept unchanged, and a model-ready copy (44.1 kHz mono) is made from it.</div>
+        <div class="btnrow tight"><button id="btn-upload" class="primary small" disabled>Upload</button></div>
+      </div>
+      <div class="err" id="add-ref-error"></div>
+      <div class="ok-note" id="add-ref-ok"></div>
+    </div>
+  </section>
+
+  <!-- 9.7 / 9.8 generation -->
+  <section class="card" id="card-gen">
+    <div class="model-head">
+      <div class="model-title">Generate speech</div>
+      <span class="sub" id="gen-voice"></span>
+    </div>
+    <div class="field">
+      <span>Recording to clone from</span>
+      <select id="gen-ref" aria-label="Reference recording"></select>
+      <label class="opt small-opt"><input type="checkbox" id="gen-multi"> Use several recordings together (experimental)</label>
+      <div id="gen-multi-list" class="hidden"></div>
+      <div class="note hidden" id="gen-multi-note">The model's prompt accepts up to three examples of the same voice. Whether this sounds more like you than the best single recording is something to judge by ear; nothing here assumes it does.</div>
+    </div>
+    <div class="toolbar">
+      <select id="preset" aria-label="Example scripts">
+        <option value="">Example scripts…</option>
+      </select>
+      <span class="tags">Cues: <button class="small tag" data-tag="[laughs]">[laughs]</button><button class="small tag" data-tag="[sighs]">[sighs]</button></span>
+    </div>
+    <textarea id="gen-text" rows="5" placeholder="Type what the voice should say."></textarea>
+    <div class="counter"><span id="gen-count">0</span> / <span id="gen-max">2000</span> characters · cues like [laughs] occasionally make a take run on; if one does, generate again with another seed.</div>
+
+    <div class="settings">
+      <label class="set">Temperature <input type="range" id="s-temperature" step="0.05"><input type="number" id="n-temperature" step="0.05"></label>
+      <label class="set">Top-p <input type="range" id="s-top_p" step="0.01"><input type="number" id="n-top_p" step="0.01"></label>
+      <label class="set">Top-k <input type="range" id="s-top_k" step="1"><input type="number" id="n-top_k" step="1"></label>
+      <label class="set">Seed <input type="number" id="n-seed" min="0" step="1" placeholder="random"> <button id="btn-seed-random" class="small" type="button">Random</button></label>
+      <label class="set">Takes <select id="n-count"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+      <label class="set"><input type="checkbox" id="n-progressive" checked> Play while it generates</label>
+    </div>
+    <details class="advanced">
+      <summary>Advanced</summary>
+      <label class="set">Max frames per chunk <input type="number" id="n-max_frames_per_chunk" step="1"></label>
+      <label class="set">Chunk size (bytes of text) <input type="number" id="n-chunk_bytes" step="1"></label>
+      <label class="set"><input type="checkbox" id="n-single_chunk"> Don't split the text into chunks</label>
+      <p class="note">Long text is read in chunks of about 300 bytes, each limited to 600 frames (≈ 28 s of audio); each chunk is conditioned on your reference and the previous chunk. Defaults are the model developer's published settings (temperature 1.0, top-p 0.9, top-k 30). <button id="btn-defaults" class="small" type="button">Reset to defaults</button></p>
+    </details>
+    <div class="btnrow">
+      <button id="btn-generate" class="primary">Generate</button>
+      <button id="btn-gen-cancel" disabled>Cancel</button>
+    </div>
+    <div class="genstatus" id="gen-status"></div>
+    <div class="err" id="gen-error"></div>
+  </section>
+
+  <!-- 9.9 takes -->
+  <section class="card" id="card-takes">
+    <div class="model-head">
+      <div class="model-title">Takes</div>
+      <select id="take-filter" aria-label="Show takes"><option value="profile">This profile</option><option value="all">All profiles</option><option value="starred">Starred</option></select>
+    </div>
+    <div class="note">Every take is kept with its text, voice, recording, settings, seed and model revision. Same seed + same text + same recording + same settings reproduces a take on this runtime.</div>
+    <div id="takes-list"></div>
+  </section>
+
+  <footer>
+    <p>Everything here runs on this Mac (127.0.0.1). Recordings, transcripts and takes stay in a private folder on this Mac and are never sent anywhere. <span id="store-line"></span></p>
+    <p id="license-line">Fish Audio Drama 3 is licensed under the Fish Audio Community License. Built with Fish Audio.</p>
+    <p>Only clone your own voice, or a voice whose owner has given you documented permission.</p>
+  </footer>
+</div>
+
+<div id="compare" class="compare hidden">
+  <span class="cmp-title">Compare</span>
+  <span class="cmp-slot"><b>A</b> <span id="cmp-a">—</span></span>
+  <span class="cmp-slot"><b>B</b> <span id="cmp-b">—</span></span>
+  <button id="cmp-play-a" class="small">Play A</button>
+  <button id="cmp-play-b" class="small">Play B</button>
+  <button id="cmp-switch" class="small" title="Switch to the other take at the same moment">Switch A⇄B</button>
+  <button id="cmp-stop" class="small">Stop</button>
+  <button id="cmp-clear" class="small">Clear</button>
+  <audio id="cmp-audio-a"></audio><audio id="cmp-audio-b"></audio>
+</div>
+
+<script src="/voice/app.js"></script>
+</body>
+</html>
