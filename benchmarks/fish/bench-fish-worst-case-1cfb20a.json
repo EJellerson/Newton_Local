@@ -1,0 +1,70 @@
+{
+  "whole_take_600_frame_chunk": {
+    "frames": 600,
+    "audio_seconds": 27.864,
+    "synthesis_s": 17.303,
+    "first_audio_s": 17.3024,
+    "peak_gib": 34.48,
+    "peak_gpu_alloc_gib": 42.59,
+    "realtime_factor": 1.61,
+    "flags": [
+      {
+        "kind": "no_eos",
+        "chunk": 0,
+        "message": "chunk 1 did not end by itself and was cut at 600 frames: it may run on or be truncated"
+      }
+    ],
+    "playback_stalls": null,
+    "chunk_frames": [
+      600
+    ]
+  },
+  "whole_take_long_chunked": {
+    "frames": 1014,
+    "audio_seconds": 47.09,
+    "synthesis_s": 32.209,
+    "first_audio_s": 9.2021,
+    "peak_gib": 33.11,
+    "peak_gpu_alloc_gib": 41.06,
+    "realtime_factor": 1.462,
+    "flags": [],
+    "playback_stalls": null,
+    "chunk_frames": [
+      316,
+      477,
+      221
+    ]
+  },
+  "progressive_600_frame_chunk": {
+    "frames": 600,
+    "audio_seconds": 27.864,
+    "synthesis_s": 17.246,
+    "first_audio_s": 1.1845,
+    "peak_gib": 25.75,
+    "peak_gpu_alloc_gib": 32.55,
+    "realtime_factor": 1.616,
+    "flags": [
+      {
+        "kind": "no_eos",
+        "chunk": 0,
+        "message": "chunk 1 did not end by itself and was cut at 600 frames: it may run on or be truncated"
+      }
+    ],
+    "playback_stalls": 0,
+    "chunk_frames": [
+      600
+    ]
+  },
+  "stop": {
+    "after": {
+      "memory": {
+        "free_for_models_gib": 76.89,
+        "gpu_alloc_gib": 3.42,
+        "pressure": "normal"
+      },
+      "processes": 0,
+      "socket_listening": false
+    },
+    "stop_s": 0.12
+  }
+}

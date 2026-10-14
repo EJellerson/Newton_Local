@@ -80,8 +80,8 @@
         "max_references": 3
       },
       "memory": {
-        "required_gib": 32.0,
-        "basis": "provisional: model card peak ~30 GB while generating (M4 Pro); replaced by the M2 Ultra measurement in docs/19"
+        "required_gib": 30.0,
+        "basis": "measured on this Mac (docs/19 section 5): Metal allocation +27.1 GiB once loaded and at most +29.4 GiB while generating with streamed decoding, a 600-frame chunk included; MLX peak 25.8 GiB"
       }
     }
   },

@@ -1,0 +1,1652 @@
+{
+  "benchmark": "scripts/bench-fish.py",
+  "at": "2026-10-14T14:14:05-0400",
+  "machine": {
+    "macos": "26.6.2",
+    "hw_model": "Mac14,8",
+    "cpu": "Apple M2 Ultra",
+    "cpu_cores": 24,
+    "memory_gib": 128,
+    "python": "3.9.6",
+    "repo_commit": "d4b1ca4af5b7ba7a7bead16741ba0f7eccc45bbe"
+  },
+  "config": "config/fish.json",
+  "model": {
+    "id": "drama3-q4",
+    "display_name": "Fish Audio Drama 3",
+    "variant": "MLX Q4",
+    "hf_repo": "cguldogan/drama-3-mlx-q4",
+    "hf_revision": "5331ab509359c0e4a7e353a19e255ddf3e8152a8"
+  },
+  "qwen_present": [],
+  "segment_frames": 11,
+  "reps": 5,
+  "identity": {
+    "model_id": "drama3-q4",
+    "manifest_sha256": "4257e4386f9a2d870c078f0e2e85f61ecf24f2b396e9464a00dcc7a512a90583",
+    "hf_revision": "5331ab509359c0e4a7e353a19e255ddf3e8152a8",
+    "adapter": "fish_omni",
+    "runtime_commit": "e7488935ec2ebfafd38ef2b58e290d79f3d05dc7",
+    "mlx": "0.31.2",
+    "mlx_audio": "0.5.9",
+    "python": "3.12.2",
+    "network_sandbox": "enforced"
+  },
+  "other_workloads": {
+    "processes_over_1_gib": 7,
+    "top_rss": [
+      {
+        "name": "WindowServer",
+        "rss_gib": 5.3
+      },
+      {
+        "name": "Python",
+        "rss_gib": 3.9
+      },
+      {
+        "name": "Python",
+        "rss_gib": 2.88
+      },
+      {
+        "name": "com.apple.Virtualization.VirtualMachine",
+        "rss_gib": 1.86
+      },
+      {
+        "name": "Codex (Renderer)",
+        "rss_gib": 1.56
+      },
+      {
+        "name": "Claude Helper (Renderer)",
+        "rss_gib": 1.46
+      }
+    ],
+    "total_rss_gib": 57.0
+  },
+  "reference": {
+    "kind": "the model's own no-reference voice (no person)",
+    "text": "The weather was calm this morning, so we walked down to the harbor and watched the fishing boats come in, one after another, until the sun was high.",
+    "seed": 20261014,
+    "seconds": 12.492,
+    "sha256": "666021a3bebee9683d82250ec6de797ed28078d29b1bff5f8535aace18b6d5c0",
+    "flags": [],
+    "same_seed_same_audio": true,
+    "first_put_encode_s": 0.24,
+    "reuse_check_s": 0.001,
+    "reused_from_cache": true
+  },
+  "determinism": {
+    "medium_whole_take_seed_1000_twice": true
+  },
+  "speech": {
+    "short": {
+      "text": "Sure, I can help with that.",
+      "progressive": true,
+      "runs": [
+        {
+          "state": "done",
+          "client_total_s": 1.996,
+          "error": null,
+          "engine_cpu_s": 1.43,
+          "peak_gpu_alloc_gib": 32.68,
+          "seed": 1000,
+          "frames": 45,
+          "audio_seconds": 2.09,
+          "synthesis_s": 1.943,
+          "first_frame_s": 0.6485,
+          "first_audio_s": 0.94,
+          "realtime_factor": 1.076,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 45,
+              "eos": true,
+              "frames_per_s": 34.38,
+              "first_frame_s": 0.6485,
+              "prompt_build_s": 0.0007,
+              "decode_s": 0.0143,
+              "audio_seconds": 2.09
+            }
+          ],
+          "steady_frames_per_s": 34.4,
+          "client_first_audio_s": 0.9511,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 5,
+          "audio_sha256": "c5000d6f2288d5c93fb491f3661a26d64ee5a70bc7908b6bdb5ceeeeec7fadee"
+        },
+        {
+          "state": "done",
+          "client_total_s": 1.976,
+          "error": null,
+          "engine_cpu_s": 1.39,
+          "peak_gpu_alloc_gib": 32.65,
+          "seed": 1001,
+          "frames": 49,
+          "audio_seconds": 2.276,
+          "synthesis_s": 1.938,
+          "first_frame_s": 0.6447,
+          "first_audio_s": 0.9182,
+          "realtime_factor": 1.174,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 49,
+              "eos": true,
+              "frames_per_s": 37.68,
+              "first_frame_s": 0.6447,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.019,
+              "audio_seconds": 2.276
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.9395,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 5,
+          "audio_sha256": "1cad6632d49550d5770f69071ed489862a165c4ffb161a1a7d4857c902425c85"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.068,
+          "error": null,
+          "engine_cpu_s": 1.5,
+          "peak_gpu_alloc_gib": 32.68,
+          "seed": 1002,
+          "frames": 52,
+          "audio_seconds": 2.415,
+          "synthesis_s": 2.023,
+          "first_frame_s": 0.6453,
+          "first_audio_s": 0.9221,
+          "realtime_factor": 1.193,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 52,
+              "eos": true,
+              "frames_per_s": 37.73,
+              "first_frame_s": 0.6453,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.0264,
+              "audio_seconds": 2.415
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.933,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 5,
+          "audio_sha256": "2d8c808c80ce376c66fd7acbd271c50ecd8e64442de6e571a8ad3c215fee7369"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.16,
+          "error": null,
+          "engine_cpu_s": 1.55,
+          "peak_gpu_alloc_gib": 32.57,
+          "seed": 1003,
+          "frames": 56,
+          "audio_seconds": 2.601,
+          "synthesis_s": 2.122,
+          "first_frame_s": 0.6446,
+          "first_audio_s": 0.92,
+          "realtime_factor": 1.225,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 56,
+              "eos": true,
+              "frames_per_s": 37.59,
+              "first_frame_s": 0.6446,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0143,
+              "audio_seconds": 2.601
+            }
+          ],
+          "steady_frames_per_s": 37.6,
+          "client_first_audio_s": 0.9333,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 6,
+          "audio_sha256": "01ec800891215007fdef776e1dc509d4f2267bb6c5df0be7af04ee981778b3ae"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.075,
+          "error": null,
+          "engine_cpu_s": 1.54,
+          "peak_gpu_alloc_gib": 32.64,
+          "seed": 1004,
+          "frames": 53,
+          "audio_seconds": 2.461,
+          "synthesis_s": 2.05,
+          "first_frame_s": 0.6409,
+          "first_audio_s": 0.9157,
+          "realtime_factor": 1.2,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 53,
+              "eos": true,
+              "frames_per_s": 37.7,
+              "first_frame_s": 0.6409,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.0299,
+              "audio_seconds": 2.461
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.9296,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 5,
+          "audio_sha256": "3090f394a56f8e4f76b890bd0e791ee88aef822d30adc722c33c19210850da2a"
+        }
+      ],
+      "summary": {
+        "first_frame_s": {
+          "median": 0.645,
+          "min": 0.641,
+          "max": 0.648,
+          "n": 5
+        },
+        "first_audio_s": {
+          "median": 0.92,
+          "min": 0.916,
+          "max": 0.94,
+          "n": 5
+        },
+        "client_first_audio_s": {
+          "median": 0.933,
+          "min": 0.93,
+          "max": 0.951,
+          "n": 5
+        },
+        "synthesis_s": {
+          "median": 2.023,
+          "min": 1.938,
+          "max": 2.122,
+          "n": 5
+        },
+        "audio_seconds": {
+          "median": 2.415,
+          "min": 2.09,
+          "max": 2.601,
+          "n": 5
+        },
+        "realtime_factor": {
+          "median": 1.193,
+          "min": 1.076,
+          "max": 1.225,
+          "n": 5
+        },
+        "steady_frames_per_s": {
+          "median": 37.7,
+          "min": 34.4,
+          "max": 37.7,
+          "n": 5
+        },
+        "peak_gib": {
+          "median": 25.73,
+          "min": 25.73,
+          "max": 25.73,
+          "n": 5
+        },
+        "peak_gpu_alloc_gib": {
+          "median": 32.65,
+          "min": 32.57,
+          "max": 32.68,
+          "n": 5
+        },
+        "engine_cpu_s": {
+          "median": 1.5,
+          "min": 1.39,
+          "max": 1.55,
+          "n": 5
+        },
+        "playback_stalls": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "n": 5
+        },
+        "client_total_s": {
+          "median": 2.068,
+          "min": 1.976,
+          "max": 2.16,
+          "n": 5
+        },
+        "failed": 0,
+        "flags": {},
+        "chunks_without_eos": 0
+      }
+    },
+    "question": {
+      "text": "Did you get a chance to look at the proposal before the meeting?",
+      "progressive": true,
+      "runs": [
+        {
+          "state": "done",
+          "client_total_s": 2.828,
+          "error": null,
+          "engine_cpu_s": 2.19,
+          "peak_gpu_alloc_gib": 32.73,
+          "seed": 1000,
+          "frames": 78,
+          "audio_seconds": 3.622,
+          "synthesis_s": 2.778,
+          "first_frame_s": 0.6557,
+          "first_audio_s": 0.96,
+          "realtime_factor": 1.304,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 78,
+              "eos": true,
+              "frames_per_s": 36.53,
+              "first_frame_s": 0.6557,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.014,
+              "audio_seconds": 3.622
+            }
+          ],
+          "steady_frames_per_s": 36.5,
+          "client_first_audio_s": 0.9828,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 8,
+          "audio_sha256": "c20bed6ac67c9dd54f543881760b8a8542d5ca7f6cd14ed91a770548103ab34c"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.732,
+          "error": null,
+          "engine_cpu_s": 2.14,
+          "peak_gpu_alloc_gib": 32.66,
+          "seed": 1001,
+          "frames": 73,
+          "audio_seconds": 3.39,
+          "synthesis_s": 2.697,
+          "first_frame_s": 0.6529,
+          "first_audio_s": 0.9318,
+          "realtime_factor": 1.257,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 73,
+              "eos": true,
+              "frames_per_s": 35.64,
+              "first_frame_s": 0.6529,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0245,
+              "audio_seconds": 3.39
+            }
+          ],
+          "steady_frames_per_s": 35.6,
+          "client_first_audio_s": 0.9479,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 7,
+          "audio_sha256": "b0153cac3ad6096fbf301e40ef49fa39f1f996563ddb60446ecffdae139f7daa"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.809,
+          "error": null,
+          "engine_cpu_s": 2.31,
+          "peak_gpu_alloc_gib": 32.71,
+          "seed": 1002,
+          "frames": 77,
+          "audio_seconds": 3.576,
+          "synthesis_s": 2.792,
+          "first_frame_s": 0.6531,
+          "first_audio_s": 0.9395,
+          "realtime_factor": 1.281,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 77,
+              "eos": true,
+              "frames_per_s": 35.53,
+              "first_frame_s": 0.6531,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.0001,
+              "audio_seconds": 3.576
+            }
+          ],
+          "steady_frames_per_s": 35.5,
+          "client_first_audio_s": 0.9608,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 7,
+          "audio_sha256": "a296250012d82905c76003ed6a672af74e8c15150d2662508e82aa82ca9f93d7"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.788,
+          "error": null,
+          "engine_cpu_s": 2.14,
+          "peak_gpu_alloc_gib": 32.65,
+          "seed": 1003,
+          "frames": 80,
+          "audio_seconds": 3.715,
+          "synthesis_s": 2.751,
+          "first_frame_s": 0.6524,
+          "first_audio_s": 0.9231,
+          "realtime_factor": 1.35,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 80,
+              "eos": true,
+              "frames_per_s": 37.94,
+              "first_frame_s": 0.6524,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.0169,
+              "audio_seconds": 3.715
+            }
+          ],
+          "steady_frames_per_s": 37.9,
+          "client_first_audio_s": 0.9298,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 8,
+          "audio_sha256": "c457ff42ad1cf32e60be3bd03e9125f18aed9ae0c5dc28da490509ed2d158fdf"
+        },
+        {
+          "state": "done",
+          "client_total_s": 2.865,
+          "error": null,
+          "engine_cpu_s": 2.25,
+          "peak_gpu_alloc_gib": 32.66,
+          "seed": 1004,
+          "frames": 82,
+          "audio_seconds": 3.808,
+          "synthesis_s": 2.822,
+          "first_frame_s": 0.6524,
+          "first_audio_s": 0.9326,
+          "realtime_factor": 1.349,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 82,
+              "eos": true,
+              "frames_per_s": 37.66,
+              "first_frame_s": 0.6524,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.019,
+              "audio_seconds": 3.808
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.9377,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 8,
+          "audio_sha256": "1345a271ee3f6b4ee7cbfcebebda171fb4551104e451d6736b26060cb09c8d26"
+        }
+      ],
+      "summary": {
+        "first_frame_s": {
+          "median": 0.653,
+          "min": 0.652,
+          "max": 0.656,
+          "n": 5
+        },
+        "first_audio_s": {
+          "median": 0.933,
+          "min": 0.923,
+          "max": 0.96,
+          "n": 5
+        },
+        "client_first_audio_s": {
+          "median": 0.948,
+          "min": 0.93,
+          "max": 0.983,
+          "n": 5
+        },
+        "synthesis_s": {
+          "median": 2.778,
+          "min": 2.697,
+          "max": 2.822,
+          "n": 5
+        },
+        "audio_seconds": {
+          "median": 3.622,
+          "min": 3.39,
+          "max": 3.808,
+          "n": 5
+        },
+        "realtime_factor": {
+          "median": 1.304,
+          "min": 1.257,
+          "max": 1.35,
+          "n": 5
+        },
+        "steady_frames_per_s": {
+          "median": 36.5,
+          "min": 35.5,
+          "max": 37.9,
+          "n": 5
+        },
+        "peak_gib": {
+          "median": 25.73,
+          "min": 25.73,
+          "max": 25.73,
+          "n": 5
+        },
+        "peak_gpu_alloc_gib": {
+          "median": 32.66,
+          "min": 32.65,
+          "max": 32.73,
+          "n": 5
+        },
+        "engine_cpu_s": {
+          "median": 2.19,
+          "min": 2.14,
+          "max": 2.31,
+          "n": 5
+        },
+        "playback_stalls": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "n": 5
+        },
+        "client_total_s": {
+          "median": 2.809,
+          "min": 2.732,
+          "max": 2.865,
+          "n": 5
+        },
+        "failed": 0,
+        "flags": {},
+        "chunks_without_eos": 0
+      }
+    },
+    "medium": {
+      "text": "Thanks for calling back. I checked the schedule, and Thursday at two works for both of us. I'll send a confirmation with the address and a map.",
+      "progressive": true,
+      "runs": [
+        {
+          "state": "done",
+          "client_total_s": 6.895,
+          "error": null,
+          "engine_cpu_s": 5.98,
+          "peak_gpu_alloc_gib": 32.73,
+          "seed": 1000,
+          "frames": 231,
+          "audio_seconds": 10.728,
+          "synthesis_s": 6.875,
+          "first_frame_s": 0.672,
+          "first_audio_s": 0.9582,
+          "realtime_factor": 1.56,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 231,
+              "eos": true,
+              "frames_per_s": 37.08,
+              "first_frame_s": 0.672,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0002,
+              "audio_seconds": 10.728
+            }
+          ],
+          "steady_frames_per_s": 37.1,
+          "client_first_audio_s": 0.983,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 21,
+          "audio_sha256": "8674fba768da8fb6b84cf7cb6a47a6055170b30f5a96dbbb39cf071d12d44411"
+        },
+        {
+          "state": "done",
+          "client_total_s": 7.002,
+          "error": null,
+          "engine_cpu_s": 6.29,
+          "peak_gpu_alloc_gib": 32.7,
+          "seed": 1001,
+          "frames": 237,
+          "audio_seconds": 11.006,
+          "synthesis_s": 6.95,
+          "first_frame_s": 0.6693,
+          "first_audio_s": 0.9466,
+          "realtime_factor": 1.584,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 237,
+              "eos": true,
+              "frames_per_s": 37.71,
+              "first_frame_s": 0.6693,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0219,
+              "audio_seconds": 11.006
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.952,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 22,
+          "audio_sha256": "8c470010fa8321bd70a9f6d9aad7cf25362243b1aee39b4f1179bb2ef2a40965"
+        },
+        {
+          "state": "done",
+          "client_total_s": 5.987,
+          "error": null,
+          "engine_cpu_s": 5.21,
+          "peak_gpu_alloc_gib": 32.74,
+          "seed": 1002,
+          "frames": 199,
+          "audio_seconds": 9.242,
+          "synthesis_s": 5.935,
+          "first_frame_s": 0.6697,
+          "first_audio_s": 0.9463,
+          "realtime_factor": 1.557,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 199,
+              "eos": true,
+              "frames_per_s": 37.71,
+              "first_frame_s": 0.6697,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0147,
+              "audio_seconds": 9.242
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.9517,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 19,
+          "audio_sha256": "1903460816a70c749baa87ad4aadb5f6046bdad7494067ce22fd62e96c0204e5"
+        },
+        {
+          "state": "done",
+          "client_total_s": 6.7,
+          "error": null,
+          "engine_cpu_s": 5.91,
+          "peak_gpu_alloc_gib": 32.7,
+          "seed": 1003,
+          "frames": 224,
+          "audio_seconds": 10.403,
+          "synthesis_s": 6.662,
+          "first_frame_s": 0.6727,
+          "first_audio_s": 1.034,
+          "realtime_factor": 1.562,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 224,
+              "eos": true,
+              "frames_per_s": 37.35,
+              "first_frame_s": 0.6727,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0188,
+              "audio_seconds": 10.403
+            }
+          ],
+          "steady_frames_per_s": 37.4,
+          "client_first_audio_s": 1.0488,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 21,
+          "audio_sha256": "37f4dcc4ab3de4d58932d952077762c4762654bc0ee1fd63bcac77eed4e28d5d"
+        },
+        {
+          "state": "done",
+          "client_total_s": 6.522,
+          "error": null,
+          "engine_cpu_s": 5.74,
+          "peak_gpu_alloc_gib": 32.73,
+          "seed": 1004,
+          "frames": 219,
+          "audio_seconds": 10.17,
+          "synthesis_s": 6.484,
+          "first_frame_s": 0.6688,
+          "first_audio_s": 0.9405,
+          "realtime_factor": 1.568,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 219,
+              "eos": true,
+              "frames_per_s": 37.69,
+              "first_frame_s": 0.6688,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0316,
+              "audio_seconds": 10.17
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "client_first_audio_s": 0.961,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 20,
+          "audio_sha256": "1d5d6eedaabcf04ada40f4e16b1b7c2313db07b5133bfe0394eed9c83960bb5b"
+        }
+      ],
+      "summary": {
+        "first_frame_s": {
+          "median": 0.67,
+          "min": 0.669,
+          "max": 0.673,
+          "n": 5
+        },
+        "first_audio_s": {
+          "median": 0.947,
+          "min": 0.941,
+          "max": 1.034,
+          "n": 5
+        },
+        "client_first_audio_s": {
+          "median": 0.961,
+          "min": 0.952,
+          "max": 1.049,
+          "n": 5
+        },
+        "synthesis_s": {
+          "median": 6.662,
+          "min": 5.935,
+          "max": 6.95,
+          "n": 5
+        },
+        "audio_seconds": {
+          "median": 10.403,
+          "min": 9.242,
+          "max": 11.006,
+          "n": 5
+        },
+        "realtime_factor": {
+          "median": 1.562,
+          "min": 1.557,
+          "max": 1.584,
+          "n": 5
+        },
+        "steady_frames_per_s": {
+          "median": 37.7,
+          "min": 37.1,
+          "max": 37.7,
+          "n": 5
+        },
+        "peak_gib": {
+          "median": 25.73,
+          "min": 25.73,
+          "max": 25.73,
+          "n": 5
+        },
+        "peak_gpu_alloc_gib": {
+          "median": 32.73,
+          "min": 32.7,
+          "max": 32.74,
+          "n": 5
+        },
+        "engine_cpu_s": {
+          "median": 5.91,
+          "min": 5.21,
+          "max": 6.29,
+          "n": 5
+        },
+        "playback_stalls": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "n": 5
+        },
+        "client_total_s": {
+          "median": 6.7,
+          "min": 5.987,
+          "max": 7.002,
+          "n": 5
+        },
+        "failed": 0,
+        "flags": {},
+        "chunks_without_eos": 0
+      }
+    },
+    "numbers": {
+      "text": "Your order number is 48213. It ships on October 21st and should arrive between 9 and 11 a.m.; the total is $112.50.",
+      "progressive": true,
+      "runs": [
+        {
+          "state": "done",
+          "client_total_s": 8.643,
+          "error": null,
+          "engine_cpu_s": 7.61,
+          "peak_gpu_alloc_gib": 32.6,
+          "seed": 1000,
+          "frames": 287,
+          "audio_seconds": 13.328,
+          "synthesis_s": 8.594,
+          "first_frame_s": 0.7565,
+          "first_audio_s": 1.0356,
+          "realtime_factor": 1.551,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 287,
+              "eos": true,
+              "frames_per_s": 36.56,
+              "first_frame_s": 0.7565,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0143,
+              "audio_seconds": 13.328
+            }
+          ],
+          "steady_frames_per_s": 36.6,
+          "client_first_audio_s": 1.0569,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 27,
+          "audio_sha256": "da36ba6ea95e8ce518eed13cec33b6d676b54046087c8ed61a81e0d59354d499"
+        },
+        {
+          "state": "done",
+          "client_total_s": 8.748,
+          "error": null,
+          "engine_cpu_s": 7.81,
+          "peak_gpu_alloc_gib": 32.57,
+          "seed": 1001,
+          "frames": 299,
+          "audio_seconds": 13.886,
+          "synthesis_s": 8.706,
+          "first_frame_s": 0.757,
+          "first_audio_s": 1.0326,
+          "realtime_factor": 1.595,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 299,
+              "eos": true,
+              "frames_per_s": 37.57,
+              "first_frame_s": 0.757,
+              "prompt_build_s": 0.0005,
+              "decode_s": 0.0165,
+              "audio_seconds": 13.886
+            }
+          ],
+          "steady_frames_per_s": 37.6,
+          "client_first_audio_s": 1.0525,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 28,
+          "audio_sha256": "9238d8f4113c6356cc4c87a1e206b92e799a1b45335d03b6753d0999355f8b57"
+        },
+        {
+          "state": "done",
+          "client_total_s": 8.725,
+          "error": null,
+          "engine_cpu_s": 8.06,
+          "peak_gpu_alloc_gib": 32.56,
+          "seed": 1002,
+          "frames": 295,
+          "audio_seconds": 13.7,
+          "synthesis_s": 8.674,
+          "first_frame_s": 0.7563,
+          "first_audio_s": 1.056,
+          "realtime_factor": 1.579,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 295,
+              "eos": true,
+              "frames_per_s": 37.27,
+              "first_frame_s": 0.7563,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0291,
+              "audio_seconds": 13.7
+            }
+          ],
+          "steady_frames_per_s": 37.3,
+          "client_first_audio_s": 1.0708,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 27,
+          "audio_sha256": "d5e917e3e6cb568bb23432cd892c05a50ec4f9f4a7bf90a8959fc8a70b88f8ac"
+        },
+        {
+          "state": "done",
+          "client_total_s": 9.139,
+          "error": null,
+          "engine_cpu_s": 8.13,
+          "peak_gpu_alloc_gib": 32.59,
+          "seed": 1003,
+          "frames": 307,
+          "audio_seconds": 14.257,
+          "synthesis_s": 9.099,
+          "first_frame_s": 0.7567,
+          "first_audio_s": 1.0361,
+          "realtime_factor": 1.567,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 307,
+              "eos": true,
+              "frames_per_s": 36.81,
+              "first_frame_s": 0.7567,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0305,
+              "audio_seconds": 14.257
+            }
+          ],
+          "steady_frames_per_s": 36.8,
+          "client_first_audio_s": 1.0516,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 28,
+          "audio_sha256": "71201305f761120a63f642fa9cb9bc0d64dd21271de04173486d6daf0f3b5a18"
+        },
+        {
+          "state": "done",
+          "client_total_s": 8.919,
+          "error": null,
+          "engine_cpu_s": 7.92,
+          "peak_gpu_alloc_gib": 32.59,
+          "seed": 1004,
+          "frames": 307,
+          "audio_seconds": 14.257,
+          "synthesis_s": 8.877,
+          "first_frame_s": 0.7566,
+          "first_audio_s": 1.0322,
+          "realtime_factor": 1.606,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 307,
+              "eos": true,
+              "frames_per_s": 37.82,
+              "first_frame_s": 0.7566,
+              "prompt_build_s": 0.0003,
+              "decode_s": 0.0298,
+              "audio_seconds": 14.257
+            }
+          ],
+          "steady_frames_per_s": 37.8,
+          "client_first_audio_s": 1.0471,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 28,
+          "audio_sha256": "0825cdafb8aebb0d87ef558aac3020c35270c0aebde53677c8b12d1de4f9a7c8"
+        }
+      ],
+      "summary": {
+        "first_frame_s": {
+          "median": 0.757,
+          "min": 0.756,
+          "max": 0.757,
+          "n": 5
+        },
+        "first_audio_s": {
+          "median": 1.036,
+          "min": 1.032,
+          "max": 1.056,
+          "n": 5
+        },
+        "client_first_audio_s": {
+          "median": 1.052,
+          "min": 1.047,
+          "max": 1.071,
+          "n": 5
+        },
+        "synthesis_s": {
+          "median": 8.706,
+          "min": 8.594,
+          "max": 9.099,
+          "n": 5
+        },
+        "audio_seconds": {
+          "median": 13.886,
+          "min": 13.328,
+          "max": 14.257,
+          "n": 5
+        },
+        "realtime_factor": {
+          "median": 1.579,
+          "min": 1.551,
+          "max": 1.606,
+          "n": 5
+        },
+        "steady_frames_per_s": {
+          "median": 37.3,
+          "min": 36.6,
+          "max": 37.8,
+          "n": 5
+        },
+        "peak_gib": {
+          "median": 25.73,
+          "min": 25.73,
+          "max": 25.73,
+          "n": 5
+        },
+        "peak_gpu_alloc_gib": {
+          "median": 32.59,
+          "min": 32.56,
+          "max": 32.6,
+          "n": 5
+        },
+        "engine_cpu_s": {
+          "median": 7.92,
+          "min": 7.61,
+          "max": 8.13,
+          "n": 5
+        },
+        "playback_stalls": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "n": 5
+        },
+        "client_total_s": {
+          "median": 8.748,
+          "min": 8.643,
+          "max": 9.139,
+          "n": 5
+        },
+        "failed": 0,
+        "flags": {},
+        "chunks_without_eos": 0
+      }
+    },
+    "long": {
+      "text": "The river runs north for about forty miles before it turns toward the coast. In spring the water rises quickly, and the old bridge near the mill is often closed for several days. People who live on the far side plan ahead: they stock up on groceries, park their cars on the high road, and walk the last half mile with flashlights. Most years nobody minds. It is quieter then, and the town feels smaller, as if everyone has agreed to slow down for a while. When the water finally drops, the bridge reopens with no ceremony at all, and by the end of the week it is as if nothing happened.",
+      "progressive": true,
+      "runs": [
+        {
+          "state": "done",
+          "client_total_s": 31.403,
+          "error": null,
+          "engine_cpu_s": 26.55,
+          "peak_gpu_alloc_gib": 32.86,
+          "seed": 1000,
+          "frames": 993,
+          "audio_seconds": 46.115,
+          "synthesis_s": 31.359,
+          "first_frame_s": 0.6729,
+          "first_audio_s": 0.9524,
+          "realtime_factor": 1.471,
+          "peak_gib": 25.78,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 288,
+              "eos": true,
+              "frames_per_s": 36.75,
+              "first_frame_s": 0.6729,
+              "prompt_build_s": 0.0005,
+              "decode_s": 0.0167,
+              "audio_seconds": 13.375
+            },
+            {
+              "frames": 498,
+              "eos": true,
+              "frames_per_s": 37.17,
+              "first_frame_s": 1.3697,
+              "prompt_build_s": 0.0013,
+              "decode_s": 0.0193,
+              "audio_seconds": 23.127
+            },
+            {
+              "frames": 207,
+              "eos": true,
+              "frames_per_s": 36.5,
+              "first_frame_s": 2.429,
+              "prompt_build_s": 0.0016,
+              "decode_s": 0.0286,
+              "audio_seconds": 9.613
+            }
+          ],
+          "steady_frames_per_s": 36.8,
+          "client_first_audio_s": 0.9594,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 92,
+          "audio_sha256": "33fba1fad68fb794417f1cbcba75e15a1cb73effd6d2f91f260e50ca7fc7bd0a"
+        },
+        {
+          "state": "done",
+          "client_total_s": 32.229,
+          "error": null,
+          "engine_cpu_s": 27.26,
+          "peak_gpu_alloc_gib": 32.81,
+          "seed": 1001,
+          "frames": 1005,
+          "audio_seconds": 46.672,
+          "synthesis_s": 32.184,
+          "first_frame_s": 0.6788,
+          "first_audio_s": 0.9645,
+          "realtime_factor": 1.45,
+          "peak_gib": 25.78,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 300,
+              "eos": true,
+              "frames_per_s": 36.33,
+              "first_frame_s": 0.6788,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0182,
+              "audio_seconds": 13.932
+            },
+            {
+              "frames": 492,
+              "eos": true,
+              "frames_per_s": 37.04,
+              "first_frame_s": 1.5246,
+              "prompt_build_s": 0.0011,
+              "decode_s": 0.0267,
+              "audio_seconds": 22.848
+            },
+            {
+              "frames": 213,
+              "eos": true,
+              "frames_per_s": 35.61,
+              "first_frame_s": 2.4738,
+              "prompt_build_s": 0.0035,
+              "decode_s": 0.0197,
+              "audio_seconds": 9.892
+            }
+          ],
+          "steady_frames_per_s": 36.3,
+          "client_first_audio_s": 0.9725,
+          "playback_stalls": 0,
+          "playback_stall_s": 0.0,
+          "segments": 93,
+          "audio_sha256": "c3adce0521024e832e8f5751561c7e1d07f10f190a2847501075c83d1ae57552"
+        }
+      ],
+      "summary": {
+        "first_frame_s": {
+          "median": 0.676,
+          "min": 0.673,
+          "max": 0.679,
+          "n": 2
+        },
+        "first_audio_s": {
+          "median": 0.958,
+          "min": 0.952,
+          "max": 0.965,
+          "n": 2
+        },
+        "client_first_audio_s": {
+          "median": 0.966,
+          "min": 0.959,
+          "max": 0.973,
+          "n": 2
+        },
+        "synthesis_s": {
+          "median": 31.771,
+          "min": 31.359,
+          "max": 32.184,
+          "n": 2
+        },
+        "audio_seconds": {
+          "median": 46.394,
+          "min": 46.115,
+          "max": 46.672,
+          "n": 2
+        },
+        "realtime_factor": {
+          "median": 1.461,
+          "min": 1.45,
+          "max": 1.471,
+          "n": 2
+        },
+        "steady_frames_per_s": {
+          "median": 36.55,
+          "min": 36.3,
+          "max": 36.8,
+          "n": 2
+        },
+        "peak_gib": {
+          "median": 25.78,
+          "min": 25.78,
+          "max": 25.78,
+          "n": 2
+        },
+        "peak_gpu_alloc_gib": {
+          "median": 32.835,
+          "min": 32.81,
+          "max": 32.86,
+          "n": 2
+        },
+        "engine_cpu_s": {
+          "median": 26.905,
+          "min": 26.55,
+          "max": 27.26,
+          "n": 2
+        },
+        "playback_stalls": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0,
+          "n": 2
+        },
+        "client_total_s": {
+          "median": 31.816,
+          "min": 31.403,
+          "max": 32.229,
+          "n": 2
+        },
+        "failed": 0,
+        "flags": {},
+        "chunks_without_eos": 0
+      }
+    },
+    "medium_whole_take": {
+      "text": "Thanks for calling back. I checked the schedule, and Thursday at two works for both of us. I'll send a confirmation with the address and a map.",
+      "progressive": false,
+      "runs": [
+        {
+          "state": "done",
+          "client_total_s": 6.902,
+          "error": null,
+          "engine_cpu_s": 6.05,
+          "peak_gpu_alloc_gib": 32.7,
+          "seed": 1000,
+          "frames": 231,
+          "audio_seconds": 10.728,
+          "synthesis_s": 6.859,
+          "first_frame_s": 0.6711,
+          "first_audio_s": 6.8592,
+          "realtime_factor": 1.564,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 231,
+              "eos": true,
+              "frames_per_s": 37.17,
+              "first_frame_s": 0.6711,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0002,
+              "audio_seconds": 10.728
+            }
+          ],
+          "steady_frames_per_s": 37.2,
+          "audio_sha256": "8674fba768da8fb6b84cf7cb6a47a6055170b30f5a96dbbb39cf071d12d44411"
+        },
+        {
+          "state": "done",
+          "client_total_s": 6.999,
+          "error": null,
+          "engine_cpu_s": 6.13,
+          "peak_gpu_alloc_gib": 32.67,
+          "seed": 1001,
+          "frames": 237,
+          "audio_seconds": 11.006,
+          "synthesis_s": 6.953,
+          "first_frame_s": 0.6703,
+          "first_audio_s": 6.9531,
+          "realtime_factor": 1.583,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 237,
+              "eos": true,
+              "frames_per_s": 37.69,
+              "first_frame_s": 0.6703,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0216,
+              "audio_seconds": 11.006
+            }
+          ],
+          "steady_frames_per_s": 37.7,
+          "audio_sha256": "8c470010fa8321bd70a9f6d9aad7cf25362243b1aee39b4f1179bb2ef2a40965"
+        },
+        {
+          "state": "done",
+          "client_total_s": 6.146,
+          "error": null,
+          "engine_cpu_s": 5.39,
+          "peak_gpu_alloc_gib": 32.7,
+          "seed": 1002,
+          "frames": 199,
+          "audio_seconds": 9.242,
+          "synthesis_s": 6.13,
+          "first_frame_s": 0.674,
+          "first_audio_s": 6.1303,
+          "realtime_factor": 1.508,
+          "peak_gib": 25.73,
+          "flags": [],
+          "chunks": [
+            {
+              "frames": 199,
+              "eos": true,
+              "frames_per_s": 36.38,
+              "first_frame_s": 0.674,
+              "prompt_build_s": 0.0004,
+              "decode_s": 0.0142,
+              "audio_seconds": 9.242
+            }
+          ],
+          "steady_frames_per_s": 36.4,
+          "audio_sha256": "1903460816a70c749baa87ad4aadb5f6046bdad7494067ce22fd62e96c0204e5"
+        }
+      ],
+      "summary": {
+        "first_frame_s": {
+          "median": 0.671,
+          "min": 0.67,
+          "max": 0.674,
+          "n": 3
+        },
+        "first_audio_s": {
+          "median": 6.859,
+          "min": 6.13,
+          "max": 6.953,
+          "n": 3
+        },
+        "synthesis_s": {
+          "median": 6.859,
+          "min": 6.13,
+          "max": 6.953,
+          "n": 3
+        },
+        "audio_seconds": {
+          "median": 10.728,
+          "min": 9.242,
+          "max": 11.006,
+          "n": 3
+        },
+        "realtime_factor": {
+          "median": 1.564,
+          "min": 1.508,
+          "max": 1.583,
+          "n": 3
+        },
+        "peak_gib": {
+          "median": 25.73,
+          "min": 25.73,
+          "max": 25.73,
+          "n": 3
+        },
+        "peak_gpu_alloc_gib": {
+          "median": 32.7,
+          "min": 32.67,
+          "max": 32.7,
+          "n": 3
+        },
+        "failed": 0,
+        "flags": {},
+        "chunks_without_eos": 0
+      }
+    }
+  },
+  "worst_case": {
+    "text": "The river runs north for about forty miles before it turns toward the coast. In spring the water rises quickly, and the old bridge near the mill is often closed for several days. People who live on the far side plan ahead: they stock up on groceries, park their cars on the high road, and walk the last half mile with flashlights. Most years nobody minds. It is quieter then, and the town feels smaller, as if everyone has agreed to slow down for a while. When the water finally drops, the bridge reopens with no ceremony at all, and by the end of the week it is as if nothing happened.",
+    "settings": {
+      "temperature": 1.0,
+      "top_p": 0.9,
+      "top_k": 30,
+      "seed": 7,
+      "single_chunk": true,
+      "max_frames_per_chunk": 600
+    },
+    "not_progressive": {
+      "state": "done",
+      "frames": 600,
+      "audio_seconds": 27.864,
+      "synthesis_s": 17.272,
+      "first_frame_s": 0.8805,
+      "first_audio_s": 17.2725,
+      "client_first_audio_s": null,
+      "realtime_factor": 1.613,
+      "peak_gib": 25.75,
+      "peak_gpu_alloc_gib": 32.6,
+      "playback_stalls": null,
+      "flags": [
+        {
+          "kind": "no_eos",
+          "chunk": 0,
+          "message": "chunk 1 did not end by itself and was cut at 600 frames: it may run on or be truncated"
+        }
+      ],
+      "audio_sha256": "2f11c51e12344f586bdf91b128e79ba224fb6ac56b19ffa2efd046eddd272762",
+      "chunk_frames": [
+        600
+      ]
+    },
+    "progressive": {
+      "state": "done",
+      "frames": 600,
+      "audio_seconds": 27.864,
+      "synthesis_s": 17.204,
+      "first_frame_s": 0.8798,
+      "first_audio_s": 1.1711,
+      "client_first_audio_s": 1.1965,
+      "realtime_factor": 1.62,
+      "peak_gib": 25.75,
+      "peak_gpu_alloc_gib": 32.64,
+      "playback_stalls": 0,
+      "flags": [
+        {
+          "kind": "no_eos",
+          "chunk": 0,
+          "message": "chunk 1 did not end by itself and was cut at 600 frames: it may run on or be truncated"
+        }
+      ],
+      "audio_sha256": "2f11c51e12344f586bdf91b128e79ba224fb6ac56b19ffa2efd046eddd272762",
+      "chunk_frames": [
+        600
+      ]
+    },
+    "same_audio_either_way": true
+  },
+  "lifecycle": {
+    "before": {
+      "free_for_models_gib": 75.97,
+      "pages_free_gib": 38.84,
+      "gpu_alloc_gib": 3.51,
+      "pressure": "normal",
+      "swap_used_mib": 16.12
+    },
+    "stopped": {
+      "free_for_models_gib": 75.97,
+      "pages_free_gib": 38.84,
+      "gpu_alloc_gib": 3.51,
+      "pressure": "normal",
+      "swap_used_mib": 16.12
+    },
+    "stop_after_cold": {
+      "ok": true,
+      "state": "STOPPED",
+      "at": "2026-10-14T14:14:14-0400",
+      "stop_s": 0.12,
+      "before": {
+        "pid": 93003,
+        "rss_gib": 24.5,
+        "memory": {
+          "free_for_models_gib": 48.31,
+          "gpu_alloc_gib": 30.6,
+          "pressure": "normal"
+        }
+      },
+      "after": {
+        "memory": {
+          "free_for_models_gib": 75.93,
+          "gpu_alloc_gib": 3.5,
+          "pressure": "normal"
+        },
+        "processes": 0,
+        "socket_listening": false
+      }
+    },
+    "stops": [
+      {
+        "ok": true,
+        "state": "STOPPED",
+        "at": "2026-10-14T14:14:20-0400",
+        "stop_s": 0.12,
+        "before": {
+          "pid": 93120,
+          "rss_gib": 24.49,
+          "memory": {
+            "free_for_models_gib": 48.75,
+            "gpu_alloc_gib": 30.61,
+            "pressure": "normal"
+          }
+        },
+        "after": {
+          "memory": {
+            "free_for_models_gib": 76.25,
+            "gpu_alloc_gib": 3.5,
+            "pressure": "normal"
+          },
+          "processes": 0,
+          "socket_listening": false
+        }
+      },
+      {
+        "ok": true,
+        "state": "STOPPED",
+        "at": "2026-10-14T14:14:25-0400",
+        "stop_s": 0.12,
+        "before": {
+          "pid": 93227,
+          "rss_gib": 24.48,
+          "memory": {
+            "free_for_models_gib": 48.62,
+            "gpu_alloc_gib": 30.59,
+            "pressure": "normal"
+          }
+        },
+        "after": {
+          "memory": {
+            "free_for_models_gib": 76.53,
+            "gpu_alloc_gib": 3.5,
+            "pressure": "normal"
+          },
+          "processes": 0,
+          "socket_listening": false
+        }
+      }
+    ],
+    "starts": [
+      {
+        "kind": "cold (model files evicted from the page cache)",
+        "evicted_gib": 24.11,
+        "wall_s": 6.91,
+        "load_to_ready_s": 6.36,
+        "engine_load": {
+          "load_s": 5.04,
+          "active_gib_after_load": 24.38,
+          "sample_rate": 44100,
+          "frame_length": 2048,
+          "warmup_s": 0.39,
+          "ready_s": 5.69
+        }
+      },
+      {
+        "kind": "warm (model files in the page cache)",
+        "wall_s": 4.12,
+        "load_to_ready_s": 3.5,
+        "engine_load": {
+          "load_s": 2.24,
+          "active_gib_after_load": 24.38,
+          "sample_rate": 44100,
+          "frame_length": 2048,
+          "warmup_s": 0.41,
+          "ready_s": 2.92
+        }
+      },
+      {
+        "kind": "warm (model files in the page cache)",
+        "wall_s": 3.69,
+        "load_to_ready_s": 3.12,
+        "engine_load": {
+          "load_s": 2.19,
+          "active_gib_after_load": 24.38,
+          "sample_rate": 44100,
+          "frame_length": 2048,
+          "warmup_s": 0.4,
+          "ready_s": 2.84
+        }
+      },
+      {
+        "kind": "warm (model files in the page cache)",
+        "wall_s": 3.82,
+        "load_to_ready_s": 3.18,
+        "engine_load": {
+          "load_s": 2.23,
+          "active_gib_after_load": 24.38,
+          "sample_rate": 44100,
+          "frame_length": 2048,
+          "warmup_s": 0.39,
+          "ready_s": 2.9
+        }
+      }
+    ],
+    "idle_loaded": {
+      "memory": {
+        "free_for_models_gib": 49.03,
+        "pages_free_gib": 11.84,
+        "gpu_alloc_gib": 30.6,
+        "pressure": "normal",
+        "swap_used_mib": 16.12
+      },
+      "engine": {
+        "active_gib": 24.38,
+        "peak_gib": 25.19,
+        "cache_gib": 0.02,
+        "cache_limit_gib": 2.0,
+        "process_peak_rss_gib": 24.49
+      },
+      "process_rss_gib": 24.49
+    },
+    "final_stop": {
+      "ok": true,
+      "state": "STOPPED",
+      "at": "2026-10-14T14:18:33-0400",
+      "stop_s": 0.12,
+      "before": {
+        "pid": 93330,
+        "rss_gib": 24.8,
+        "memory": {
+          "free_for_models_gib": 48.43,
+          "gpu_alloc_gib": 30.6,
+          "pressure": "normal"
+        }
+      },
+      "after": {
+        "memory": {
+          "free_for_models_gib": 76.29,
+          "gpu_alloc_gib": 3.46,
+          "pressure": "normal"
+        },
+        "processes": 0,
+        "socket_listening": false
+      }
+    },
+    "after_stop": {
+      "free_for_models_gib": 76.2,
+      "pages_free_gib": 38.95,
+      "gpu_alloc_gib": 3.46,
+      "pressure": "normal",
+      "swap_used_mib": 16.12
+    }
+  }
+}
