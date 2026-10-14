@@ -44,11 +44,15 @@ ADMISSION, ATOMIC
 MEMORY ADMISSION (measured, not nominal)
     available = hw.memsize - (wired + compressor + max(0, anon - purgeable))
                 (the engine formula of newton_models, from vm_stat)
-              - weights of resident llama.cpp models (memory-mapped, so the
-                formula counts them as reclaimable file cache)
     admit only if available >= requirement + reserve, memory pressure is
     normal, and Metal's allocation now + requirement stays within the GPU
     working-set limit minus a margin.
+
+    A running 27B's weights are memory-mapped, but Metal wires them once the
+    model is loaded, so the formula already counts them as used: measured
+    with the 27B ready, wired memory had risen 45.3 GiB for a 46.2 GiB rise
+    in Metal allocation (docs/19 section 6.7). An earlier version subtracted
+    them again, which reported 0 GiB free when 27.3 GiB was.
 """
 import errno
 import fcntl
@@ -350,32 +354,16 @@ def pressure_level():
     return PRESSURE_LEVELS.get(out.strip(), out.strip() or "unknown")
 
 
-def mmap_weight_bytes(reg, model_id):
-    """Bytes a resident llama.cpp model maps from disk (file cache that the
-    engine formula would otherwise count as free)."""
-    m = (reg.get("models") or {}).get(model_id)
-    if not m or m.get("runtime") != "llama.cpp":
-        return 0
-    try:
-        with open(nm.abspath(m["manifest"])) as f:
-            return int(json.load(f).get("total_bytes") or 0)
-    except (OSError, ValueError):
-        return 0
-
-
-def measure_memory(reg, qwen_slots, cfg=None, counts=None, total=None, gpu=None,
-                   pressure=None):
+def measure_memory(cfg=None, counts=None, total=None, gpu=None, pressure=None):
+    """Free memory as the model engines count it, pressure, and Metal's
+    allocation against the GPU working-set limit."""
     counts = nm.vm_counts() if counts is None else counts
     total = nm.host_memory_bytes() if total is None else total
     if not counts or not total:
         return None
-    mmap = sum(mmap_weight_bytes(reg, s["model"]) for s in qwen_slots
-               if s["present"] and s["phase"] in ("up", "stopping"))
     gpu = gpu_allocation_bytes() if gpu is None else gpu
     return {"total_bytes": total,
-            "engine_available_bytes": nm.engine_available_bytes(total, counts),
-            "mmap_resident_bytes": mmap,
-            "available_bytes": max(0, nm.engine_available_bytes(total, counts) - mmap),
+            "available_bytes": nm.engine_available_bytes(total, counts),
             "pressure": pressure_level() if pressure is None else pressure,
             "gpu_alloc_bytes": gpu,
             "gpu_limit_bytes": gpu_working_set_limit(cfg, total)}
@@ -489,7 +477,7 @@ def check_fish_start(model_id=None, ps_lines=None):
     procs = classify_processes(ps_lines if ps_lines is not None else list_processes(), reg)
     boot = boot_time_sec()
     slots = observe_qwen(reg, procs, boot)
-    mem = measure_memory(reg, slots, cfg)
+    mem = measure_memory(cfg)
     d = decide_fish_start(float(m["memory"]["required_gib"]), compat, adm, slots, mem, reg,
                           fish_name=f"{m['display_name']} ({m['variant']})")
     d["details"]["qwen"] = slots
@@ -505,7 +493,7 @@ def check_qwen_start(model_id, ps_lines=None):
     fish = observe_fish(cfg, procs, boot)
 
     def mem_fn():
-        return measure_memory(reg, observe_qwen(reg, procs, boot), cfg)
+        return measure_memory(cfg)
     return decide_qwen_start(model_id, compat, adm, fish, mem_fn, reg)
 
 

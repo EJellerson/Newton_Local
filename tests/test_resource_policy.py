@@ -40,9 +40,8 @@ REG = {"models": {
                    "memory": {"admission": {"rule": "mlx-serve-preflight"}}}}}
 
 
-def mem(avail_gib, pressure="normal", gpu_gib=3.5, limit_gib=107.5, mmap_gib=0.0):
-    return {"total_bytes": 128 * GIB, "engine_available_bytes": int((avail_gib + mmap_gib) * GIB),
-            "mmap_resident_bytes": int(mmap_gib * GIB), "available_bytes": int(avail_gib * GIB),
+def mem(avail_gib, pressure="normal", gpu_gib=3.5, limit_gib=107.5):
+    return {"total_bytes": 128 * GIB, "available_bytes": int(avail_gib * GIB),
             "pressure": pressure, "gpu_alloc_bytes": int(gpu_gib * GIB),
             "gpu_limit_bytes": int(limit_gib * GIB)}
 
@@ -176,21 +175,20 @@ class MemoryArithmetic(unittest.TestCase):
         self.assertIsNone(rp.memory_check("X", 32.0, mem(36.0, gpu_gib=71.5), ADM))
         self.assertEqual(rp.memory_check("X", 32.0, mem(36.0, gpu_gib=71.6), ADM)[0], "gpu")
 
-    def test_mmap_weights_of_a_resident_27b_are_not_counted_as_free(self):
-        counts = {"page_size": 16384, "wired": 0, "compressor": 0, "internal": 0, "purgeable": 0}
-        reg = nm.load_registry()
-        with mock.patch.object(rp, "gpu_allocation_bytes", return_value=0):
-            resident = rp.measure_memory(reg, [slot("A", "qwen27b")], None, counts=counts,
-                                         total=128 * GIB, gpu=0, pressure="normal")
-            recovering = rp.measure_memory(reg, [slot("A", "qwen27b", "recovering")], None,
-                                           counts=counts, total=128 * GIB, gpu=0,
-                                           pressure="normal")
-            flash = rp.measure_memory(reg, [slot("A", "flash-next")], None, counts=counts,
-                                      total=128 * GIB, gpu=0, pressure="normal")
-        self.assertEqual(resident["mmap_resident_bytes"], 29978230400)   # the 27B manifest
-        self.assertEqual(resident["available_bytes"], 128 * GIB - 29978230400)
-        self.assertEqual(recovering["mmap_resident_bytes"], 0)
-        self.assertEqual(flash["mmap_resident_bytes"], 0)
+    def test_free_memory_is_the_engine_formula_with_a_27b_loaded(self):
+        # vm_stat as measured with the 27B ready (docs/19 section 6.7): Metal
+        # wires its memory-mapped weights, so the formula already counts them
+        # as used and they must not be subtracted again (that read 0 GiB).
+        page = 16384
+        counts = {"page_size": page, "wired": 3228161, "compressor": 142158,
+                  "internal": 3260238, "purgeable": 32794}
+        m = rp.measure_memory(None, counts=counts, total=128 * GIB, gpu=int(50.05 * GIB),
+                              pressure="normal")
+        self.assertEqual(m["available_bytes"], nm.engine_available_bytes(128 * GIB, counts))
+        self.assertAlmostEqual(m["available_bytes"] / GIB, 27.3, delta=0.1)
+        why = rp.memory_check("Fish", 30.0, m, ADM)
+        self.assertEqual(why[0], "memory")
+        self.assertIn("27.3 GiB is free", why[1])
 
 
 class ProcessClassification(unittest.TestCase):
