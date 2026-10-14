@@ -16,21 +16,24 @@ Fish Audio Drama 3 (MLX Q4) runs on this Mac as a local, on-demand speech
 service with its own controller, LaunchAgent, network-sandboxed engine and
 internal API. A resource policy shared by the Fish and Qwen controllers
 refuses Fish beside Flash-Next in both directions and admits Fish beside the
-27B only on measured memory; it was proven against real launchd jobs. Voice
-Studio is implemented and was used end to end in a browser against the real
-model, on a second instance of the control service built from the same code.
+27B only on measured memory; it was proven against real launchd jobs, and the
+27B pairing was tried with both real models. Voice Studio was used end to end
+in a browser against the real model, and is live in production at
+`127.0.0.1:8765/voice` since the operator approved restarting Newton AI
+Control.
 
-The production control service has **not** been restarted, so Voice Studio is
-not live at `127.0.0.1:8765/voice` yet: that restart needs the operator's
-approval (§15). Cloning the operator's voice awaits the operator's own
-recording: **PENDING OPERATOR VOICE REVIEW** (§13).
+With the approved Fish + 27B test, the policy refused the pair in both orders
+under the day's other workloads, by 4.2 and 0.5 GiB, so the concurrency
+benchmark itself could not run (§6.7). That test also exposed a defect in the
+new policy, which was fixed. Cloning the operator's voice awaits the
+operator's own recording: **PENDING OPERATOR VOICE REVIEW** (§13).
 
 | Category | Items |
 |---|---|
-| **IMPLEMENTED and VERIFIED** | Q4 checkpoint installed, pinned and verified file by file; isolated, hash-locked runtime; engine with streamed decoding, progressive audio, cancellation and no network access; `fishctl` lifecycle and LaunchAgent (never runs at load); the shared policy in both controllers and both launch gatekeepers; Voice Studio backend, page and private store (on the second instance); Fish-only benchmarks; 79 new unit tests; docs 17–21 |
-| **IMPLEMENTED, VERIFIED IN PART** | Voice Studio in production (same code verified on the second instance; production needs a restart) · browser recording (recorder, level meter, preview, 24-bit encoding, upload and ingestion verified with a synthetic tone in place of the microphone; the automated browser has none) · the page's file picker (the upload route behind it is verified; the automated browser cannot open a file dialog) · off after reboot (by construction and with a fixture boot record; no physical reboot) |
+| **IMPLEMENTED and VERIFIED** | Q4 checkpoint installed, pinned and verified file by file; isolated, hash-locked runtime; engine with streamed decoding, progressive audio, cancellation and no network access; `fishctl` lifecycle and LaunchAgent (never runs at load); the shared policy in both controllers and both launch gatekeepers, including the Fish + 27B admission with both real models; Voice Studio backend, page and private store, live in production; Fish-only benchmarks; 79 new unit tests; docs 17–21 |
+| **IMPLEMENTED, VERIFIED IN PART** | browser recording (recorder, level meter, preview, 24-bit encoding, upload and ingestion verified with a synthetic tone in place of the microphone; the automated browser has none) · the page's file picker (the upload route behind it is verified; the automated browser cannot open a file dialog) · downloading and deleting a take (their routes are verified by end-to-end tests; not clicked in the browser) · off after reboot (by construction and with a fixture boot record; no physical reboot) |
 | **OPERATOR-ACCEPTED** | nothing yet |
-| **PENDING OPERATOR ACTION** | approve restarting Newton AI Control (§15.1) · approve or decline the Fish + Qwen 27B benchmark (§15.2) · record your own voice and judge the clone (§13) · confirm the licence's revenue condition before any commercial use (§15.4) |
+| **PENDING OPERATOR ACTION** | record your own voice and judge the clone (§13) · the Fish + 27B concurrency measurements, which need about 5 GiB more free memory than the day's workloads left (§6.7, §15.2) · confirm the licence's revenue condition before any commercial use (§15.3) |
 | **BLOCKED** | nothing |
 | **DEFERRED** | Q8 (not authorised) · Twilio, GoHighLevel, speech-to-text and the voice gateway (specified only: docs/20, docs/21) · a physical reboot test |
 
@@ -43,7 +46,7 @@ recording: **PENDING OPERATOR VOICE REVIEW** (§13).
 | 3 | Verified artifacts, provenance manifests | `models/fish-drama3-mlx-q4/MANIFEST.json` and `MANIFEST.md`; `fish verify --deep` | verified (§3) |
 | 4 | Dedicated lifecycle controller | `scripts/fishctl.py` | verified (§8) |
 | 5 | Backend compatibility enforcement | `scripts/resource_policy.py`, hooks in `qwenctl.py`, `newton_models.py`, `fishctl.py` | verified (§8) |
-| 6 | Integration with Newton AI Control | Voice Studio card; `/voice`, `/api/voice/*`, `/api/fish/*` | verified on the second instance; production pending restart (§15.1) |
+| 6 | Integration with Newton AI Control | Voice Studio card; `/voice`, `/api/voice/*`, `/api/fish/*` | verified (§9); live in production |
 | 7 | Browser-based Voice Studio | `scripts/voice-studio/`, `scripts/voice_studio.py` | as 6 |
 | 8 | Private recording and upload | AudioWorklet recorder; ingestion `scripts/fish_audio.py` | verified (§9); a real microphone awaits the operator |
 | 9 | Profiles and references | `scripts/voice_store.py` | verified (§9) |
@@ -53,7 +56,7 @@ recording: **PENDING OPERATOR VOICE REVIEW** (§13).
 | 13 | Unit and integration tests | `tests/test_resource_policy.py` (41), `test_voice_studio.py` (31), `test_fishctl.py` (7); `prove-fish-policy.py`, `prove-fish-adapter.py` | §10 |
 | 14 | Regression evidence | §10 | verified |
 | 15 | Live M2 Ultra inference evidence | `benchmarks/fish/adapter-proof.json`, `bench-fish-only.json` | §3.1, §6 |
-| 16 | Resource and latency benchmarks | §5–§7 | Fish alone verified; with the 27B pending approval |
+| 16 | Resource and latency benchmarks | §5–§7 | Fish alone verified; with the 27B, the policy refused the pair under the day's load (§6.7) |
 | 17 | Recording instructions | docs/18 §5.2–5.3, and on the page | done |
 | 18 | Installation and operational runbook | docs/18 | done |
 | 19 | Rollback and troubleshooting | docs/18 §10–11 | done |
@@ -220,25 +223,48 @@ stalls, flagged `no eos` as it should be (the chunk was cut, not finished).
 With the default 300-byte chunks the same text stayed well under the cap
 (288, 498 and 207 frames).
 
-### 6.7 Fish + Qwen 27B: not measured
+### 6.7 Fish + Qwen 27B: refused under the day's load
 
-Running both is a GPU-heavy concurrency test that needs the operator's
-approval (commission §11.2, §19); it is PENDING OPERATOR ACTION (§15.2).
-`scripts/bench-fish.py --qwen-probe` is ready for it: with the 27B already
-running (the script never starts or stops Qwen) it measures the 27B's time to
-first token and decode rate alone and while Fish generates, Fish's latency
-meanwhile, and memory.
+Approved by the operator and run on the production services from 14:43 to
+14:49 (`benchmarks/fish/fish-27b-pairing.json`); the 27B ran from 14:43:47 to
+14:47:00. It was started from the command line (`qwen-a start`), so the
+panel's desired state stayed STOPPED and its watchdog never acted. Before:
+74.9 GiB free for models, other workloads 59 GiB resident, pressure normal,
+16 MiB of swap.
 
-What the policy would decide today, from the measurements above: with Fish
-loaded, 49.0 GiB is free for models, and the 27B needs 56.0 GiB (its
-registered 52 GiB plus 4 GiB of headroom), so **the 27B would be refused next
-to a running Fish by about 7 GiB** while the other workloads hold their
-present 57 GiB. The other order could not be computed without loading the
-27B. The policy subtracts the 27B's 27.9 GiB of memory-mapped weights from free
-memory on the assumption that the engine formula counts them as file cache;
-if macOS instead counts them as wired while the GPU holds them, they are
-subtracted twice and the policy is stricter than it needs to be (never
-looser). The approved benchmark would settle both points.
+| Order | Free for models | Needed | Decision |
+|---|---|---|---|
+| 27B loaded (15.5 s), then Fish | 29.6–29.8 GiB | 34.0 GiB (30 + 4 headroom) | Fish refused, exit 10, nothing spawned |
+| Fish loaded (6.5 s), then the 27B | 55.5 GiB | 56.0 GiB (52 + 4 headroom) | 27B refused, exit 10, nothing spawned |
+
+So the pair did not fit with the margins the policy keeps, in either order,
+and the concurrency benchmark (`bench-fish.py --qwen-probe`: the 27B's time to
+first token and decode rate alone and while Fish generates, and Fish's latency
+meanwhile) could not run. It needs about 5 GiB more free memory than the
+day's workloads left, for example by closing a large application first. The
+refusals are the policy working as specified: "conditionally allowed" means
+admitted only when measured memory allows.
+
+**Measured footprints.** With the 27B ready: Metal allocation 3.9 → 50.0 GiB,
+wired memory 4.0 → 49.4 GiB. Metal wires the weights llama.cpp maps from disk,
+so the engine formula already counts them as used. With Fish ready: its whole
+24.6 GiB footprint is GPU memory (`footprint`: dirty IOAccelerator). Free
+memory fell 19.3 GiB rather than the 26.9 GiB of §5, because free pages had
+run low after the 27B and macOS compressed other processes' memory to make
+room (compressor +1.9 GiB, no swap); that compressed memory is why more
+memory counted as free in the second order. After both stopped: 83.3 GiB free
+for models, Metal 3.8 GiB, pressure normal, swap unchanged.
+
+**Defect found and fixed.** The policy as first written subtracted a running
+27B's 27.9 GiB of mapped weights from free memory, on the assumption that the
+engine formula counted them as file cache. They are wired, so they were
+counted twice: with the 27B ready the policy reported 0.0–0.5 GiB free when
+27.3–28.5 GiB was. The day's decision was the same either way, but on a
+lighter day the double count would have refused a pair that fits, so with the 27B
+started first the conditional pairing could never have been admitted. Fixed
+in `9b623bc` and re-checked live with the 27B still loaded (29.8 GiB free,
+refused for the right reason); `prove-fish-policy.py` and the unit suite pass
+on the fixed code (§10).
 
 ## 7. Streaming and conversational latency
 
@@ -257,8 +283,8 @@ Limits that matter for a telephone conversation (docs/20):
 * **About 0.65 s before the first frame** with a 12.5 s reference. The
   reference is part of every chunk's prompt, so its length costs time on every
   job: 0.09 s with no reference and 0.32 s with a 3.7 s reference (adapter
-  proof, an 11-word line), 0.65 s with 12.5 s (benchmark). Ten more frames and the first decode bring the first
-  audio to about 0.92 s.
+  proof, an 11-word line), 0.65 s with 12.5 s (benchmark). Ten more frames
+  and the first decode bring the first audio to about 0.92 s.
 * **Thin margin for short lines.** At 1.1–1.2× real time a short line is
   generated only a little faster than it plays; progressive playback had no
   gaps here, but a slower machine state (for example the 27B generating at the
@@ -276,8 +302,8 @@ predicts how the clone sounds over a phone line (docs/20 §4).
 
 ## 8. Resource policy and lifecycle
 
-**Policy and lifecycle proof** — `scripts/prove-fish-policy.py`, on `main` at
-`b22915b`: real controllers, gatekeepers, launchd jobs and Newton AI Control
+**Policy and lifecycle proof** — `scripts/prove-fish-policy.py`, on `main` with
+the final code (`9b623bc`): real controllers, gatekeepers, launchd jobs and Newton AI Control
 in a throwaway root, with fake engines (no model loaded). Evidence:
 `benchmarks/fish/policy-proof.json`. **65 of 65 checks passed.**
 
@@ -291,13 +317,17 @@ in a throwaway root, with fake engines (no model loaded). Evidence:
 | Backstops | a direct `launchctl kickstart` cannot bypass the policy: both gatekeepers refuse (exit 78) before anything loads |
 | Lifecycle | Stop during a slow start: 0.8 s, start exits 9, desired STOPPED; an engine that dies while loading: exit 8 within 2.3 s with its own reason; a load error surfaced; a second start while READY does nothing; duplicate engines detected and refused (exit 5) |
 | Panel watchdogs | the Qwen watchdog's recovery of Flash-Next is refused beside Fish; the Fish watchdog's recovery is refused beside Flash-Next and shown in plain words; an intentional stop makes the watchdog stand down |
-| Invariant | in all 1,071 samples, a Fish engine and Flash-Next were never alive together (once, only the gatekeeper was alive while it refused) |
+| Invariant | in all 1,053 samples, a Fish engine and Flash-Next were never alive together (once, only the gatekeeper was alive while it refused) |
 
 **Unit tests**: `tests/test_resource_policy.py` (41) covers the matrix,
 presence rules, stale reservations, the memory arithmetic and the
 gatekeepers; `tests/test_fishctl.py` (7) the desired state, including a
 100-iteration race between a stop and a finishing start that always ends
 STOPPED.
+
+**With both real models** (§6.7): Fish refused beside a loaded 27B and the 27B
+refused beside a loaded Fish, each with exit 10, the measured figures in plain
+words, and nothing spawned.
 
 **Production lifecycle** (the benchmark, §6.1): starts cold and warm, stops in
 0.12 s with memory back to baseline; the engine identity check (model, pack
@@ -314,7 +344,8 @@ Set-up: a second Newton AI Control from the branch on `127.0.0.1:18765`, with
 its own Fish LaunchAgent (`com.newton.test.fishdev`, port 18770), state and
 voice store inside the worktree, driving the real model; the in-app browser
 of the development environment. The test voice was the model's own
-no-reference voice.
+no-reference voice. The run used the code of `17d408c`, before every take was
+decoded in streamed steps (§6.4).
 
 | Step | Result |
 |---|---|
@@ -331,9 +362,15 @@ no-reference voice.
 Defects found in that run were fixed in `17d408c` (§11). A real microphone
 needs the operator's permission in the browser and in macOS.
 
+In production, after the approved restart (14:43): the control service logged
+Voice Studio as loaded, `/api/status` carried the Fish summary, and the page at
+`127.0.0.1:8765/voice` opened a session and showed Fish *Stopped*, "74 GiB
+free for models · pressure normal" and "No language model is running." The
+production voice store is empty: no profile or recording was created there.
+
 ## 10. Regression
 
-All on `main` at `b22915b` unless stated.
+All on `main` with the final code (`9b623bc`) unless stated.
 
 | Suite | Result |
 |---|---|
@@ -365,6 +402,7 @@ condition while Fish is absent (unit tests and the matrix above).
 
 | Defect | Fix |
 |---|---|
+| The policy counted a loaded 27B's mapped weights twice (they are wired), so it saw ~0 GiB free beside the 27B and could never admit Fish there | free memory is the engine formula alone (`9b623bc`; §6.7) |
 | Whole-chunk decoding peaked about 9 GiB higher than needed | every take decoded in streamed steps (`c4dae52`) |
 | A launch soon after the previous exit waited out launchd's 10 s throttle, so a failed load was reported after 10.7 s | `ThrottleInterval` 1 in the Fish plist (KeepAlive is false, so there is no respawn loop): 2.3 s (`19ff220`) |
 | Take details showed "[object HTMLElement]" | the page's DOM helper flattens nested children (`17d408c`) |
@@ -377,7 +415,8 @@ condition while Fish is absent (unit tests and the matrix above).
 
 * **Run-on and early ends.** The port's authors report that cue-heavy lines
   miss on roughly 15–20 % of seeds. In these benchmarks (no cues) no chunk ran
-  to the cap and none ended early. Takes are flagged `no eos`, `slow`, `fast`
+  to the cap, apart from the deliberate frame-cap case (§6.6), and none ended
+  early. Takes are flagged `no eos`, `slow`, `fast`
   or `empty chunk` when it happens (docs/18 §5.6); there are no automatic
   retries.
 * **Seeds.** A seed reproduces a take on this runtime and machine; across
@@ -410,36 +449,32 @@ This is not a technical failure and not a completed validation.
 | B | starts on demand · stops cleanly · duplicates prevented · failed starts handled · Stop cancels startup · memory reclaimed · existing LLM lifecycle preserved | verified |
 | B | remains off after reboot | verified by construction and fixture; no physical reboot |
 | C | Fish alone · 27B alone · Flash-Next alone permitted · Fish + Flash-Next rejected in both directions · races cannot bypass · watchdog recovery respects the policy · memory guards not bypassed | verified (§8) |
-| C | Fish + 27B admitted only when safe | the admission rule is verified with fixtures; with real models it is part of the pending benchmark (§6.7) |
-| D | accessible in Newton AI Control | on the second instance; production pending restart (§15.1) |
-| D | status visible · start/stop in the browser · recording · upload · preview · transcripts · profiles · references · generation · playback · download · comparison · settings · clear errors | verified on the second instance (§9), with the recording and file-picker caveats there |
+| C | Fish + 27B admitted only when safe | verified: admitted on memory with fixtures (§8); with both real models refused in both orders when the margins were not there (§6.7) |
+| D | accessible in Newton AI Control | verified in production after the approved restart: the panel card and `/voice` serve the live status |
+| D | status visible · start/stop in the browser · recording · upload · preview · transcripts · profiles · references · generation · playback · download · comparison · settings · clear errors | verified on the second instance (§9), with the recording, file-picker and download caveats there |
 | E | recordings and audio local · excluded from Git · temporary files controlled · file access restricted · upload validation · mutation protections · no credentials · no network exposure | verified (docs/18 §6–7; tests; only loopback listeners) |
 | F | Fish-only memory · cold start · warm latency · first playable audio · real-time factor · reclamation · streaming assessed · Flash-Next exclusion verified safely · limitations documented | verified (§5–§8) |
-| F | Fish + 27B benchmarked if authorised | pending authorisation (§15.2) |
-| G | cloning infrastructure · operator samples supported · references and transcripts preserved · takes keep their reference · the operator can evaluate | verified with a test voice; available to the operator once Voice Studio is live |
+| F | Fish + 27B benchmarked if authorised | authorised and attempted; the policy refused the pair in both orders under the day's load, so only the admission and footprints were measured (§6.7) |
+| G | cloning infrastructure · operator samples supported · references and transcripts preserved · takes keep their reference · the operator can evaluate | verified with a test voice; available to the operator in production |
 | G | personal voice similarity | **PENDING OPERATOR VOICE REVIEW** |
 | H | regression · documentation · reproducible install · rollback · revisions · licences and attribution · gateway interfaces · limitations | done (§3, §10, §12; docs 17–21) |
 
 ## 15. Pending operator actions
 
-1. **Restart Newton AI Control** so Voice Studio goes live in production
-   (`launchctl kickstart -k gui/$(id -u)/com.newton.control`). The panel is
-   unreachable for a second or two. The running process dates from
-   2026-10-12; the restart loads Voice Studio's routes, the Fish status behind
-   the panel card and the Fish watchdog. (The panel page and the Qwen
-   controller are already read fresh from disk: today the card says Voice
-   Studio is not active yet, and Qwen starts already go through the policy.)
-   Qwen and Fish are stopped, so nothing else changes. Needs approval
-   (commission §19).
-2. **Fish + Qwen 27B benchmark** (§6.7). Needs approval. With today's other
-   workloads the policy would refuse the pair by about 7 GiB; freeing that much
-   (for example by closing large applications) first would let it run.
-3. **Record your voice** in Voice Studio (docs/18 §5.2–5.3), generate the same
+Done with the operator's approval on 2026-10-14: Newton AI Control was
+restarted at 14:43 (Voice Studio live; the page showed Fish stopped, memory
+and the language-model row), and the Fish + 27B pairing was tried (§6.7).
+
+1. **Record your voice** in Voice Studio (docs/18 §5.2–5.3), generate the same
    text from each recording, and decide whether the clone is acceptable.
-4. **Licence.** Commercial use, including a business's internal operations,
+2. **Fish + 27B measurements**, if wanted: free about 5 GiB more memory than
+   the day's workloads left (for example by closing a large application),
+   start the 27B, then run `scripts/bench-fish.py --qwen-probe`. The policy
+   decides whether the pair may run; nothing is forced.
+3. **Licence.** Commercial use, including a business's internal operations,
    is free only below USD 500,000 total annual revenue (docs/18 §9). Confirm
    before any commercial use.
-5. Optional: exclude the voice store from Time Machine (docs/18 §6); a
+4. Optional: exclude the voice store from Time Machine (docs/18 §6); a
    physical reboot test at a convenient time.
 
 ## 16. Future engineering dependencies
@@ -467,13 +502,16 @@ This is not a technical failure and not a completed validation.
   Changing the selection needs the operator's approval under commission §19,
   and that approval had not been asked for. The selection is `qwen27b`, as
   before. The prover was not run again.
-* No Qwen model was started, stopped or restarted; the production control
-  service was not restarted; no Q8 or other model was downloaded; no
-  credential store was read; Twilio, GoHighLevel and the existing telephony
-  project were not accessed; nothing was pushed.
+* With the operator's approval: Newton AI Control was restarted (14:43), and
+  the production 27B was started and stopped for the pairing test (14:43:47 to
+  14:47:00), from the command line so that the panel's desired state stayed
+  STOPPED. Both models ended stopped, as they started.
+* Otherwise no Qwen model was started, stopped or restarted; no Q8 or other
+  model was downloaded; no credential store was read; Twilio, GoHighLevel and
+  the existing telephony project were not accessed; nothing was pushed.
 
 ## 18. Git
 
-Commits `da53304`…`b22915b` on `fish-drama3-voice-studio`, fast-forwarded into
-`main`; this record is committed on top. Model weights, the runtime, logs,
+Commits from `da53304` on `fish-drama3-voice-studio`, fast-forwarded into
+`main`, this record included. Model weights, the runtime, logs,
 state and the voice store are outside Git.

@@ -5,11 +5,13 @@
 The runbook is [18](18-fish-voice-studio.md); the completion record is
 [19](19-fish-completion-record.md).
 
-*As built (2026-10-14):* implemented as planned, with two differences. The
+*As built (2026-10-14):* implemented as planned, with three differences. The
 page lives in `scripts/voice-studio/` (`index.html`, `app.js`, `style.css`,
-`recorder-worklet.js`), and the engine decodes every take in short streamed
-steps rather than only progressive ones, because decoding a whole chunk at
-once needed about 9 GiB more memory (docs/19 §6).
+`recorder-worklet.js`); the engine decodes every take in short streamed steps
+rather than only progressive ones, because decoding a whole chunk at once
+needed about 9 GiB more memory (docs/19 §6); and free memory is not reduced
+by the 27B's mapped weights (decision 2), because Metal wires them and the
+engine formula already counts them (docs/19 §6.7).
 
 Built with Fish Audio.
 

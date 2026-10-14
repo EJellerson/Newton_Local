@@ -1,0 +1,167 @@
+{
+  "evidence": "Fish + Qwen 3.8 27B pairing on the production services (operator-approved, 2026-10-14)",
+  "machine_before": {
+    "free_for_models_gib": 74.92,
+    "gpu_alloc_gib": 3.86,
+    "pressure": "normal",
+    "swap_used_mib": 16.12,
+    "other_workloads_rss_gib": 58.7
+  },
+  "steps": [
+    {
+      "step": "start the 27B on slot A",
+      "command": "scripts/qwen-a start --json",
+      "result": {
+        "ok": true,
+        "load_to_ready_s": 14.75,
+        "wall_s": 15.46
+      }
+    },
+    {
+      "step": "27B loaded: memory",
+      "vm_stat_gib": {
+        "Pages free": 1.37,
+        "Pages wired down": 49.35,
+        "Anonymous pages": 48.45,
+        "File-backed pages": 25.83,
+        "Pages occupied by compressor": 2.17,
+        "Pages purgeable": 0.44
+      },
+      "note": "wired rose from 3.98 to 49.35 GiB and Metal allocation to 50.05 GiB: Metal wires the weights llama.cpp maps from disk"
+    },
+    {
+      "step": "Fish admission preview, policy before the fix",
+      "command": "scripts/fish admission --json",
+      "exit": 10,
+      "message": "Not enough free memory for Fish Audio Drama 3 (MLX Q4): it needs about 30.0 GiB plus 4 GiB of headroom (34.0 GiB) and 0.5 GiB is free.",
+      "memory": {
+        "total_bytes": 128.0,
+        "engine_available_bytes": 28.45,
+        "mmap_resident_bytes": 27.92,
+        "available_bytes": 0.53,
+        "pressure": "normal",
+        "gpu_alloc_bytes": 49.04,
+        "gpu_limit_bytes": 107.52
+      }
+    },
+    {
+      "step": "Fish admission preview, policy after the fix (commit 'fix(policy): do not count a loaded 27B's weights twice')",
+      "command": "scripts/fish admission --json",
+      "message": "Not enough free memory for Fish Audio Drama 3 (MLX Q4): it needs about 30.0 GiB plus 4 GiB of headroom (34.0 GiB) and 29.6 GiB is free.",
+      "memory": {
+        "total_bytes": 128.0,
+        "available_bytes": 29.59,
+        "pressure": "normal",
+        "gpu_alloc_bytes": 49.08,
+        "gpu_limit_bytes": 107.52
+      }
+    },
+    {
+      "step": "Fish start beside the 27B",
+      "command": "scripts/fish start --json",
+      "result": {
+        "ok": false,
+        "error": "policy",
+        "exit_code": 10,
+        "message": "Not enough free memory for Fish Audio Drama 3 (MLX Q4): it needs about 30.0 GiB plus 4 GiB of headroom (34.0 GiB) and 29.6 GiB is free.",
+        "policy_code": "memory",
+        "model_id": "drama3-q4"
+      },
+      "spawned": "nothing (launchd run count unchanged)"
+    },
+    {
+      "step": "stop the 27B",
+      "command": "scripts/qwen-a terminate --json",
+      "result": {
+        "ok": true,
+        "state": "STOPPED",
+        "stop_seconds": 0.91
+      }
+    },
+    {
+      "step": "after the 27B stopped",
+      "memory": {
+        "free_for_models_gib": 74.58,
+        "pages_free_gib": 20.7,
+        "gpu_alloc_gib": 3.86,
+        "pressure": "normal",
+        "swap_used_mib": 16.12
+      }
+    },
+    {
+      "step": "start Fish alone",
+      "command": "scripts/fish start --json",
+      "result": {
+        "ok": true,
+        "state": "READY",
+        "wall_s": 6.48
+      }
+    },
+    {
+      "step": "Fish loaded: memory",
+      "memory": {
+        "free_for_models_gib": 55.34,
+        "pages_free_gib": 1.22,
+        "gpu_alloc_gib": 30.92,
+        "pressure": "normal",
+        "swap_used_mib": 16.12
+      },
+      "vm_stat_gib": {
+        "Pages wired down": 4.06,
+        "Anonymous pages": 63.54,
+        "File-backed pages": 53.18,
+        "Pages occupied by compressor": 4.09
+      },
+      "fish_process": {
+        "resident_gib": 24.48,
+        "phys_footprint_gib": 24.62,
+        "note": "footprint: 24 GB dirty IOAccelerator (GPU) memory"
+      },
+      "note": "free for models fell 19.3 GiB, not 26.9 as in bench-fish-only.json: free pages had run low after the 27B, so macOS compressed other processes' memory (compressor +1.9 GiB, no swap)"
+    },
+    {
+      "step": "27B start beside Fish",
+      "command": "scripts/qwen-a start --json",
+      "result": {
+        "ok": false,
+        "error": "policy",
+        "exit_code": 10,
+        "message": "Not enough free memory for Qwen 3.8 27B: it needs about 52.0 GiB plus 4 GiB of headroom (56.0 GiB) and 55.5 GiB is free while the Fish speech model is running.",
+        "policy_code": "memory",
+        "worker": "qwen-a",
+        "model_id": "qwen27b",
+        "display_name": "Qwen 3.8 27B"
+      },
+      "spawned": "nothing (no llama-server process)"
+    },
+    {
+      "step": "stop Fish",
+      "command": "scripts/fish stop --json",
+      "result": {
+        "ok": true,
+        "state": "STOPPED",
+        "stop_s": 0.17,
+        "after": {
+          "memory": {
+            "free_for_models_gib": 83.29,
+            "gpu_alloc_gib": 3.79,
+            "pressure": "normal"
+          },
+          "processes": 0,
+          "socket_listening": false
+        }
+      }
+    },
+    {
+      "step": "everything stopped",
+      "memory": {
+        "free_for_models_gib": 83.35,
+        "pages_free_gib": 28.91,
+        "gpu_alloc_gib": 3.75,
+        "pressure": "normal",
+        "swap_used_mib": 16.12
+      }
+    }
+  ],
+  "conclusion": "With the workloads present (59 GiB resident), the policy refused the pair in both orders, by 4.2 GiB with the 27B loaded first and by 0.5 GiB with Fish loaded first; the concurrency benchmark itself could not run. Nothing was spawned by either refused start."
+}

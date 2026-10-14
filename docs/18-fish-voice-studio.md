@@ -139,10 +139,11 @@ does not count; neither does a record from a previous boot.
 
 **Memory admission (measured, not nominal).** Free memory is computed as the
 model engines compute it — physical memory minus wired, compressed and app
-memory — minus the weights of any running llama.cpp model (memory-mapped, so
-otherwise counted as reclaimable cache). A start is admitted only if free ≥
-requirement + 4 GiB headroom, memory pressure is *normal*, and Metal's current
-allocation plus the requirement stays 4 GiB below the GPU working-set limit.
+memory. A running 27B's weights are memory-mapped, but Metal wires them, so
+this already counts them (measured, docs/19 §6.7). A start is admitted only if
+free ≥ requirement + 4 GiB headroom, memory pressure is *normal*, and Metal's
+current allocation plus the requirement stays 4 GiB below the GPU working-set
+limit.
 Fish's requirement (`config/fish.json` `memory.required_gib`) is the measured
 peak from docs/19, not the model card's figure. Nothing is ever forced into
 swap and nothing else is stopped to make room.

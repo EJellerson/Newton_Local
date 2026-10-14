@@ -173,8 +173,10 @@ no new inference code is needed:
   fishctl/qwenctl, so the shared admission policy (docs/18 §4) applies.
 * Calling is "ready" only when Fish and the chosen LLM are both READY and
   telephony ownership is confirmed; the panel shows each condition.
-* Fish + Qwen 27B is admitted only when measured memory allows; docs/19
-  records the measurement (or that it is pending the operator's approval).
+* Fish + Qwen 27B is admitted only when measured memory allows. On
+  2026-10-14 the pair fell 0.5–4.2 GiB short under the day's other workloads
+  (docs/19 §6.7), so a calling setup that relies on both needs that memory
+  kept free, or a hosted LLM.
 
 ## 9. Interfaces to implement later
 
@@ -192,8 +194,10 @@ no new inference code is needed:
 
 1. Local STT model choice and its memory next to Fish + Qwen 27B.
 2. Local Qwen 27B vs a hosted LLM: measured time to first sentence and
-   conversation quality (docs/19 measures 27B's time to first token alone
-   and next to Fish only if the operator authorizes that run).
+   conversation quality. The operator authorised measuring the 27B next to
+   Fish, but under that day's other workloads the policy refused the pair in
+   both orders (docs/19 §6.7), so the 27B's latency beside Fish is still
+   unmeasured; the pair needs about 5 GiB more free memory than was left.
 3. Whether Q4's voice similarity survives the telephone chain (§4).
 4. Public ingress choice and how it is secured and monitored.
 5. Legal review of the call types (§7).
