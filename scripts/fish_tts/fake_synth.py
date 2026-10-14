@@ -82,7 +82,9 @@ class FakeSynthesizer:
                 "frames": frames, "audio_seconds": round(dur, 3), "sample_rate": self.sample_rate,
                 "synthesis_s": round(el, 3), "first_frame_s": round(1.0 / fps, 4),
                 "first_audio_s": round(el, 4), "realtime_factor": round(dur / el, 3),
-                "progressive": bool(seg), "segment_frames": seg, "peak_gib": 0.0, "fake": True}
+                "progressive": bool(seg), "segment_frames": seg,
+                "decode": "fake tone", "first_decoded_s": round(1.0 / fps, 4),
+                "peak_gib": 0.0, "fake": True}
         return meta, audio
 
     def _tone(self, nframes, k):

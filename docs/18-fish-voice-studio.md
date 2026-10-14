@@ -216,7 +216,9 @@ a plain message.
 ### 5.5 Generating speech
 Choose a profile and recording, type text (up to 2,000 characters), then
 **Generate**. With **Play while it generates** the audio starts after about a
-second and continues as it is decoded.
+second and continues as it is decoded. The engine decodes every take the same
+way — in short streamed steps as it is generated — whether or not it is played
+meanwhile, so the saved take is identical either way (docs/19 §6).
 
 | Control | Meaning | Default |
 |---|---|---|
@@ -404,7 +406,7 @@ calls), confirm the revenue condition above.
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 ```bash
-scripts/prove-fish-adapter.py
+HF_HUB_OFFLINE=1 /usr/bin/sandbox-exec -f config/fish-engine.sb tools/fish-venv/bin/python3 -I scripts/prove-fish-adapter.py --model models/fish-drama3-mlx-q4 --report benchmarks/fish/adapter-proof.json
 ```
 ```bash
 scripts/prove-fish-policy.py
@@ -416,9 +418,11 @@ scripts/bench-fish.py --cold
 * Unit and integration tests (standard library; the end-to-end Voice Studio
   class drives the real sandboxed audio tool and the real engine in fixture
   mode).
-* `prove-fish-adapter.py` — the adapter reproduces the port's own generation
-  bit for bit, progressive decoding matches whole decoding, cancellation is
-  prompt (real model).
+* `prove-fish-adapter.py` — on the real model, with Fish stopped (it loads its
+  own copy): the adapter reproduces the port's own generation bit for bit;
+  streamed decoding, the only path the service uses, matches whole-chunk
+  decoding, and a take's audio does not depend on whether it was delivered
+  progressively; cancellation is prompt.
 * `prove-fish-policy.py` — the whole policy and lifecycle against real
   launchd jobs with fake engines (no model is loaded): matrix, refusals in
   both directions, concurrent-start races with a process sampler, recovery,

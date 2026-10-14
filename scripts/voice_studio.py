@@ -528,6 +528,7 @@ def take_metadata(req, settings, res, ident, job, t_submit, ref_s, g):
         "result": {k: res.get(k) for k in ("frames", "audio_seconds", "synthesis_s",
                                            "first_frame_s", "first_audio_s", "realtime_factor",
                                            "peak_gib", "progressive", "segment_frames",
+                                           "decode", "first_decoded_s",
                                            "wav_encode_s", "chunks", "flags")},
         "timing": {"submitted_at": iso(t_submit),
                    "queue_s": round(started - t_submit, 3) if started else None,
