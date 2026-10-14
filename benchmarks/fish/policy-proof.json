@@ -1,19 +1,19 @@
 {
   "prover": "scripts/prove-fish-policy.py",
-  "at": "2026-10-14T13:46:33-0400",
-  "wall_s": 210.9,
+  "at": "2026-10-14T14:26:08-0400",
+  "wall_s": 213.4,
   "rounds": 6,
   "scenario_s": {
-    "matrix": 29.3,
+    "matrix": 31.4,
     "memory_guard": 0.5,
-    "races": 100.5,
-    "recovery": 12.0,
-    "stale": 9.8,
-    "backstops": 12.7,
-    "lifecycle": 12.6,
-    "panel": 32.7
+    "races": 100.8,
+    "recovery": 11.9,
+    "stale": 10.8,
+    "backstops": 12.5,
+    "lifecycle": 12.2,
+    "panel": 32.4
   },
-  "samples": 1076,
+  "samples": 1071,
   "checks": [
     {
       "check": "Fish alone: start succeeds (identity verified)",
@@ -128,7 +128,7 @@
     {
       "check": "reason is memory, in plain words",
       "ok": true,
-      "detail": "Not enough free memory for Fish Audio Drama 3 (MLX Q4): it needs about 4096.0 GiB plus 4 GiB of headroom (4100.0 GiB) and 71.8 GiB is free."
+      "detail": "Not enough free memory for Fish Audio Drama 3 (MLX Q4): it needs about 4096.0 GiB plus 4 GiB of headroom (4100.0 GiB) and 75.1 GiB is free."
     },
     {
       "check": "nothing spawned",
@@ -238,7 +238,7 @@
     {
       "check": "stop during start succeeds within 15 s",
       "ok": true,
-      "detail": "0.8s"
+      "detail": "0.7s"
     },
     {
       "check": "the start exits 9 (cancelled)",
@@ -253,7 +253,7 @@
     {
       "check": "engine exits while loading: start fails with exit 8 within 10 s",
       "ok": true,
-      "detail": "rc=8 2.3s"
+      "detail": "rc=8 1.8s"
     },
     {
       "check": "the engine's own reason is surfaced",
@@ -278,7 +278,7 @@
     {
       "check": "start refuses while duplicates exist (exit 5)",
       "ok": true,
-      "detail": "fishctl: refusing to start: several engine processes exist ([69072, 69180]); run: fishctl stop"
+      "detail": "fishctl: refusing to start: several engine processes exist ([5891, 5976]); run: fishctl stop"
     },
     {
       "check": "fixture panel is up",
@@ -328,7 +328,7 @@
     {
       "check": "invariant held at every sample: a Fish engine and Flash-Next never alive together",
       "ok": true,
-      "detail": "1076 samples; overlaps: []; samples with only the gatekeeper shim deciding beside Flash-Next: 1"
+      "detail": "1071 samples; overlaps: []; samples with only the gatekeeper shim deciding beside Flash-Next: 1"
     },
     {
       "check": "no real model runtime or real Fish engine was started",
