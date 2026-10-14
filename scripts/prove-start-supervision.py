@@ -51,8 +51,11 @@ UID = os.getuid()
 LABEL_A = "com.newton.test.supervision.a"
 PORT_A, PORT_B, PANEL_PORT = 18080, 18081, 18765
 PY = "/usr/bin/python3"
+# qwenctl consults the shared resource policy before every start (docs/18 §4)
+# and refuses when it cannot load it, so the fixture carries it too.
 COPY_SCRIPTS = ["qwenctl.py", "newton_models.py", "newton_control.py",
-                "control-panel.html", "resident_identity.py"]
+                "control-panel.html", "resident_identity.py",
+                "resource_policy.py", "fish_config.py"]
 REAL_RUNTIMES = [os.path.join(REPO, "tools/llama.cpp/build/bin/llama-server"),
                  os.path.join(REPO, "tools/mlx-serve/current/mlx-serve")]
 REAL_RUNTIMES += [os.path.realpath(p) for p in REAL_RUNTIMES]
