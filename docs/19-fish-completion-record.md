@@ -179,6 +179,12 @@ same 12.5 s reference.
 * Generation runs at 34–38 frames per second against 21.5 frames per second
   of audio. Short texts have the lowest real-time factor because the fixed
   ~0.65 s before the first frame weighs most.
+* Where the time goes: the first frame (prompt processing and the first
+  acoustic token) takes about 0.65 s; decoding is interleaved with generation
+  and an 11-frame segment decodes in roughly 10 ms (first audio minus the
+  first frame and ten more frames); loopback delivery adds 10–15 ms; the
+  browser's player adds its own buffer (§9). Saving a take happens after the
+  audio is complete and is not on the path to first audio.
 * The engine used about 0.9 CPU-seconds per second of synthesis, one core;
   the GPU does the work.
 * No failures and no quality flags (run-on, early end, frame cap): every
@@ -386,6 +392,8 @@ condition while Fish is absent (unit tests and the matrix above).
 
 ## 13. Voice cloning: PENDING OPERATOR VOICE REVIEW
 
+(Commission §10 calls the same state PENDING OPERATOR SAMPLE / REVIEW.)
+
 The cloning path works end to end with a permitted test voice (the model's own
 voice, §3.1 and §9): references are recorded or uploaded, stored privately with
 their transcripts, encoded locally, and every take records the exact recording
@@ -445,8 +453,10 @@ This is not a technical failure and not a completed validation.
   local LLM can serve calls while Fish speaks.
 * Telephony ownership, consent and calling-law review, and the GoHighLevel
   credential procedure (docs/20 §3, §7; docs/21).
-* Q8: a new entry in `config/fish.json` with its own manifest and measured
-  memory figure, on the same adapter, if the operator ever authorises it.
+* Q8, if the operator ever authorises it: the design expects a new entry in
+  `config/fish.json` with its own manifest and measured memory figure on the
+  same adapter, because the port loads quantised packs the same way; that was
+  not tested, as Q8 was not authorised.
 
 ## 17. Disclosures
 
