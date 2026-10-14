@@ -1,0 +1,100 @@
+{
+  "_comment": [
+    "Newton_Local - Fish speech service configuration (docs/18). Fish is a",
+    "speech-generation service with its own lifecycle; it is NOT a Qwen",
+    "execution slot and is not in config/models.json. Read by",
+    "scripts/fish_config.py. Paths are relative to the repository root unless",
+    "they start with ~. A future variant (for example Q8) is another entry",
+    "under models using the same runtime and adapter."
+  ],
+  "schema": 1,
+  "default_model": "drama3-q4",
+
+  "service": {
+    "label": "com.newton.fish",
+    "host": "127.0.0.1",
+    "port": 8770,
+    "logdir": "logs/fish",
+    "statedir": "state/fish",
+    "start_timeout_s": 300,
+    "stop_grace_s": 30,
+    "store": "~/Library/Application Support/Newton_Local/voice-studio"
+  },
+
+  "runtimes": {
+    "mlx-audio-fish-omni": {
+      "display_name": "mlx-audio, Drama 3 (fish_omni) port",
+      "python": "tools/fish-venv/bin/python3",
+      "install_record": "tools/fish-venv/newton-fish-install.json",
+      "source_checkout": "tools/fish-src/mlx-audio",
+      "source": {
+        "repository": "https://github.com/cguldogan/mlx-audio",
+        "branch": "drama3-mlx",
+        "commit": "e7488935ec2ebfafd38ef2b58e290d79f3d05dc7",
+        "upstream_base": "Blaizzy/mlx-audio 0fe0b9cd21d3a528892a4e2e2e98d8cd2b9b2d08 (v0.5.9)",
+        "license": "MIT"
+      },
+      "base_python": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12",
+      "base_python_version": "3.12.2",
+      "requirements_lock": "config/fish-requirements.lock.txt",
+      "build_requirements_lock": "config/fish-build-requirements.lock.txt",
+      "pinned_versions": {"mlx": "0.31.2", "mlx-metal": "0.31.2", "mlx-audio": "0.5.9"},
+      "adapter": "fish_omni"
+    }
+  },
+
+  "models": {
+    "drama3-q4": {
+      "display_name": "Fish Audio Drama 3",
+      "variant": "MLX Q4",
+      "runtime": "mlx-audio-fish-omni",
+      "path": "models/fish-drama3-mlx-q4",
+      "manifest": "models/fish-drama3-mlx-q4/MANIFEST.json",
+      "source": {
+        "hf_repo": "cguldogan/drama-3-mlx-q4",
+        "hf_revision": "5331ab509359c0e4a7e353a19e255ddf3e8152a8",
+        "files": 16,
+        "bytes": 25888559494
+      },
+      "upstream": {
+        "hf_repo": "fishaudio/drama-3",
+        "hf_revision": "e0a9218aa48888270f06ef1ed9ea67622c0e17d2"
+      },
+      "quantization": "routed experts 4-bit affine (group 64), token embedding 8-bit; attention, shared experts, router, codebook tower and lm_head bf16",
+      "license": {
+        "name": "Fish Audio Community License, Version 1.0",
+        "file": "LICENSE",
+        "sha256": "733a32442087acbda12ecafe8e71eb8ee5890c89b50ce7ac4ea3777faa3c823e",
+        "notice": "These Fish Audio Materials are licensed under the Fish Audio Community License, Version 1.0. Copyright © 39 AI, INC. All Rights Reserved.",
+        "attribution": "Built with Fish Audio"
+      },
+      "sample_rate": 44100,
+      "frame_rate": 21.533203125,
+      "sampling_defaults": {"temperature": 1.0, "top_p": 0.9, "top_k": 30},
+      "limits": {
+        "max_frames_per_chunk": 600,
+        "chunk_bytes": 300,
+        "max_text_chars": 2000,
+        "reference_min_s": 3.0,
+        "reference_max_s": 30.0,
+        "max_references": 3
+      },
+      "memory": {
+        "required_gib": 32.0,
+        "basis": "provisional: model card peak ~30 GB while generating (M4 Pro); replaced by the M2 Ultra measurement in docs/19"
+      }
+    }
+  },
+
+  "compatibility": {
+    "_comment": "How Fish may share the machine with each Qwen registry model. prohibited = never at the same time, whatever memory says; conditional = only if memory admission passes. Models not listed (and unidentified model processes) are prohibited.",
+    "qwen27b": "conditional",
+    "flash-next": "prohibited"
+  },
+
+  "admission": {
+    "reserve_gib": 4.0,
+    "gpu_working_set_margin_gib": 4.0,
+    "require_pressure": "normal"
+  }
+}

@@ -89,3 +89,25 @@ models/qwen38-flash-next-mlx-4bit/*
 # Machine-readable manifest for the 27B pack is tracked (small JSON).
 # The engine binary release (pinned + hash-verified by install-mlx-serve.sh).
 tools/mlx-serve/
+
+# --- Fish speech service (docs/18) ----------------------------------------
+# The 24 GiB Drama 3 MLX Q4 pack: only its provenance manifests are tracked.
+models/fish-drama3-mlx-q4/*
+!models/fish-drama3-mlx-q4/MANIFEST.md
+!models/fish-drama3-mlx-q4/MANIFEST.json
+# The isolated runtime and its pinned source checkout, rebuilt by
+# scripts/install-fish-runtime.sh. No trailing slash: these may be symlinks.
+tools/fish-venv
+tools/fish-src
+# Private voice data lives outside the repository (config/fish.json
+# service.store). Defence in depth, should anyone copy recordings in here.
+*.wav
+*.flac
+*.m4a
+*.mp3
+*.ogg
+*.opus
+*.webm
+*.aiff
+*.caf
+voice-studio/
