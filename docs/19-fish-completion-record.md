@@ -3,7 +3,7 @@
 **Commission:** NEWTON_LOCAL_FISH_DRAMA3_001, revision 2.0 (Q4-first deployment) ·
 **Date:** 2026-10-14 · **Machine:** Mac Pro, M2 Ultra (24 CPU / 76 GPU cores),
 128 GiB, macOS 26.6.2 · **Code:** branch `fish-drama3-voice-studio`,
-fast-forwarded into `main`; nothing was pushed.
+fast-forwarded into `main`; publication in §18.
 
 Built with Fish Audio. Plan and audit: [17](17-fish-voice-plan.md) · runbook:
 [18](18-fish-voice-studio.md) · future telephone assistant:
@@ -508,18 +508,21 @@ and the language-model row), and the Fish + 27B pairing was tried (§6.7).
   STOPPED. Both models ended stopped, as they started.
 * Otherwise no Qwen model was started, stopped or restarted; no Q8 or other
   model was downloaded; no credential store was read; Twilio, GoHighLevel and
-  the existing telephony project were not accessed; nothing was pushed.
+  the existing telephony project were not accessed; nothing was pushed during
+  the work.
 
 ## 18. Git
 
-Commits from `da53304` on `fish-drama3-voice-studio`, fast-forwarded into
-`main`, this record included.
+All commits of this work, from `da53304`, are on `fish-drama3-voice-studio`
+and fast-forwarded into `main`, this record included. Model weights, the
+runtime, logs, state and the voice store are outside Git.
 
-Before anything was pushed, the commits from `0d2298a` on were rebuilt to
-keep the GoHighLevel location and calendar IDs out of docs/21 (and so out of
-the public history); nothing else changed in them. The benchmark files keep
-the commit ids recorded when they ran: `1cfb20a` in the names and contents of
-`bench-fish-only-1cfb20a.json` and `bench-fish-worst-case-1cfb20a.json` is
-now `e2c44e9`, and `d4b1ca4` in `bench-fish-only.json` is now `b2ef8c5`, with
-the same code. Model weights, the runtime, logs,
-state and the voice store are outside Git.
+Nothing was pushed during the work. The operator then asked for a push once
+private details were out of it, so every commit of this work was rebuilt
+first: the public history never contains the GoHighLevel location and calendar
+IDs, the business's name, the list of other programs on this Mac, or the name
+of the operator's other telephony project. Nothing else changed in those
+commits. The benchmark files keep the commit ids recorded when they ran:
+`1cfb20a` in the names and contents of `bench-fish-only-1cfb20a.json` and
+`bench-fish-worst-case-1cfb20a.json` is now `e2c44e9`, and `d4b1ca4` in
+`bench-fish-only.json` is now `b2ef8c5`, with the same code.
