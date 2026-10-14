@@ -1,0 +1,14 @@
+#!/bin/bash
+# Newton_Local — operator entry point for the Fish speech service (docs/18).
+# Thin wrapper over scripts/fishctl.py.
+#
+#   fish status [--admission]     state, memory, and what a start would decide
+#   fish start | stop | restart   (stop also cancels a start still loading)
+#   fish cancel                   abort a start in progress; returns at once
+#   fish verify [id] [--deep]     model pack and runtime: present, intact, pinned
+#   fish admission [--qwen ID]    preview the shared resource policy decision
+#   fish identity | health | logs | reconcile
+#
+# Voice Studio (Newton AI Control, /voice) drives the very same controller.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec /usr/bin/python3 "$ROOT/scripts/fishctl.py" "$@"

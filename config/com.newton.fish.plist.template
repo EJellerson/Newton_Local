@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Newton_Local — Fish speech service, ON-DEMAND user LaunchAgent (docs/18).
+
+  Rendered by scripts/install-fish.sh (substitutes __NEWTON_ROOT__) into
+  ~/Library/LaunchAgents/com.newton.fish.plist.
+
+  ON-DEMAND, OFF AFTER EVERY REBOOT
+    RunAtLoad = false  -> bootstrapping registers the job but does not run it.
+    KeepAlive = false  -> once stopped it STAYS stopped; launchd never
+                          respawns it. Crash recovery while intentionally
+                          running is the Newton AI Control watchdog's job: it
+                          is desired-state aware, silenced by Stop and by a
+                          reboot, and goes through the same admission.
+    Start / stop: scripts/fish start | stop   (or Voice Studio)
+
+  ARGUMENT VECTOR
+    `fishctl.py exec-engine` gates the launch (model intact and pinned, a
+    controller token present, no model that must never run beside Fish) and
+    then execs the engine under the network sandbox (config/fish-engine.sb)
+    from the pinned venv, so the pid launchd tracks is the engine itself.
+    install-fish.sh checks this argv against `fishctl shim-argv`.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.newton.fish</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>__NEWTON_ROOT__/scripts/fishctl.py</string>
+        <string>exec-engine</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>WorkingDirectory</key>
+    <string>__NEWTON_ROOT__</string>
+
+    <key>StandardOutPath</key>
+    <string>__NEWTON_ROOT__/logs/fish/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>__NEWTON_ROOT__/logs/fish/stderr.log</string>
+
+    <!-- Absolute PATH only; the engine never depends on shell startup files. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Latency-sensitive, like the production model slot. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+</dict>
+</plist>
