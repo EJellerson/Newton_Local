@@ -1,0 +1,346 @@
+{
+  "prover": "scripts/prove-fish-policy.py",
+  "at": "2026-10-14T13:46:33-0400",
+  "wall_s": 210.9,
+  "rounds": 6,
+  "scenario_s": {
+    "matrix": 29.3,
+    "memory_guard": 0.5,
+    "races": 100.5,
+    "recovery": 12.0,
+    "stale": 9.8,
+    "backstops": 12.7,
+    "lifecycle": 12.6,
+    "panel": 32.7
+  },
+  "samples": 1076,
+  "checks": [
+    {
+      "check": "Fish alone: start succeeds (identity verified)",
+      "ok": true,
+      "detail": "rc=0 "
+    },
+    {
+      "check": "Fish alone: desired state RUNNING after a successful start",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Fish alone: stop succeeds, engine gone, desired STOPPED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "qwen27b alone: start succeeds (no new condition)",
+      "ok": true,
+      "detail": "rc=0 "
+    },
+    {
+      "check": "qwen27b alone: stopped cleanly",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "flash-next alone: start succeeds (no new condition)",
+      "ok": true,
+      "detail": "rc=0 "
+    },
+    {
+      "check": "flash-next alone: stopped cleanly",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Fish READY for the pairing tests",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Fish ON + Flash-Next start: refused, exit 10",
+      "ok": true,
+      "detail": "rc=10"
+    },
+    {
+      "check": "refusal says why, in plain words",
+      "ok": true,
+      "detail": "Fixture Flash-Next can't start while the Fish speech model is running. They are never allowed to run at the same time. Stop Fish in Voice Studio first, or choose Qwen 3.8 27B."
+    },
+    {
+      "check": "nothing was spawned for Flash-Next (launchd runs unchanged, no process)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "slot A record still STOPPED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Fish ON + Flash-Next acquire on slot B: refused, exit 10",
+      "ok": true,
+      "detail": "rc=10 Fixture Flash-Next can't start while the Fish speech model is running. They are never allowed to run at the same time. Stop Fish in Voice Studio first, or choose Qwen 3.8 27B."
+    },
+    {
+      "check": "nothing was spawned on slot B",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Fish ON + 27B start: admitted (memory admission passed)",
+      "ok": true,
+      "detail": "rc=0 "
+    },
+    {
+      "check": "Fish and 27B both running",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Flash-Next READY for the reverse test",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Flash-Next ON + Fish start: refused, exit 10",
+      "ok": true,
+      "detail": "rc=10"
+    },
+    {
+      "check": "refusal names the conflict",
+      "ok": true,
+      "detail": "Fish Audio Drama 3 (MLX Q4) can't start while Fixture Flash-Next is running (slot A). They are never allowed to run at the same time. Stop the AI model first."
+    },
+    {
+      "check": "no Fish engine was spawned (launchd runs unchanged)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "a refused explicit start leaves Fish desired STOPPED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "start refused with exit 10",
+      "ok": true,
+      "detail": "rc=10"
+    },
+    {
+      "check": "reason is memory, in plain words",
+      "ok": true,
+      "detail": "Not enough free memory for Fish Audio Drama 3 (MLX Q4): it needs about 4096.0 GiB plus 4 GiB of headroom (4100.0 GiB) and 71.8 GiB is free."
+    },
+    {
+      "check": "nothing spawned",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "never both admitted",
+      "ok": true,
+      "detail": "[(0, 10), (0, 10), (0, 10), (0, 10), (0, 10), (0, 10)]"
+    },
+    {
+      "check": "every round: one started, the other was refused by the policy (10)",
+      "ok": true,
+      "detail": "[(0, 10), (0, 10), (0, 10), (0, 10), (0, 10), (0, 10)]"
+    },
+    {
+      "check": "Fish vs slot B: never both admitted",
+      "ok": true,
+      "detail": "[(0, 10), (0, 10), (0, 10)]"
+    },
+    {
+      "check": "Fish vs slot B: every round one started and the other was refused (10)",
+      "ok": true,
+      "detail": "[(0, 10), (0, 10), (0, 10)]"
+    },
+    {
+      "check": "restart vs Flash-Next: never both running at the end",
+      "ok": true,
+      "detail": "[(0, 10), (0, 10), (0, 10)]"
+    },
+    {
+      "check": "Fish vs 27B: no deadlock, every start finished with a defined outcome",
+      "ok": true,
+      "detail": "[(0, 10), (0, 10), (0, 10)]"
+    },
+    {
+      "check": "Fish recovering (desired RUNNING, engine down) blocks Flash-Next",
+      "ok": true,
+      "detail": "Fixture Flash-Next can't start while the Fish speech model is set to run (it is recovering). They are never allowed to run at the same time. Stop Fish in Voice Studio first, or choose Qwen 3.8 27B."
+    },
+    {
+      "check": "message says Fish is set to run",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "a desired=RUNNING record from a previous boot is ignored (reboot = OFF)",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "check": "Qwen-A recovering with Flash-Next selected blocks Fish",
+      "ok": true,
+      "detail": "Fish Audio Drama 3 (MLX Q4) can't start while Fixture Flash-Next is set to run (it is recovering) (slot A). They are never allowed to run at the same time. Stop the AI model first."
+    },
+    {
+      "check": "Qwen-A recovering with the 27B selected does not block Fish",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "check": "stale Qwen STARTING (lock free) does not block Fish",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "check": "stale Fish STARTING (lock free) does not block Flash-Next",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "check": "the stale Fish record was reconciled to STOPPED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "exec-slot refused Flash-Next beside Fish (exit 78)",
+      "ok": true,
+      "detail": "{'runs': 7, 'last_exit': 78}"
+    },
+    {
+      "check": "no Flash-Next process appeared",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "exec-engine refused Fish beside Flash-Next (exit 78)",
+      "ok": true,
+      "detail": "{'runs': 24, 'last_exit': 78}"
+    },
+    {
+      "check": "no Fish engine appeared (the gatekeeper exited without exec)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "its stderr names the policy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "a slow start is loading",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "stop during start succeeds within 15 s",
+      "ok": true,
+      "detail": "0.8s"
+    },
+    {
+      "check": "the start exits 9 (cancelled)",
+      "ok": true,
+      "detail": "rc=9"
+    },
+    {
+      "check": "engine gone, record STOPPED, desired STOPPED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "engine exits while loading: start fails with exit 8 within 10 s",
+      "ok": true,
+      "detail": "rc=8 2.3s"
+    },
+    {
+      "check": "the engine's own reason is surfaced",
+      "ok": true,
+      "detail": "Fish Audio Drama 3 failed to start: the engine exited \u2014 error: simulated Metal device failure while loading"
+    },
+    {
+      "check": "model load error: exit 8 with the reason",
+      "ok": true,
+      "detail": "Fish Audio Drama 3 failed to start: the engine exited \u2014 error: model load failed: RuntimeError: checkpoint is unreadable (simulated)"
+    },
+    {
+      "check": "a second start while READY starts nothing (idempotent)",
+      "ok": true,
+      "detail": "already running"
+    },
+    {
+      "check": "a duplicate engine process is detected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "start refuses while duplicates exist (exit 5)",
+      "ok": true,
+      "detail": "fishctl: refusing to start: several engine processes exist ([69072, 69180]); run: fishctl stop"
+    },
+    {
+      "check": "fixture panel is up",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Qwen watchdog attempted a recovery",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the recovery was refused: no Flash-Next process, no launchd run",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "refusal recorded as a policy failure",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Fish watchdog attempted a recovery",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the Fish recovery was refused by the policy (exit 10)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no Fish engine spawned",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the panel shows the refusal in plain words",
+      "ok": true,
+      "detail": "recovery attempt 1 failed: Fish Audio Drama 3 (MLX Q4) can't start while Fixture Flash-Next is running (slot A). They are never allowed to run at the same time. Stop the AI model first."
+    },
+    {
+      "check": "an intentional stop records STOPPED, so the watchdog stands down",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "invariant held at every sample: a Fish engine and Flash-Next never alive together",
+      "ok": true,
+      "detail": "1076 samples; overlaps: []; samples with only the gatekeeper shim deciding beside Flash-Next: 1"
+    },
+    {
+      "check": "no real model runtime or real Fish engine was started",
+      "ok": true,
+      "detail": "{}"
+    },
+    {
+      "check": "no fixture process left behind",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "passed": 65,
+  "failed": 0
+}

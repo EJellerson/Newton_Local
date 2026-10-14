@@ -60,5 +60,11 @@
 
     <key>ExitTimeOut</key>
     <integer>30</integer>
+
+    <!-- launchd delays a job that starts within ThrottleInterval (default
+         10 s) of its last exit. With KeepAlive=false there is no respawn
+         loop to damp, so keep Restart (stop, then start at once) prompt. -->
+    <key>ThrottleInterval</key>
+    <integer>1</integer>
 </dict>
 </plist>
