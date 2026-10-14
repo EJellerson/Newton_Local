@@ -768,10 +768,25 @@ def cmd_shim_argv(reg, args):
     return 0
 
 
+def policy_backstop(model_id):
+    """Launch-time backstop of the shared resource policy (docs/18 §4): even
+    a direct `launchctl kickstart` cannot load a model that must never run
+    beside the Fish speech service. Memory admission already happened in the
+    controller, under the admission lock. Returns a refusal reason or None;
+    fails closed, because the policy is a hard rule."""
+    try:
+        import resource_policy as rp
+        d = rp.backstop_qwen_launch(model_id)
+    except Exception as e:
+        return f"the resource policy check failed: {type(e).__name__}: {e}"
+    return None if d["ok"] else d["message"]
+
+
 def cmd_exec_slot(reg, args):
     """The LaunchAgent entry point: resolve the global selection for this
-    slot, gate on availability, then REPLACE this process with the runtime.
-    Only launchd (kickstarted by qwenctl) should ever run this."""
+    slot, gate on availability and the shared resource policy, then REPLACE
+    this process with the runtime. Only launchd (kickstarted by qwenctl)
+    should ever run this."""
     sel, source = read_selection(reg)
     plan = launch_plan(reg, args.slot, sel)
     check = check_model(reg, sel)
@@ -783,6 +798,12 @@ def cmd_exec_slot(reg, args):
         sys.stderr.write(f"newton-model exec-slot {args.slot}: refusing to launch "
                          f"{sel}: {'; '.join(check['reasons'])}\n")
         return 78                                 # EX_CONFIG
+    refusal = policy_backstop(sel)
+    if refusal:
+        _log("exec_slot.refused_policy", slot=args.slot, model=sel, reason=refusal)
+        sys.stderr.write(f"newton-model exec-slot {args.slot}: refusing to launch "
+                         f"{sel}: {refusal}\n")
+        return 78
     if args.dry_run:
         print(json.dumps({"would_exec": plan["argv"], "cwd": plan["cwd"]}, indent=2))
         return 0

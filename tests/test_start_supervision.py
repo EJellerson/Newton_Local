@@ -461,6 +461,11 @@ class StartPathTests(TmpCase):
             mock.patch.object(qwenctl, "obs_launchd", fake_launchd),
             mock.patch.object(qwenctl, "_kickstart", fake_kick),
             mock.patch.object(qwenctl, "_do_stop", return_value=True),
+            # These tests are about start supervision. The shared resource
+            # policy (docs/18) observes the real machine, so it is admitted
+            # here; tests/test_resource_policy.py covers the policy itself.
+            mock.patch.object(qwenctl, "_admission",
+                              lambda cfg, args, plan, verb: contextlib.nullcontext()),
         ]
         for p in patches:
             p.start()

@@ -53,7 +53,15 @@ EXIT CODES
     0 ok   1 error   3 lease conflict   4 timeout   5 inconsistent (duplicates
     or peer instance)   6 selected model unavailable   7 restart would switch
     the model   8 the engine exited while loading (reason taken from its log)
-    9 start cancelled by an operator stop
+    9 start cancelled by an operator stop   10 refused by the shared resource
+    policy (the Fish speech service is running, starting or recovering)
+
+SHARED RESOURCE ADMISSION (docs/18 §4)
+    A start (start, restart, acquire; the panel watchdog uses start) decides
+    and writes STARTING under the shared admission lock, with
+    resource_policy.check_qwen_start. Flash-Next never starts beside Fish; the
+    27B does only if memory admission passes. With Fish absent the policy
+    imposes no condition, so behaviour is exactly as before.
 
 START SUPERVISION (2026-10-12 incident fixes)
     * A start no longer only polls /health: it also watches the launchd job,
@@ -78,6 +86,7 @@ MODEL / RUNTIME (Commission #5)
     executable occupies the one large-model resource.
 """
 import argparse
+import contextlib
 import copy
 import errno
 import fcntl
@@ -680,27 +689,29 @@ def _kickstart(cfg):
     return rc, (out + err).strip()
 
 
-def _do_stop(cfg, o=None, grace=45):
-    """Stop the worker via launchd, then verify process exit and port closure."""
+def _do_stop(cfg, o=None, grace=45, procs_fn=None):
+    """Stop the worker via launchd, then verify process exit and port closure.
+    procs_fn defaults to this slot's model processes (fishctl passes its own)."""
+    procs_fn = procs_fn or obs_processes
     sh(["launchctl", "kill", "TERM", f"gui/{cfg['uid']}/{cfg['label']}"], timeout=30)
     deadline = now() + grace
     while now() < deadline:
-        if not obs_processes(cfg) and not obs_socket(cfg)["listening"]:
+        if not procs_fn(cfg) and not obs_socket(cfg)["listening"]:
             return True
         time.sleep(0.5)
     # launchd could not reap it (e.g. an orphan it does not own) — escalate.
-    for p in obs_processes(cfg):
+    for p in procs_fn(cfg):
         sh(["kill", "-TERM", str(p["pid"])])
     deadline = now() + 20
     while now() < deadline:
-        if not obs_processes(cfg) and not obs_socket(cfg)["listening"]:
+        if not procs_fn(cfg) and not obs_socket(cfg)["listening"]:
             return True
         time.sleep(0.5)
-    for p in obs_processes(cfg):
+    for p in procs_fn(cfg):
         sh(["kill", "-KILL", str(p["pid"])])
     deadline = now() + 15
     while now() < deadline:
-        if not obs_processes(cfg) and not obs_socket(cfg)["listening"]:
+        if not procs_fn(cfg) and not obs_socket(cfg)["listening"]:
             return True
         time.sleep(0.5)
     return False
@@ -857,7 +868,8 @@ def diagnose_start_failure(text):
     return {"kind": "unknown", "line": lines[-1], "summary": lines[-1][:300]}
 
 
-def wait_ready(cfg, deadline, poll=0.5, runs_before=None, cancel_since=None):
+def wait_ready(cfg, deadline, poll=0.5, runs_before=None, cancel_since=None,
+               procs_fn=None, health_fn=None):
     """Poll until the worker answers /health.
 
     Returns (ok, t_spawn, t_ready, failure); failure is None on success, else
@@ -870,7 +882,12 @@ def wait_ready(cfg, deadline, poll=0.5, runs_before=None, cancel_since=None):
     the job or a slot process was seen alive during this wait, so the window
     before launchd registers the spawn can never be mistaken for an exit.
     Two consecutive not-running observations are required. Aborts promptly
-    when an operator cancel newer than `cancel_since` appears."""
+    when an operator cancel newer than `cancel_since` appears.
+
+    procs_fn / health_fn default to this slot's model process and health
+    probe; fishctl passes its own (docs/18) and reuses the rest unchanged."""
+    procs_fn = procs_fn or obs_processes
+    health_fn = health_fn or obs_health
     t_spawn = None
     seen_alive = False
     gone_streak = 0
@@ -878,10 +895,10 @@ def wait_ready(cfg, deadline, poll=0.5, runs_before=None, cancel_since=None):
         if cancel_since is not None and cancel_requested(cfg, cancel_since):
             return False, t_spawn, None, {"kind": "cancelled",
                                           "cancel": read_cancel(cfg)}
-        procs = obs_processes(cfg)
+        procs = procs_fn(cfg)
         if t_spawn is None and procs:
             t_spawn = now()
-        if obs_health(cfg, timeout=3)["ok"]:
+        if health_fn(cfg, timeout=3)["ok"]:
             return True, t_spawn, now(), None
         ld = obs_launchd(cfg)
         state = (ld.get("state") or "").strip()
@@ -1002,6 +1019,44 @@ def _refuse_cancelled_before_spawn(cfg, args, t0, plan, verb):
     die(message, 9)
 
 
+# ------------------------------------------- shared resource admission
+def _refuse_policy(cfg, args, plan, verb, d):
+    message = d.get("message") or "refused by the shared resource policy"
+    log(cfg, f"{verb}.refused_policy", model=(plan or {}).get("model"),
+        code=d.get("code"), message=message)
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": False, "error": "policy", "exit_code": 10,
+                          "message": message, "policy_code": d.get("code"),
+                          "worker": cfg["instance"], "model_id": (plan or {}).get("model"),
+                          "display_name": (plan or {}).get("display_name")}, indent=2))
+    die(message, 10)
+
+
+@contextlib.contextmanager
+def _admission(cfg, args, plan, verb):
+    """Decide with the Fish speech service and reserve, atomically (docs/18
+    §4): the shared admission lock is held across the resource-policy
+    decision and the caller's STARTING write. A refusal exits 10 having
+    written nothing. Fails closed: the policy is a hard rule."""
+    try:
+        import resource_policy as rp
+    except Exception as e:
+        _refuse_policy(cfg, args, plan, verb, {
+            "code": "error", "message": f"the resource policy could not be loaded: {e}"})
+    try:
+        with rp.admission_lock():
+            try:
+                d = rp.check_qwen_start(plan["model"])
+            except Exception as e:
+                d = {"ok": False, "code": "error",
+                     "message": f"the resource policy check failed: {type(e).__name__}: {e}"}
+            if not d["ok"]:
+                _refuse_policy(cfg, args, plan, verb, d)
+            yield d
+    except rp.AdmissionBusy as e:
+        _refuse_policy(cfg, args, plan, verb, {"code": "busy", "message": str(e)})
+
+
 # ----------------------------------------------- production start / restart
 def _resolve_launch(cfg):
     """The globally selected model as THIS slot will launch it. Refused
@@ -1093,17 +1148,18 @@ def _start_locked(cfg, args, t0):
         plan, _ = _resolve_launch(cfg)
         _refuse_cancelled_before_spawn(cfg, args, t0, plan, "start")
         timeout = args.timeout or max(cfg["start_timeout"], plan["start_timeout_s"])
-        lease["state"] = STARTING
-        lease["owner"] = None
-        lease["acquired_at"] = None
-        lease["last_activity"] = now()
-        lease["idle_since"] = None
-        lease["generation"] = int(lease.get("generation") or 0) + 1
-        lease["start_deadline"] = now() + timeout
-        lease["model"] = plan["model"]
-        lease["runtime"] = plan["runtime"]
-        lease["notes"] = []
-        write_lease(cfg, lease)
+        with _admission(cfg, args, plan, "start"):
+            lease["state"] = STARTING
+            lease["owner"] = None
+            lease["acquired_at"] = None
+            lease["last_activity"] = now()
+            lease["idle_since"] = None
+            lease["generation"] = int(lease.get("generation") or 0) + 1
+            lease["start_deadline"] = now() + timeout
+            lease["model"] = plan["model"]
+            lease["runtime"] = plan["runtime"]
+            lease["notes"] = []
+            write_lease(cfg, lease)
         log(cfg, "start.begin", generation=lease["generation"],
             model=plan["model"], runtime=plan["runtime"])
 
@@ -1428,17 +1484,18 @@ def cmd_acquire(cfg, args):
             plan, _ = _resolve_launch(cfg)
             _refuse_cancelled_before_spawn(cfg, args, t0, plan, "acquire")
             timeout = args.timeout or max(cfg["start_timeout"], plan["start_timeout_s"])
-            lease["state"] = STARTING
-            lease["owner"] = args.owner
-            lease["acquired_at"] = now()
-            lease["last_activity"] = now()
-            lease["idle_since"] = None
-            lease["generation"] = int(lease.get("generation") or 0) + 1
-            lease["start_deadline"] = now() + timeout
-            lease["model"] = plan["model"]
-            lease["runtime"] = plan["runtime"]
-            lease["notes"] = []
-            write_lease(cfg, lease)
+            with _admission(cfg, args, plan, "acquire"):
+                lease["state"] = STARTING
+                lease["owner"] = args.owner
+                lease["acquired_at"] = now()
+                lease["last_activity"] = now()
+                lease["idle_since"] = None
+                lease["generation"] = int(lease.get("generation") or 0) + 1
+                lease["start_deadline"] = now() + timeout
+                lease["model"] = plan["model"]
+                lease["runtime"] = plan["runtime"]
+                lease["notes"] = []
+                write_lease(cfg, lease)
             log(cfg, "acquire.start", owner=args.owner,
                 generation=lease["generation"], model=plan["model"],
                 runtime=plan["runtime"])
