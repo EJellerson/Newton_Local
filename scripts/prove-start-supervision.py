@@ -465,8 +465,12 @@ def scenario_panel(root):
           lo.get("ok") is False and (lo.get("message") or "").startswith(
               "Not enough free memory to load Fake OOM: it needs 77.1 GiB free and "
               "only 69.0 GiB was available."), lo.get("message", "")[:120])
+    # A fresh snapshot: the one that first shows the operation finished may
+    # carry a controller state observed a moment before it finished.
+    s2 = panel_status()
     check("model is Stopped and desired STOPPED",
-          s["model"]["state"] == "Stopped" and s["model"]["desired"] == "STOPPED")
+          s2["model"]["state"] == "Stopped" and s2["model"]["desired"] == "STOPPED",
+          f"{s2['model']['state']} / {s2['model']['desired']}")
 
     code, _ = panel_req("POST", "/api/model/select", {"model": "fake-hang"})
     code, _ = panel_req("POST", "/api/model/start")
