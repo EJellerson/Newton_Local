@@ -1,0 +1,107 @@
+{
+  "started": "2026-10-14T12:32:06-0400",
+  "checks": {
+    "no_reference_codes_identical": {
+      "ok": true,
+      "frames": 56,
+      "audio_identical": true,
+      "first_frame_s": 0.0883
+    },
+    "reference_codes_identical": {
+      "ok": true,
+      "frames": 60,
+      "first_frame_s": 0.3277,
+      "prompt_rows": 149
+    },
+    "multi_chunk_codes_identical": {
+      "ok": true,
+      "chunks": 2,
+      "frames": [
+        395,
+        102
+      ]
+    },
+    "progressive_equals_whole": {
+      "ok": true,
+      "max_abs_diff": 2.7041882276535034e-05,
+      "samples": 1017856,
+      "first_audio_s_progressive": 0.7408,
+      "first_audio_s_whole": 12.9576
+    },
+    "cancellation": {
+      "ok": true,
+      "seconds_to_stop": 0.256
+    },
+    "repeated_generation_stable": {
+      "ok": true,
+      "runs": [
+        {
+          "seed": 11,
+          "frames": 57,
+          "eos": true,
+          "audio_s": 2.647,
+          "synthesis_s": 2.87,
+          "peak_gib": 27.46,
+          "first_frame_s": 0.331
+        },
+        {
+          "seed": 12,
+          "frames": 70,
+          "eos": true,
+          "audio_s": 3.251,
+          "synthesis_s": 2.609,
+          "peak_gib": 27.92,
+          "first_frame_s": 0.3367
+        },
+        {
+          "seed": 13,
+          "frames": 59,
+          "eos": true,
+          "audio_s": 2.74,
+          "synthesis_s": 2.659,
+          "peak_gib": 27.57,
+          "first_frame_s": 0.3344
+        },
+        {
+          "seed": 14,
+          "frames": 68,
+          "eos": true,
+          "audio_s": 3.158,
+          "synthesis_s": 2.793,
+          "peak_gib": 27.83,
+          "first_frame_s": 0.336
+        },
+        {
+          "seed": 15,
+          "frames": 66,
+          "eos": true,
+          "audio_s": 3.065,
+          "synthesis_s": 2.753,
+          "peak_gib": 27.93,
+          "first_frame_s": 0.3353
+        }
+      ]
+    }
+  },
+  "load": {
+    "load_s": 5.43,
+    "active_gib_after_load": 24.38,
+    "sample_rate": 44100,
+    "frame_length": 2048,
+    "warmup_s": 0.62
+  },
+  "warmup_s": 0.62,
+  "synthetic_reference": {
+    "seconds": 3.72,
+    "frames": 80,
+    "text": "The weather was calm this morning, so we walked down to the harbor."
+  },
+  "memory_after": {
+    "active_gib": 24.41,
+    "peak_gib": 27.93,
+    "cache_gib": 0.0,
+    "cache_limit_gib": 2.0
+  },
+  "ok": true,
+  "finished": "2026-10-14T12:33:32-0400"
+}

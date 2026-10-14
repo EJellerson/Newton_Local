@@ -1,0 +1,36 @@
+;; Newton_Local - Seatbelt profile for the Fish speech engine (docs/18).
+;;
+;; Applied by /usr/bin/sandbox-exec in the com.newton.fish LaunchAgent. The
+;; engine needs no network beyond answering on its own loopback port, so the
+;; kernel enforces that private voice audio, transcripts and generated speech
+;; cannot leave the machine from this process, and proves that inference does
+;; not depend on the internet. Files, Metal and IOKit keep the default policy,
+;; which is what MLX needs.
+;;
+;; Verified on macOS 26.6.2 (docs/19): TCP to the internet, HTTPS and DNS fail
+;; with EPERM; MLX runs on the GPU; a loopback client reaches the engine.
+;; Limits: Seatbelt's "localhost" bind filter also admits wildcard addresses,
+;; so loopback-only binding is enforced by the engine and config/fish.json
+;; instead (and checked with lsof). The profile closes the common networking
+;; XPC services but does not claim to close every system service that can
+;; reach the network for a client.
+(version 1)
+(allow default)
+
+;; No outbound network: no TCP/UDP, and no Unix-domain sockets other than
+;; the system log (DNS goes through mDNSResponder's socket).
+(deny network-outbound)
+(allow network-outbound (remote unix-socket (path-literal "/private/var/run/syslog")))
+
+;; No name resolution and no URL-session or network daemons acting for us.
+(deny mach-lookup
+      (global-name "com.apple.dnssd.service")
+      (global-name "com.apple.nsurlsessiond")
+      (global-name "com.apple.networkd"))
+
+;; Serve on loopback only (any port, so a fixture engine on a test port can
+;; run under the same profile).
+(deny network-bind)
+(allow network-bind (local ip "localhost:*"))
+(deny network-inbound)
+(allow network-inbound (local ip "localhost:*"))
