@@ -22,6 +22,15 @@ incompatible pair; the engine gets a fresh bearer token per start; and a
 start only counts as ready once the engine's identity (model, generation,
 manifest, runtime commit, launchd pid, socket owner) has been verified.
 
+DESIRED STATE (state/fish/desired.json, boot-scoped like Qwen-A's)
+    This controller is its only writer, whichever entry point is used:
+    stop and cancel record STOPPED together with the cancel marker; a
+    successful start or restart records RUNNING unless a stop arrived while
+    it ran; a failed start records STOPPED (except --recovery, the
+    watchdog's retry, which leaves it alone). Newton AI Control's watchdog
+    restarts Fish only while it reads RUNNING for this boot, so a stop from
+    the terminal is never undone either, and a reboot lands on OFF.
+
 COMMANDS
     status | start | stop | restart | cancel | health | identity
     verify [--deep] | admission [--qwen MODEL] | select <id> | reconcile | logs
@@ -275,6 +284,57 @@ def machine_memory():
             "pressure": rp.pressure_level()}
 
 
+# -------------------------------------------------------- desired state
+def desired_lock(cfg):
+    """Serialises desired-state writes with the cancel marker (milliseconds)."""
+    return rp.admission_lock(os.path.join(fc.paths(cfg)["statedir"], "desired.lock"),
+                             timeout=15)
+
+
+def set_desired(cfg, desired, by):
+    rec = {"desired": desired, "boot_sec": rp.boot_time_sec(), "set_at": now(),
+           "set_at_iso": iso(), "set_by": by}
+    fc.atomic_write_json(fc.paths(cfg)["desired"], rec)
+    return rec
+
+
+def read_desired(cfg):
+    rec = fc.read_json(fc.paths(cfg)["desired"])
+    return {"desired": rp.effective_desired(rec, rp.boot_time_sec()), "record": rec}
+
+
+def stop_intent(cfg, ctl, by):
+    """STOPPED and the cancel marker as one step: a start that is finishing
+    either sees the marker (desire_running) or is overwritten by this."""
+    with desired_lock(cfg):
+        set_desired(cfg, STOPPED, by)
+        return q.request_cancel(ctl, by=by)
+
+
+def desire_running(cfg, ctl, by, t0):
+    """After a successful start: RUNNING, unless a stop arrived meanwhile."""
+    try:
+        with desired_lock(cfg):
+            if q.cancel_requested(ctl, t0):
+                return False
+            set_desired(cfg, "RUNNING", by)
+            return True
+    except rp.AdmissionBusy as e:
+        log(ctl, "desired.not_recorded", error=str(e))
+        return False
+
+
+def start_failed_intent(cfg, ctl, args, code):
+    """A failed explicit start must not leave the watchdog retrying it."""
+    if code in (0, None) or getattr(args, "recovery", False):
+        return
+    try:
+        with desired_lock(cfg):
+            set_desired(cfg, STOPPED, f"{args.by or 'cli'}:start-failed")
+    except rp.AdmissionBusy as e:
+        log(ctl, "desired.not_recorded", error=str(e))
+
+
 # --------------------------------------------------------------- token
 def write_token(cfg, generation, model_id):
     tok = secrets.token_hex(32)
@@ -491,8 +551,14 @@ def result(cfg, ctl, args, rec, t0, started, note, identity=None):
 
 def cmd_start(cfg, ctl, args):
     t0 = now()
-    with q.Lock(ctl, timeout=args.lock_timeout):
-        return start_locked(cfg, ctl, args, t0)
+    try:
+        with q.Lock(ctl, timeout=args.lock_timeout):
+            rc = start_locked(cfg, ctl, args, t0)
+            desire_running(cfg, ctl, args.by or "cli", t0)
+            return rc
+    except SystemExit as e:
+        start_failed_intent(cfg, ctl, args, e.code)
+        raise
 
 
 def stop_locked(cfg, ctl, args, rec, o):
@@ -518,7 +584,7 @@ def stop_locked(cfg, ctl, args, rec, o):
 
 
 def cmd_stop(cfg, ctl, args):
-    q.request_cancel(ctl, by=args.by or "stop")       # stop wins over a loading start
+    stop_intent(cfg, ctl, args.by or "stop")          # stop wins over a loading start
     with q.Lock(ctl, timeout=args.lock_timeout):
         rec, o, _ = reconcile(ctl)
         if rec["state"] == STOPPED and o["observed_state"] == OBS_DOWN:
@@ -536,17 +602,23 @@ def cmd_stop(cfg, ctl, args):
 
 def cmd_restart(cfg, ctl, args):
     t0 = now()
-    with q.Lock(ctl, timeout=args.lock_timeout):
-        rec, o, _ = reconcile(ctl)
-        if rec["state"] != STOPPED or o["observed_state"] != OBS_DOWN:
-            ok, _ = stop_locked(cfg, ctl, args, rec, o)
-            if not ok:
-                die("restart: could not stop the running engine; not starting another", 1)
-        return start_locked(cfg, ctl, args, t0)
+    try:
+        with q.Lock(ctl, timeout=args.lock_timeout):
+            rec, o, _ = reconcile(ctl)
+            if rec["state"] != STOPPED or o["observed_state"] != OBS_DOWN:
+                ok, _ = stop_locked(cfg, ctl, args, rec, o)
+                if not ok:
+                    die("restart: could not stop the running engine; not starting another", 1)
+            rc = start_locked(cfg, ctl, args, t0)
+            desire_running(cfg, ctl, args.by or "cli", t0)
+            return rc
+    except SystemExit as e:
+        start_failed_intent(cfg, ctl, args, e.code)
+        raise
 
 
 def cmd_cancel(cfg, ctl, args):
-    rec = q.request_cancel(ctl, by=args.by or "cancel")
+    rec = stop_intent(cfg, ctl, args.by or "cancel")
     st = read_state(ctl)["state"]
     out = {"ok": True, "cancel_requested_at": rec["requested_at_iso"], "state": st,
            "start_in_progress": st == STARTING}
@@ -567,7 +639,7 @@ def cmd_status(cfg, ctl, args):
            "health": o["health"], "launchd": o["launchd"], "socket": o["socket"],
            "duplicate_processes": o["duplicate_processes"], "last_start": rec.get("last_start"),
            "last_failure": rec.get("last_failure"), "last_stop": rec.get("last_stop"),
-           "notes": rec.get("notes"), "corrections": corr,
+           "notes": rec.get("notes"), "corrections": corr, "desired": read_desired(cfg),
            "memory": machine_memory(), "engine": None}
     if o["observed_state"] == OBS_UP:
         st, body = http(ctl, "/v1/status", token=read_token(cfg), timeout=3)
@@ -735,6 +807,9 @@ def main():
     for name in ("start", "restart"):
         p = common(sub.add_parser(name))
         p.add_argument("--timeout", type=int, default=None)
+        p.add_argument("--by", default=None)
+        p.add_argument("--recovery", action="store_true",
+                       help="a watchdog retry: a failure leaves the desired state alone")
     for name in ("stop", "cancel"):
         p = common(sub.add_parser(name))
         p.add_argument("--by", default=None)
