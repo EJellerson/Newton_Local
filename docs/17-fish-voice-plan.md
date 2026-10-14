@@ -5,6 +5,12 @@
 The runbook is [18](18-fish-voice-studio.md); the completion record is
 [19](19-fish-completion-record.md).
 
+*As built (2026-10-14):* implemented as planned, with two differences. The
+page lives in `scripts/voice-studio/` (`index.html`, `app.js`, `style.css`,
+`recorder-worklet.js`), and the engine decodes every take in short streamed
+steps rather than only progressive ones, because decoding a whole chunk at
+once needed about 9 GiB more memory (docs/19 §6).
+
 Built with Fish Audio.
 
 ## 1. Audit findings

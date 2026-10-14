@@ -92,8 +92,11 @@ no new inference code is needed:
    allows (Flash-Next can never run beside Fish). It starts nothing itself;
    it asks fishctl/qwenctl, so admission applies.
 2. **Reference once per engine start.** The operator's chosen recording is
-   PUT once (`/v1/references/<sha256>`, ~0.15 s to encode); each turn then
-   only names its hash.
+   PUT once (`/v1/references/<sha256>`; 0.24 s to encode a 12.5 s
+   recording); each turn then only names its hash. The reference is still
+   part of every job's prompt, so a longer reference adds to every turn's
+   first audio (docs/19 §7): pick the shortest recording that still sounds
+   right.
 3. **Sentence-sized jobs.** The dialogue layer streams LLM text and cuts it
    at sentence (or strong clause) boundaries; each piece becomes a
    progressive job (`segment_frames` ≈ 11, about 0.5 s of audio). The first

@@ -1,8 +1,9 @@
 # Newton_Local
 
 A self-hosted AI assistant on one Apple Silicon workstation (Mac Pro, M2 Ultra,
-128 GiB unified memory): local LLM inference, a tool-using agent, and a
-one-click control app, with no cloud model anywhere in the loop.
+128 GiB unified memory): local LLM inference, a tool-using agent, a local
+speech service that can clone the operator's own voice, and a one-click
+control app, with no cloud model anywhere in the loop.
 
 ```
 you → Open WebUI :3000 → Hermes Agent :8642 → AI Inference :8080
@@ -23,6 +24,7 @@ reach the internet, so this is *local intelligence*, not an air-gapped box.
 | A local control service hardened against browser attacks | [`scripts/newton_control.py`](scripts/newton_control.py) |
 | Keeping an agent honest about which model is running and what it finished | [`docs/11`](docs/11-runtime-identity.md), [`docs/12`](docs/12-completion-enforcement.md), [`integrations/newton_runtime/`](integrations/newton_runtime/) |
 | Capacity measurements with their confounders disclosed | [`docs/05-commission-2-completion-record.md`](docs/05-commission-2-completion-record.md) |
+| Two lifecycle controllers sharing one resource policy, proved on real launchd jobs | [`scripts/resource_policy.py`](scripts/resource_policy.py), [`scripts/prove-fish-policy.py`](scripts/prove-fish-policy.py), [`docs/18`](docs/18-fish-voice-studio.md) §4 |
 
 - **Lifecycle control.** `qwenctl.py` runs each model server as an explicit
   state machine. Before every decision it observes launchd, the process
@@ -46,6 +48,13 @@ reach the internet, so this is *local intelligence*, not an air-gapped box.
   verified identity record (the registered artifact bound to the serving
   process), not from the model's self-description. A turn is accepted as
   finished only against durable task state and tool receipts.
+- **Local speech.** Fish Audio Drama 3 runs as its own on-demand service in a
+  sandbox that denies it any network access. Voice Studio, a page of the
+  control app, records or uploads the operator's voice, keeps recordings and
+  takes in a private folder outside the repository, and generates and
+  compares takes. A policy shared by both controllers never lets the speech
+  model run beside Flash-Next, and admits it beside the 27B only when
+  measured memory allows, whichever side starts and however it is started.
 - **Evidence over claims.** The completion records in `docs/` cite
   transcripts and benchmark JSON in [`benchmarks/`](benchmarks/), and model
   weights are verified file by file against the hashes in their manifests.
@@ -76,11 +85,14 @@ why each claim in them cites a transcript or a measurement.
 | [`scripts/newton_models.py`](scripts/newton_models.py) + [`config/models.json`](config/models.json) | Model registry, global selection, launch plans, integrity checks | — |
 | Slot A — "AI Inference" | Production model server, alias `local-model` | 8080 |
 | Slot B | Elastic worker, leased on demand, stops after a 180 s idle TTL | 8081 |
+| Fish speech service ([`scripts/fishctl.py`](scripts/fishctl.py), [`scripts/fish_engine.py`](scripts/fish_engine.py)) | Fish Audio Drama 3 (MLX Q4), on demand, no network access | 8770 |
+| Voice Studio (Newton AI Control, `/voice`) | Record or upload references, voice profiles, generate, compare and download takes | 8765 |
 
 Hermes, Open WebUI and the control panel run as user LaunchAgents and come up
-at login. **The model is off until you click Start, and off again after every
-reboot.** While it is intentionally running, a watchdog restarts it after a
-crash; an intentional Stop is never undone. Hermes is extended through a small
+at login. **The models are off until you click Start, and off again after
+every reboot**; the speech model follows the same rules. While a model is
+intentionally running, a watchdog restarts it after a crash; an intentional
+Stop is never undone. Hermes is extended through a small
 pinned patch ([`integrations/`](integrations/)) rather than a fork.
 
 ## Models
@@ -104,6 +116,17 @@ Long-context retrieval was proven with a 150,170-token prompt on the 27B and
 only ~14–18% more aggregate throughput, because the GPU is already saturated;
 that is why slot B is elastic rather than permanent
 ([docs/05](docs/05-commission-2-completion-record.md)).
+
+**Speech: Fish Audio Drama 3 (MLX Q4).** A 35B-parameter (3B active)
+text-to-speech model in a community 4-bit MLX conversion, run by its own
+controller (`scripts/fishctl.py`) rather than a model slot. On this Mac it is
+ready about 4 s after Start (7 s cold), starts speaking about a second after a
+request (with a 12-second voice reference), generates 1.1–1.6× faster than
+real time, and holds about 27 GiB of GPU memory, 29 GiB at its peak. It may
+run beside the 27B when measured memory allows, never beside Flash-Next
+([docs/19](docs/19-fish-completion-record.md)). The model is under the Fish
+Audio Community License, which limits commercial use. **Built with Fish
+Audio.**
 
 Weights are not in the repository. The download scripts fetch them from the
 Hugging Face sources recorded in the machine-local
@@ -129,18 +152,27 @@ open http://127.0.0.1:3000             # the chat front door
 
 ./scripts/qwen-b acquire --owner my-job   # lease the elastic worker
 ./scripts/qwen-b release --owner my-job   # give it back; stops after the idle TTL
+
+./scripts/fish status --admission      # the speech service, and what a start would decide
+./scripts/fish start                   # the same controller Voice Studio uses
+./scripts/fish stop
+open http://127.0.0.1:8765/voice       # Voice Studio
 ```
 
 Day to day, the Newton AI Control app in the Dock does the same: Start Chat,
-Start, Stop and Restart the model, and pick which model to run.
+Start, Stop and Restart the model, pick which model to run, and start, stop
+and use the speech model in Voice Studio.
 
 ## Tests and proving
 
-- `tests/`: 131 hermetic unit tests (`python3 -m unittest discover -s tests`).
+- `tests/`: 210 hermetic unit tests (`python3 -m unittest discover -s tests`).
 - `scripts/test-model-registry.py` and `scripts/test-qwenctl-logic.py`:
   fixture suites for the registry and the controller; no real process starts.
 - `scripts/prove-*.py` / `prove-*.sh`: live proving against the real launchd
   jobs and engines. Their outputs are the evidence in `benchmarks/`.
+  `prove-fish-policy.py` drives the shared resource policy through real
+  launchd jobs with fake engines; `prove-fish-adapter.py` checks the speech
+  adapter against the model's own generation, on the real model.
 
 ## Documentation
 
@@ -161,6 +193,11 @@ Start, Stop and Restart the model, and pick which model to run.
 | [12 Completion enforcement](docs/12-completion-enforcement.md) | Durable task ledger and tool receipts |
 | [13](docs/13-architecture-repair.md), [14](docs/14-tool-recovery.md), [15](docs/15-remediation-verification.md) | Verification of the September fixes |
 | [16 Start supervision](docs/16-start-supervision.md) | The 2026-10-12 stuck start: incident, fixes, tests |
+| [17 Speech plan](docs/17-fish-voice-plan.md) | Audit and plan for the Fish speech service and Voice Studio |
+| [18 Speech runbook](docs/18-fish-voice-studio.md) | Fish and Voice Studio: install, operation, resource policy, recording guidance, private data, security, licence, rollback |
+| [19 Speech completion record](docs/19-fish-completion-record.md) | Provenance, measurements, verification, and what awaits the operator |
+| [20 Voice gateway](docs/20-voice-gateway-architecture.md) | Specification only: a future telephone assistant |
+| [21 Calendar](docs/21-ghl-calendar-requirements.md) | Requirements only: a future calendar integration |
 | [`models/*/MANIFEST.md`](models/) | Per-model sizes, hashes, metadata, engine requirements |
 
 ## Repository layout
@@ -173,6 +210,8 @@ docs/         documentation             tests/        unit tests
 integrations/ Hermes patch + runtime hooks
 ```
 
-Not in the repository: model weights, the llama.cpp clone and Python venvs
-(rebuilt by the scripts), runtime logs and state, all credentials, and
-everything the assistant owns privately (`~/.hermes/`, `~/.open-webui/`).
+Not in the repository: model weights, the llama.cpp clone, the speech
+runtime's source and Python venvs (rebuilt by the scripts), runtime logs and
+state, all credentials, everything the assistant owns privately
+(`~/.hermes/`, `~/.open-webui/`), and the operator's voice recordings,
+transcripts and takes (`~/Library/Application Support/Newton_Local/voice-studio/`).
