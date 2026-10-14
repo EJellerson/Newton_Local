@@ -14,6 +14,9 @@ token-protected loopback API for speech):
                rate, peak model memory, engine CPU time, defect flags; for
                progressive delivery, whether audio arrives fast enough to
                play without gaps once playback starts
+  worst case   with --worst-case: the longest chunk the limits allow (one
+               chunk run to the 600-frame cap), delivered whole and
+               progressively: peak model memory and Metal allocation
   contention   with --qwen-probe and a Qwen model ALREADY running on :8080
                (this script never starts or stops Qwen): Qwen time to first
                token and decode rate alone and while Fish generates
@@ -25,8 +28,8 @@ benchmarks/fish/bench-<time>.json: test text, settings, seeds, revisions,
 machine state and timings; never audio.
 
 USAGE
-    scripts/bench-fish.py [--config PATH] [--reps N] [--cold] [--qwen-probe]
-                          [--leave-running] [--out FILE]
+    scripts/bench-fish.py [--config PATH] [--reps N] [--cold] [--worst-case]
+                          [--qwen-probe] [--leave-running] [--out FILE]
 """
 import argparse
 import ctypes
@@ -334,6 +337,8 @@ def main():
     ap.add_argument("--cold", action="store_true", help="measure a start with the model files "
                                                         "evicted from the page cache")
     ap.add_argument("--warm-starts", type=int, default=3)
+    ap.add_argument("--worst-case", action="store_true",
+                    help="also run one chunk to the frame cap, whole and progressive")
     ap.add_argument("--qwen-probe", action="store_true")
     ap.add_argument("--leave-running", action="store_true")
     ap.add_argument("--out", default=None)
@@ -450,6 +455,24 @@ def main():
     report["determinism"] = {"medium_whole_take_seed_1000_twice":
                              rr.get("audio_sha256") == runs[0].get("audio_sha256")}
     report["speech"] = speech
+
+    # ---- worst case: one chunk to the frame cap (the most memory a take needs)
+    if a.worst_case:
+        cap = int(m["limits"]["max_frames_per_chunk"])
+        worst = {"text": CASES[4][1], "settings": dict(base, seed=7, single_chunk=True,
+                                                       max_frames_per_chunk=cap)}
+        for label, prog in (("not_progressive", False), ("progressive", True)):
+            r = run_job(fish, worst["text"], refs, worst["settings"], prog, pid)
+            worst[label] = {k: r.get(k) for k in (
+                "state", "frames", "audio_seconds", "synthesis_s", "first_frame_s",
+                "first_audio_s", "client_first_audio_s", "realtime_factor", "peak_gib",
+                "peak_gpu_alloc_gib", "playback_stalls", "flags", "audio_sha256")}
+            worst[label]["chunk_frames"] = [c["frames"] for c in r.get("chunks") or []]
+            print(f"  worst case ({label}): {r.get('frames')} frames, peak model memory "
+                  f"{r.get('peak_gib')} GiB, Metal {r.get('peak_gpu_alloc_gib')} GiB")
+        worst["same_audio_either_way"] = (worst["not_progressive"].get("audio_sha256")
+                                          == worst["progressive"].get("audio_sha256"))
+        report["worst_case"] = worst
 
     # ---- contention (Qwen must already be running; never started here)
     if a.qwen_probe:
