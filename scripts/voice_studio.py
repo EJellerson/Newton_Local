@@ -91,6 +91,7 @@ MAX_SESSIONS = 16
 GENERATIONS_KEPT = 32
 POLL_S = 0.2
 STATUS_TTL_S = 4.0
+ADMISSION_TTL_S = 15.0                   # the policy view costs ~0.7 s of CPU; refresh it less
 WATCHDOG_PERIOD_S = 15
 RECOVERY_BACKOFF_S = [0, 60, 180]
 RECOVERY_MAX_ATTEMPTS = 3
@@ -779,7 +780,7 @@ class Studio:
         self.ingest_lock = threading.BoundedSemaphore(1)
         self.ops = FishOps(self)
         self.gens = Generations(self)
-        self._status = {"ts": 0.0, "value": None, "busy": False}
+        self._status = {"ts": 0.0, "value": None, "busy": False, "adm_ts": 0.0}
         self._status_lock = threading.Lock()
         self._usage = {"ts": 0.0, "bytes": None}
         self._stop = threading.Event()
@@ -828,6 +829,7 @@ class Studio:
     def invalidate_status(self):
         with self._status_lock:
             self._status["ts"] = 0.0
+            self._status["adm_ts"] = 0.0
 
     def fish_status(self, wait=False):
         """fishctl status --admission, cached for a few seconds. A refresh runs
@@ -850,15 +852,29 @@ class Studio:
             return self._status["value"]
 
     def _refresh_status(self):
+        """Lifecycle state every few seconds; the shared-policy view (what
+        else is running, would a start be admitted) every ADMISSION_TTL_S or
+        right after an operation. A start always decides afresh anyway."""
+        with self._status_lock:
+            full = now() - self._status["adm_ts"] >= ADMISSION_TTL_S
+            prev = self._status["value"] or {}
         try:
-            rc, out, err = self.fishctl("status", "--admission", timeout=45)
+            rc, out, err = self.fishctl("status", *(("--admission",) if full else ()), timeout=45)
             v = parse_json(out) if rc == 0 else None
             if v is None:
                 v = {"error": tail_line(err or out) or f"fishctl status exit {rc}"}
+            elif not full:
+                for k in ("policy", "policy_error"):
+                    if k in prev:
+                        v[k] = prev[k]
+                if "admission" in prev and v.get("state") == "STOPPED":
+                    v["admission"] = prev["admission"]
         except Exception as e:
             v = {"error": type(e).__name__}
         with self._status_lock:
             self._status.update(ts=now(), value=v, busy=False)
+            if full:
+                self._status["adm_ts"] = now()
 
     def summary(self):
         """The Fish service as Voice Studio and the main panel show it.

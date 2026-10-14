@@ -15,7 +15,7 @@ function h(tag, props, ...kids) {
     else if (v === true) e.setAttribute(k, "");
     else e.setAttribute(k, String(v));
   }
-  for (const c of kids.flat()) {
+  for (const c of kids.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;
     e.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
@@ -190,6 +190,7 @@ async function pollFish() {
     const j = await r.json();
     renderFish(j.fish || {});
     if (j.fish && j.fish.operation) next = 1000;
+    else if (document.hidden) next = 15000;            // tab in the background: poll gently
   } catch (e) {
     renderFish({ available: false, state: "Unknown", error: "Newton AI Control is not answering — retrying…" });
   }
@@ -928,7 +929,8 @@ function takeNode(t) {
     const refs = (t.references || []).map((r) => r.id);
     generate({ profile_id: t.profile.id, reference_ids: refs, text: t.text,
                settings: Object.assign({}, t.settings, { seed: t.seed }), count: 1,
-               progressive: false, regenerated_from: t.id });
+               // the same decoding path as the original, so the replay is bit-identical
+               progressive: !!(t.result && t.result.progressive), regenerated_from: t.id });
     $("card-gen").scrollIntoView({ behavior: "smooth" });
   };
   const reuse = () => {

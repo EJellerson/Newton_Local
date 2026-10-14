@@ -569,6 +569,29 @@ class OpsTests(unittest.TestCase):
         self.assertIn(("stop", "--by", "watchdog:gave-up"), self.ctl.calls)
         self.assertIn("automatic restarts failed", self.studio.ops.last["message"])
 
+    def test_policy_view_is_refreshed_less_often_and_after_operations(self):
+        def status(verb, extra):
+            st = {"state": "STOPPED", "observed_state": "DOWN", "health": {"ok": False},
+                  "desired": {"desired": "STOPPED", "record": None}}
+            if "--admission" in extra:
+                st.update(policy={"qwen": []}, admission={"ok": True, "message": "fits"})
+            return (0, json.dumps(st), "")
+        self.ctl.answers["status"] = status
+        clock = [1000.0]
+        with mock.patch.object(vst, "now", lambda: clock[0]):
+            self.studio.fish_status(wait=True)
+            for _ in range(2):
+                clock[0] += vst.STATUS_TTL_S + 0.1
+                self.studio._refresh_status()
+            v = self.studio.fish_status()
+            self.assertEqual(v["admission"]["message"], "fits")        # carried over
+            self.assertIn("policy", v)
+            self.studio.invalidate_status()                              # after an operation
+            clock[0] += 0.1
+            self.studio._refresh_status()
+        flags = [("--admission" in c) for c in self.ctl.calls if c[0] == "status"]
+        self.assertEqual(flags, [True, False, False, True])
+
     def test_watchdog_resets_after_recovery(self):
         self.ctl.answers["status"] = self._status()
         self.ctl.answers["start"] = (0, "{}", "")
