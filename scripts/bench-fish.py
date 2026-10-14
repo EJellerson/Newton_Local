@@ -103,12 +103,19 @@ def memory_state():
     c, t = nm.vm_counts(), nm.host_memory_bytes()
     g = rp.gpu_allocation_bytes()
     return {"free_for_models_gib": round(nm.engine_available_bytes(t, c) / GIB, 2) if c else None,
-            "pages_free_gib": round(c.get("free", 0) * 16384 / GIB, 2) if c else None,
+            "pages_free_gib": pages_free_gib(),
             "gpu_alloc_gib": round(g / GIB, 2) if g else None, "pressure": rp.pressure_level(),
-            "swap_used": swap_used()}
+            "swap_used_mib": swap_used_mib()}
 
 
-def swap_used():
+def pages_free_gib():
+    _, out, _ = sh(["vm_stat"])
+    size = re.search(r"page size of (\d+) bytes", out)
+    free = re.search(r"^Pages free:\s+(\d+)", out, re.M)
+    return round(int(free.group(1)) * int(size.group(1)) / GIB, 2) if size and free else None
+
+
+def swap_used_mib():
     _, out, _ = sh(["sysctl", "-n", "vm.swapusage"])
     m = re.search(r"used = ([\d.]+)M", out)
     return float(m.group(1)) if m else None
